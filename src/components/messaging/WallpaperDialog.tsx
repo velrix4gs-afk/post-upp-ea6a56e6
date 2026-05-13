@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,9 +26,22 @@ const presetWallpapers = [
 
 export const WallpaperDialog = ({ chatId, open, onOpenChange }: WallpaperDialogProps) => {
   const { user } = useAuth();
-  const { setWallpaper } = useChatSettings(chatId);
+  const { settings, setWallpaper } = useChatSettings(chatId);
   const [uploading, setUploading] = useState(false);
   const [selectedWallpaper, setSelectedWallpaper] = useState('default');
+
+  // Reflect the persisted wallpaper for this chat whenever the dialog opens
+  useEffect(() => {
+    if (!open) return;
+    const current = settings?.wallpaper_url;
+    if (!current) {
+      setSelectedWallpaper('default');
+    } else if (presetWallpapers.some((w) => w.id === current)) {
+      setSelectedWallpaper(current);
+    } else {
+      setSelectedWallpaper('custom');
+    }
+  }, [open, settings?.wallpaper_url]);
 
   const handlePresetSelect = async (wallpaper: typeof presetWallpapers[0]) => {
     setSelectedWallpaper(wallpaper.id);

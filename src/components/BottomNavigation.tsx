@@ -6,6 +6,17 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import CreatePostSimple from './CreatePostSimple';
 import { cn } from '@/lib/utils';
 
+// Lazy module preloaders for instant route switches on hover/touch
+const ROUTE_PRELOADERS: Record<string, () => Promise<unknown>> = {
+  '/search': () => import('@/pages/SearchPage'),
+  '/reels': () => import('@/pages/ReelsPage'),
+  '/feed': () => import('@/pages/Feed'),
+};
+const preloadRoute = (path: string) => {
+  const key = Object.keys(ROUTE_PRELOADERS).find((k) => path.startsWith(k));
+  if (key) ROUTE_PRELOADERS[key]().catch(() => {});
+};
+
 export const BottomNavigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -142,6 +153,8 @@ export const BottomNavigation = () => {
                     navigate(item.path);
                   }
                 }}
+                onMouseEnter={() => item.path && preloadRoute(item.path)}
+                onTouchStart={() => item.path && preloadRoute(item.path)}
                 className="flex flex-col items-center gap-0.5 transition-all duration-200 tap-scale"
               >
                 <div
