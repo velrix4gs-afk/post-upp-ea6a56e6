@@ -187,15 +187,29 @@ serve(async (req) => {
       }
 
       const { data: messages, error } = await supabaseClient
+        .from('chat_participants')
+        .select('user_id')
+        .eq('chat_id', parsed.data.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      if (!messages) {
+        return new Response(JSON.stringify({ error: 'Not a participant in this chat' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: messagesData, error: msgErr } = await supabaseClient
         .from('messages')
         .select(`*, sender:sender_id (username, display_name, avatar_url), reply_to_message:reply_to (id, content, sender:sender_id (display_name))`)
         .eq('chat_id', parsed.data.chat_id)
         .order('created_at', { ascending: true })
         .limit(100);
 
-      if (error) throw error;
+      if (msgErr) throw msgErr;
 
-      return new Response(JSON.stringify(messages || []), {
+      return new Response(JSON.stringify(messagesData || []), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -434,6 +448,21 @@ serve(async (req) => {
         .eq('id', parsed.data.messageId)
         .single();
       if (fetchError) throw fetchError;
+
+      // Verify caller is a participant in every target chat
+      const { data: memberships, error: memErr } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user.id)
+        .in('chat_id', parsed.data.toChatIds);
+      if (memErr) throw memErr;
+      const allowed = new Set((memberships || []).map((m: any) => m.chat_id));
+      const unauthorized = parsed.data.toChatIds.filter((id) => !allowed.has(id));
+      if (unauthorized.length > 0) {
+        return new Response(JSON.stringify({ error: 'Not a participant in one or more target chats', unauthorized }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       const forwardedMessages = parsed.data.toChatIds.map((chatId) => ({
         chat_id: chatId,

@@ -167,6 +167,20 @@ serve(async (req) => {
 
     // Fetch messages
     if (body.chat_id && !action) {
+      const { data: membership, error: memErr } = await supabaseClient
+        .from('chat_participants')
+        .select('user_id')
+        .eq('chat_id', body.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (memErr) throw memErr;
+      if (!membership) {
+        return new Response(JSON.stringify({ error: 'Not a participant in this chat' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const { data: messages, error } = await supabaseClient
         .from('messages')
         .select(`
@@ -392,7 +406,29 @@ serve(async (req) => {
 
       if (fetchError) throw fetchError;
 
-      const forwardedMessages = body.toChatIds.map((chatId: string) => ({
+      const toChatIds: string[] = Array.isArray(body.toChatIds) ? body.toChatIds : [];
+      if (toChatIds.length === 0) {
+        return new Response(JSON.stringify({ error: 'No target chats provided' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Verify caller is a participant in every target chat
+      const { data: memberships, error: memErr } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user.id)
+        .in('chat_id', toChatIds);
+      if (memErr) throw memErr;
+      const allowed = new Set((memberships || []).map((m: any) => m.chat_id));
+      const unauthorized = toChatIds.filter((id) => !allowed.has(id));
+      if (unauthorized.length > 0) {
+        return new Response(JSON.stringify({ error: 'Not a participant in one or more target chats', unauthorized }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const forwardedMessages = toChatIds.map((chatId: string) => ({
         chat_id: chatId,
         sender_id: user.id,
         content: originalMessage.content,
