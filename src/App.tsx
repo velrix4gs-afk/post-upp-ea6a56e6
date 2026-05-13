@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { initNetworkMonitor } from "@/lib/networkMonitor";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { useAppearanceSync } from "@/hooks/useAppearanceSync";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -162,6 +163,9 @@ const AuthenticatedFeatures = () => {
   
   // Always run offline sync for queued actions
   useOfflineSync();
+
+  // Apply saved appearance prefs (theme/font/layout/accent) globally
+  useAppearanceSync();
   
   // Prefetch secondary pages in background
   usePagePrefetch();
