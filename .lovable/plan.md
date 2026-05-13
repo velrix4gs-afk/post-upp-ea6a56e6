@@ -1,66 +1,75 @@
-# Fix: Messages page flickering + extra bottom border
+## Findings from the UI/UX scan
 
-## Root cause of the flicker (confirmed from console logs)
+1. **Messages page bottom gap**
+  - `src/index.css` applies mobile bottom padding to every `<main>` globally.
+  - The messages page hides the bottom nav, but still receives that padding, creating the huge empty gap at the bottom.
+2. **Messages page flicker/reloading risk**
+  - `MessagesPage.tsx` still mounts `useFriends()` even though the returned `friends` value is unused.
+  - Current console logs show repeated `[FRIEND_001] Failed to load friendships` Edge Function errors, which can contribute to visible instability on messaging surfaces.
+  - `useMessages()` also toggles `chatsLoading` during background refreshes, so cached chats can briefly be replaced by loading skeletons.
+3. **Settings not remembering theme/size globally**
+  - Font size, layout mode, and accent color are only loaded when `SettingsPage` mounts.
+  - Other pages like Feed/Messages do not apply saved `user_settings` after reload unless the user visits Settings first.
+  - Theme uses localStorage only even though `user_settings.theme_preference` already exists.
+4. **Chat list borders / bottom border polish**
+  - Message list, AI pinned row, input area, and global mobile padding are creating inconsistent visual separation.
+  - The final layout should use one clear divider where needed, not stacked borders or phantom bottom spacing.
+5. **In-chat wallpaper presets issue**
+  - Preset wallpapers currently save ids like `blue`, `green`, `purple` into `wallpaper_url`, but the chat view treats `wallpaper_url` as an actual CSS image URL.
+  - This can cause broken background rendering for preset wallpapers.
 
-The console shows `get_chat_list` being called dozens of times per second. This is a classic React infinite-render loop, caused by **`MessagesPage.tsx` lines 145–152**:
+## Fix plan
 
-```tsx
-useEffect(() => {
-  if (user) {
-    refetchChats();
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }
-}, [user, refetchChats]);
-```
+### 1. Remove the messages bottom gap without touching navigation behavior
 
-`refetchChats` comes from `useMessages` (line 871 of `useMessages.ts`) and is a **plain inline function** that gets a new reference on every render. So:
+- Add an explicit no-bottom-padding override to the messages page `<main>`.
+- Keep bottom nav behavior unchanged for Feed/Reels.
+- Keep the chat page full-height using `100dvh` so the input stays flush to the bottom.
 
-1. Effect runs → calls `refetchChats()`
-2. `fetchChats` resolves → `setChats(...)` → re-render
-3. New `refetchChats` reference → effect runs again
-4. Loop forever → flicker, never settles, list never stably renders
+### 2. Stop messaging flicker and redundant reloads
 
-`useMessages` already does its own initial fetch in its own `useEffect([user])` (line 102), so this extra effect in the page is **redundant** anyway.
+- Remove the unused `useFriends()` import/call from `MessagesPage.tsx`; `NewChatDialog` already loads eligible mutual followers through `useFollowers()`.
+- Update `useMessages()` loading behavior so:
+  - cached chats render immediately,
+  - background refreshes do not force the skeleton loader over existing chats,
+  - effects depend on stable `user?.id` instead of the full user object where possible.
+- Keep existing Supabase functions, RPCs, realtime subscriptions, cache, and offline behavior intact.
 
-## Fix #1 — Remove the redundant effect (one-line block delete)
+### 3. Make appearance settings persist everywhere
 
-In `src/pages/MessagesPage.tsx` lines 144–152, delete the whole `// Initial fetch & notifications` effect. The hook already fetches on mount when `user` becomes available. Move the notification permission request into a separate effect with an empty dep array so it runs once:
+- Add a small app-level appearance sync hook/component that loads existing `user_settings` fields:
+  - `theme_preference`
+  - `font_size`
+  - `layout_mode`
+  - `accent_color`
+- Apply these to `document.documentElement` on app startup, not only inside Settings.
+- Update Settings theme changes to save `theme_preference` using the existing `user_settings` table.
+- Keep localStorage as immediate fallback so preferences apply quickly before Supabase responds.
 
-```tsx
-// Request notification permission once on mount
-useEffect(() => {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
-  }
-}, []);
-```
+### 4. Clean up borders on message list and in-chat input
 
-That alone stops the loop.
+- Keep one intentional separator between major areas:
+  - chat header bottom divider,
+  - chat input top divider,
+  - list row dividers only where visually needed.
+- Remove/override duplicate bottom spacing and phantom borders caused by global layout padding.
 
-## Fix #2 — Bottom border / extra space
+### 5. Fix chat wallpaper presets safely
 
-The "extra border at the bottom" is the bottom border on the **last `ChatListItem`**. Every `ChatListItem` row applies `border-b border-border/30` (see `src/components/messaging/ChatListItem.tsx` line ~145), so the final row in the list shows a hairline border with no row beneath it. Combined with `BottomNavigation` floating above, it reads as a stray line.
+- Keep custom uploaded image URLs working exactly as-is.
+- Map preset wallpaper ids to CSS classes/background styles before applying them in chat view, instead of treating preset ids as image URLs.
+- No schema changes.
 
-Fix by making the row's bottom border conditional via Tailwind's `last:border-b-0` utility:
+### 6. Verification after implementation
 
-```tsx
-// ChatListItem.tsx — in the className for the swiping row div
-'border-b border-border/30 last:border-b-0'
-```
+- Test `/messages` on mobile width for:
+  - no bottom gap,
+  - no repeated skeleton flicker when chats already exist,
+  - smooth transition into a chat,
+  - input anchored correctly with one border.
+- Test Settings → Appearance:
+  - theme persists after reload,
+  - font size/layout/accent apply on Feed and Messages without visiting Settings again.
 
-This removes the trailing border on the final item without changing any other behavior.
-
-## Files to edit
-
-- `src/pages/MessagesPage.tsx` — replace lines 144–152 (remove `refetchChats` from deps; split notification permission into its own one-shot effect).
-- `src/components/messaging/ChatListItem.tsx` — append `last:border-b-0` to the row's className list.
-
-## What stays intact
-
-- All Supabase calls, RPCs, realtime subscriptions
-- The `useMessages` hook itself (no changes there)
-- All chat features, dialogs, animations, layout
-- No DB schema changes
-- No UUIDs touched
+Note: the browser preview currently showed the login screen, so final visual verification of private chat data will require the preview to be logged in.  
+Note: user wants apple grade animations for all pages and apple grade design just keeping it all simple

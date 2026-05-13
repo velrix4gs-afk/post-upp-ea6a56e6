@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
-import { useFriends } from '@/hooks/useFriends';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { usePresence } from '@/hooks/usePresence';
 import { useLastSeen } from '@/hooks/useLastSeen';
@@ -51,6 +50,17 @@ import { useNavigate } from 'react-router-dom';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups';
 
+// Preset wallpaper id → Tailwind class. Anything else is treated as an image URL.
+const WALLPAPER_PRESETS: Record<string, string> = {
+  default: '',
+  blue: 'bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950 dark:to-blue-900',
+  green: 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-950 dark:to-green-900',
+  purple: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950 dark:to-purple-900',
+  pink: 'bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-950 dark:to-pink-900',
+  orange: 'bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-950 dark:to-orange-900',
+};
+const isWallpaperUrl = (v?: string) => !!v && /^(https?:|\/|data:)/i.test(v);
+
 const MessagesPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -62,7 +72,6 @@ const MessagesPage = () => {
     reactToMessage, unreactToMessage, starMessage, unstarMessage, forwardMessage,
     createChat: createChatByUuid, refetchChats, refetchMessages,
   } = useMessages(selectedChatId || undefined);
-  const { friends } = useFriends();
   const { handleTyping } = useTypingIndicator(selectedChatId || undefined);
   const { isUserOnline } = usePresence(selectedChatId || undefined);
   const selectedChat = chats.find((c) => c.id === selectedChatId);
@@ -643,9 +652,14 @@ const MessagesPage = () => {
         {/* Messages area */}
         <div
           ref={messagesContainerRef}
-          className={cn('flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative', !chatSettings?.wallpaper_url && 'chat-wallpaper')}
+          className={cn(
+            'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative',
+            !chatSettings?.wallpaper_url && 'chat-wallpaper',
+            chatSettings?.wallpaper_url && !isWallpaperUrl(chatSettings.wallpaper_url) &&
+              (WALLPAPER_PRESETS[chatSettings.wallpaper_url] || '')
+          )}
           style={
-            chatSettings?.wallpaper_url
+            chatSettings?.wallpaper_url && isWallpaperUrl(chatSettings.wallpaper_url)
               ? {
                   backgroundImage: `url(${chatSettings.wallpaper_url})`,
                   backgroundSize: 'cover',
@@ -821,7 +835,7 @@ const MessagesPage = () => {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
       <Navigation />
-      <main className="flex-1 min-h-0 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden no-bottom-pad" data-no-bottom-pad="true">
         <div className="h-full flex flex-row overflow-hidden">
           {/* List pane */}
           <div className={cn('w-full md:w-80 lg:w-96 md:border-r border-border/40 flex-shrink-0', (selectedChatId || showAIChat) ? 'hidden md:block' : 'block')}>

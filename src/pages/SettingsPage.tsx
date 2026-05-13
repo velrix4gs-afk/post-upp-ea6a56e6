@@ -155,6 +155,9 @@ const SettingsPage = () => {
     document.documentElement.setAttribute('data-font-size', fontSize);
     document.documentElement.setAttribute('data-layout', layoutMode);
     document.documentElement.setAttribute('data-accent', accentColor);
+    localStorage.setItem('app_font_size', fontSize);
+    localStorage.setItem('app_layout_mode', layoutMode);
+    localStorage.setItem('app_accent_color', accentColor);
   }, [fontSize, layoutMode, accentColor]);
 
   const handleSettingUpdate = async (updates: any) => {
@@ -751,7 +754,10 @@ const SettingsPage = () => {
                       <Label className="text-base">Theme</Label>
                       <p className="text-sm text-muted-foreground">Choose light, dark, or auto</p>
                     </div>
-                    <Select value={theme} onValueChange={(value: any) => setTheme(value)}>
+                    <Select value={theme} onValueChange={(value: any) => {
+                      setTheme(value);
+                      handleSettingUpdate({ theme_preference: value });
+                    }}>
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
