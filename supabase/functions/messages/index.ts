@@ -449,6 +449,21 @@ serve(async (req) => {
         .single();
       if (fetchError) throw fetchError;
 
+      // Verify caller is a participant in every target chat
+      const { data: memberships, error: memErr } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('user_id', user.id)
+        .in('chat_id', parsed.data.toChatIds);
+      if (memErr) throw memErr;
+      const allowed = new Set((memberships || []).map((m: any) => m.chat_id));
+      const unauthorized = parsed.data.toChatIds.filter((id) => !allowed.has(id));
+      if (unauthorized.length > 0) {
+        return new Response(JSON.stringify({ error: 'Not a participant in one or more target chats', unauthorized }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const forwardedMessages = parsed.data.toChatIds.map((chatId) => ({
         chat_id: chatId,
         sender_id: user.id,
