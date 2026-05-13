@@ -261,7 +261,10 @@ export const useMessages = (chatId?: string) => {
     try {
       // Only show the skeleton on the very first load. Background refreshes
       // (realtime, manual refetch) keep the existing list visible to avoid flicker.
-      setChatsLoading((prev) => (chats.length === 0 ? true : prev));
+      setChats((prev) => {
+        if (prev.length === 0) setChatsLoading(true);
+        return prev;
+      });
       console.log('[useMessages] Fetching chats via get_chat_list RPC');
       
       // Use the optimized RPC that returns everything in one query
