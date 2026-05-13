@@ -751,8 +751,10 @@ const SettingsPage = () => {
                       <Label className="text-base">Theme</Label>
                       <p className="text-sm text-muted-foreground">Choose light, dark, or auto</p>
                     </div>
-                    <Select value={theme} onValueChange={(value: any) => setTheme(value)}>
-                    {/* Persist theme to user_settings so it follows the user across devices */}
+                    <Select value={theme} onValueChange={(value: any) => {
+                      setTheme(value);
+                      handleSettingUpdate({ theme_preference: value });
+                    }}>
                       <SelectTrigger className="w-32">
                         <SelectValue />
                       </SelectTrigger>
