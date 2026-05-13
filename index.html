@@ -29,6 +29,30 @@
 
   <body>
     <div id="root"></div>
+    <script>
+      // Anti-flash: apply saved appearance synchronously before React paints.
+      (function () {
+        try {
+          var root = document.documentElement;
+          var theme = localStorage.getItem('theme') || 'system';
+          var resolved = theme;
+          if (theme === 'system') {
+            resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          root.classList.remove('light', 'dark');
+          if (resolved === 'light' || resolved === 'dark') root.classList.add(resolved);
+
+          var fontSize = localStorage.getItem('app_font_size') || 'medium';
+          var layout = localStorage.getItem('app_layout_mode') || 'spacious';
+          var accent = localStorage.getItem('app_accent_color') || 'blue';
+          var colorTheme = localStorage.getItem('colorTheme') || 'deep-teal';
+          root.setAttribute('data-font-size', fontSize);
+          root.setAttribute('data-layout', layout);
+          root.setAttribute('data-accent', accent);
+          root.setAttribute('data-color-theme', colorTheme);
+        } catch (e) { /* no-op */ }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
