@@ -720,6 +720,11 @@ All colors MUST be HSL.
   main {
     padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0));
   }
+  /* Messaging surfaces are full-height and manage their own bottom spacing */
+  main.no-bottom-pad,
+  main[data-no-bottom-pad="true"] {
+    padding-bottom: 0 !important;
+  }
 }
 
 /* ===== App-wide Animation Utilities ===== */
