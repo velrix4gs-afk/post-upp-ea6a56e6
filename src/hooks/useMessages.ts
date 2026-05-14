@@ -82,6 +82,7 @@ export const useMessages = (chatId?: string) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [messagesInitialLoaded, setMessagesInitialLoaded] = useState(false);
 
   const loadChatsFromCache = async () => {
     const cached = await CacheHelper.getChats();
@@ -141,6 +142,8 @@ export const useMessages = (chatId?: string) => {
 
   useEffect(() => {
     if (chatId) {
+      // Reset initial-loaded flag for the new chat so the page can re-anchor scroll
+      setMessagesInitialLoaded(false);
       // Load from cache first
       loadMessagesFromCache();
       fetchMessages();
@@ -414,11 +417,15 @@ export const useMessages = (chatId?: string) => {
         })
       );
 
-      setMessages(messagesWithProfiles);
+      // Sort safety net — newest at the bottom
+      const sorted = [...messagesWithProfiles].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      setMessages(sorted);
       
       // Cache messages
       if (chatId) {
-        await CacheHelper.saveMessages(chatId, messagesWithProfiles);
+        await CacheHelper.saveMessages(chatId, sorted);
       }
       
       console.log('[useMessages] Successfully loaded', messagesWithProfiles.length, 'messages');
@@ -431,6 +438,7 @@ export const useMessages = (chatId?: string) => {
       });
     } finally {
       setMessagesLoading(false);
+      setMessagesInitialLoaded(true);
     }
   };
 
@@ -886,6 +894,7 @@ export const useMessages = (chatId?: string) => {
     chats,
     chatsLoading,
     messagesLoading,
+    messagesInitialLoaded,
     sendMessage,
     editMessage,
     deleteMessage,

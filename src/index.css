@@ -773,9 +773,23 @@ All colors MUST be HSL.
 /* Scale tap for interactive elements */
 .tap-scale {
   transition: transform 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
+  -webkit-tap-highlight-color: transparent;
 }
 .tap-scale:active {
   transform: scale(0.95);
+}
+
+/* Promote messaging surfaces & lists to GPU layers for 120Hz-smooth scroll/swipe */
+.smooth-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+.animate-stagger > *,
+.animate-fade-up,
+.animate-slide-in-right {
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 /* Smooth page transitions */

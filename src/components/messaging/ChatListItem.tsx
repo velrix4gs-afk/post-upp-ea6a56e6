@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Pin, BellOff, CheckCheck, Check, Archive, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,6 +40,7 @@ const formatChatTime = (iso?: string): string => {
 };
 
 export const ChatListItem = ({
+  id,
   name,
   avatarUrl,
   lastMessage,
@@ -61,12 +62,27 @@ export const ChatListItem = ({
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
   const isSwiping = useRef(false);
+  const movedRef = useRef(false);
   const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+
+  // Close this row's swipe whenever any other row opens, the list scrolls,
+  // or a chat is selected. Dispatched from MessagesPage.
+  useEffect(() => {
+    const close = (e: Event) => {
+      const detail = (e as CustomEvent<{ exceptId?: string }>).detail;
+      if (detail?.exceptId && detail.exceptId === id) return;
+      setSwipeX(0);
+    };
+    window.addEventListener('chatlist:close-swipes', close as EventListener);
+    return () => window.removeEventListener('chatlist:close-swipes', close as EventListener);
+  }, [id]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
-    if (onLongPress) {
+    movedRef.current = false;
+    // Don't start long-press while swiped open
+    if (onLongPress && swipeX === 0) {
       longPressTimer.current = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(40);
         onLongPress();
@@ -80,12 +96,19 @@ export const ChatListItem = ({
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      movedRef.current = true;
       if (longPressTimer.current) {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
       }
     }
     if (Math.abs(dx) > Math.abs(dy) && dx < 0) {
+      if (!isSwiping.current) {
+        // Tell every other row to close as soon as this swipe begins
+        window.dispatchEvent(
+          new CustomEvent('chatlist:close-swipes', { detail: { exceptId: id } })
+        );
+      }
       isSwiping.current = true;
       setSwipeX(Math.max(dx, -160));
     }
@@ -98,12 +121,14 @@ export const ChatListItem = ({
     }
     if (isSwiping.current) {
       isSwiping.current = false;
-      // Snap open (-120) or closed (0)
+      // Snap open (-160) or closed (0)
       if (swipeX < -80) {
         setSwipeX(-160);
       } else {
         setSwipeX(0);
       }
+    } else if (!movedRef.current && swipeX !== 0) {
+      // Tap on an open row collapses it (handled in handleClick) — no-op here
     }
     startX.current = null;
     startY.current = null;

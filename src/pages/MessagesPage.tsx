@@ -37,6 +37,17 @@ import { DateSeparator } from '@/components/messaging/DateSeparator';
 import { ScrollToBottomFab } from '@/components/messaging/ScrollToBottomFab';
 import { PinnedMessageBanner } from '@/components/messaging/PinnedMessageBanner';
 import TypingIndicator from '@/components/TypingIndicator';
+import { ChatPreviewModal } from '@/components/messaging/ChatPreviewModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -68,7 +79,7 @@ const MessagesPage = () => {
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showAIChat, setShowAIChat] = useState(false);
   const {
-    chats, messages, chatsLoading, messagesLoading, sendMessage, editMessage, deleteMessage,
+    chats, messages, chatsLoading, messagesLoading, messagesInitialLoaded, sendMessage, editMessage, deleteMessage,
     reactToMessage, unreactToMessage, starMessage, unstarMessage, forwardMessage,
     createChat: createChatByUuid, refetchChats, refetchMessages,
   } = useMessages(selectedChatId || undefined);
@@ -126,6 +137,10 @@ const MessagesPage = () => {
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [pinnedChatIds, setPinnedChatIds] = useState<string[]>([]);
 
+  // Long-press preview + delete confirm
+  const [previewChatId, setPreviewChatId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
   // Track new messages for animation
   useEffect(() => {
     if (!messages || messages.length === 0) {
@@ -167,7 +182,7 @@ const MessagesPage = () => {
   // Auto-scroll behavior
   useEffect(() => {
     if (!messages.length) return;
-    if (isInitialLoadRef.current) {
+    if (isInitialLoadRef.current && messagesInitialLoaded) {
       isInitialLoadRef.current = false;
       const container = messagesContainerRef.current;
       if (container) {
@@ -191,7 +206,7 @@ const MessagesPage = () => {
         }
       }
     }
-  }, [messages, user?.id]);
+  }, [messages, user?.id, messagesInitialLoaded]);
 
   useEffect(() => {
     isInitialLoadRef.current = true;
@@ -226,6 +241,29 @@ const MessagesPage = () => {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Hard-delete the current user from a chat (removes it from their list).
+  const deleteChat = async (chatId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('chat_participants')
+        .delete()
+        .eq('chat_id', chatId)
+        .eq('user_id', user.id);
+      if (error) throw error;
+      if (selectedChatId === chatId) setSelectedChatId(null);
+      await refetchChats();
+      toast({ title: 'Chat deleted' });
+    } catch (err: any) {
+      console.error('[CHAT] Delete failed:', err);
+      toast({
+        title: 'Failed to delete chat',
+        description: err?.message || 'Please try again',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -486,11 +524,12 @@ const MessagesPage = () => {
       {/* AI Assistant pinned card */}
       <div
         onClick={() => {
+          window.dispatchEvent(new CustomEvent('chatlist:close-swipes'));
           setShowAIChat(true);
           setSelectedChatId(null);
         }}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 cursor-pointer tap-scale border-b border-border/30 transition-colors',
+          'flex items-center gap-3 px-3 py-2.5 cursor-pointer tap-scale transition-colors',
           showAIChat ? 'bg-primary/10' : 'hover:bg-muted/30'
         )}
       >
@@ -564,11 +603,13 @@ const MessagesPage = () => {
                   isGroup={chat.is_group}
                   isSelected={selectedChatId === chat.id}
                   onClick={() => {
+                    window.dispatchEvent(new CustomEvent('chatlist:close-swipes'));
                     setSelectedChatId(chat.id);
                     setShowAIChat(false);
                   }}
+                  onLongPress={() => setPreviewChatId(chat.id)}
                   onArchive={() => toast({ description: 'Archive coming soon' })}
-                  onDelete={() => toast({ description: 'Use chat menu to delete' })}
+                  onDelete={() => setDeleteTarget({ id: chat.id, name: name })}
                 />
               );
             })}
@@ -1048,6 +1089,55 @@ const MessagesPage = () => {
           }}
         />
       )}
+
+      {/* Long-press chat preview (does not mark as read) */}
+      {previewChatId && (() => {
+        const c = chats.find((x) => x.id === previewChatId);
+        if (!c) return null;
+        const otherP = c.participants.find((p) => p.user_id !== user?.id);
+        const previewName = c.name || otherP?.profiles.display_name || 'Chat';
+        const previewAvatar = c.avatar_url || otherP?.profiles.avatar_url;
+        return (
+          <ChatPreviewModal
+            open={!!previewChatId}
+            onClose={() => setPreviewChatId(null)}
+            chatId={previewChatId}
+            name={previewName}
+            avatarUrl={previewAvatar}
+            onOpenFull={() => {
+              setSelectedChatId(previewChatId);
+              setShowAIChat(false);
+            }}
+          />
+        );
+      })()}
+
+      {/* Swipe-to-delete confirm */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes "{deleteTarget?.name}" from your conversations. The other participant will still see the chat on their side.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deleteTarget) await deleteChat(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
