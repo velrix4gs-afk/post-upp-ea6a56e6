@@ -524,11 +524,12 @@ const MessagesPage = () => {
       {/* AI Assistant pinned card */}
       <div
         onClick={() => {
+          window.dispatchEvent(new CustomEvent('chatlist:close-swipes'));
           setShowAIChat(true);
           setSelectedChatId(null);
         }}
         className={cn(
-          'flex items-center gap-3 px-3 py-2.5 cursor-pointer tap-scale border-b border-border/30 transition-colors',
+          'flex items-center gap-3 px-3 py-2.5 cursor-pointer tap-scale transition-colors',
           showAIChat ? 'bg-primary/10' : 'hover:bg-muted/30'
         )}
       >
