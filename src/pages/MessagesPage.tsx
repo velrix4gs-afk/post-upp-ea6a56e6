@@ -1089,6 +1089,55 @@ const MessagesPage = () => {
           }}
         />
       )}
+
+      {/* Long-press chat preview (does not mark as read) */}
+      {previewChatId && (() => {
+        const c = chats.find((x) => x.id === previewChatId);
+        if (!c) return null;
+        const otherP = c.participants.find((p) => p.user_id !== user?.id);
+        const previewName = c.name || otherP?.profiles.display_name || 'Chat';
+        const previewAvatar = c.avatar_url || otherP?.profiles.avatar_url;
+        return (
+          <ChatPreviewModal
+            open={!!previewChatId}
+            onClose={() => setPreviewChatId(null)}
+            chatId={previewChatId}
+            name={previewName}
+            avatarUrl={previewAvatar}
+            onOpenFull={() => {
+              setSelectedChatId(previewChatId);
+              setShowAIChat(false);
+            }}
+          />
+        );
+      })()}
+
+      {/* Swipe-to-delete confirm */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes "{deleteTarget?.name}" from your conversations. The other participant will still see the chat on their side.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deleteTarget) await deleteChat(deleteTarget.id);
+                setDeleteTarget(null);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
