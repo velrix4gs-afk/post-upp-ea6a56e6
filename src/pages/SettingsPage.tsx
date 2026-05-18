@@ -932,8 +932,37 @@ const SettingsPage = () => {
                       <SelectContent>
                         <SelectItem value="compact">Compact</SelectItem>
                         <SelectItem value="spacious">Spacious</SelectItem>
+                        <SelectItem value="cinematic">Cinematic</SelectItem>
+                        <SelectItem value="quiet">Quiet</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label className="text-base">Liquid Glass (iOS 26)</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Aero glass skin with ambient backlight & spring motion
+                      </p>
+                    </div>
+                    <Switch
+                      checked={
+                        typeof window !== 'undefined' &&
+                        localStorage.getItem('app_skin') === 'liquid-glass'
+                      }
+                      onCheckedChange={(checked) => {
+                        const root = document.documentElement;
+                        if (checked) {
+                          localStorage.setItem('app_skin', 'liquid-glass');
+                          root.setAttribute('data-skin', 'liquid-glass');
+                          toast({ description: 'Liquid Glass enabled' });
+                        } else {
+                          localStorage.removeItem('app_skin');
+                          root.removeAttribute('data-skin');
+                          toast({ description: 'Liquid Glass disabled' });
+                        }
+                      }}
+                    />
                   </div>
                 </div>
               </div>

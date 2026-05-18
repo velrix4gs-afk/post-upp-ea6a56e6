@@ -50,6 +50,8 @@
           root.setAttribute('data-layout', layout);
           root.setAttribute('data-accent', accent);
           root.setAttribute('data-color-theme', colorTheme);
+          var skin = localStorage.getItem('app_skin') || '';
+          if (skin) root.setAttribute('data-skin', skin);
         } catch (e) { /* no-op */ }
       })();
     </script>

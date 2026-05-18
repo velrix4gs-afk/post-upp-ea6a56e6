@@ -922,3 +922,162 @@ All colors MUST be HSL.
   }
 }
 
+
+/* ============================================================
+   iOS 26 "Liquid Glass" — opt-in skin (data-skin="liquid-glass")
+   Activated globally only when <html data-skin="liquid-glass">.
+   Default users see zero visual change.
+   ============================================================ */
+
+:root {
+  --lg-spring: cubic-bezier(0.25, 1.15, 0.35, 1.15);
+  --lg-dampen: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --lg-collapse: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Ambient layer (mounted by LiquidGlassRoot) */
+.lg-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  contain: strict;
+}
+.lg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(110px) saturate(160%);
+  opacity: 0.55;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+.lg-blob-1 {
+  width: 55vmax; height: 55vmax;
+  top: -18vmax; left: -10vmax;
+  background: radial-gradient(circle, hsl(265 95% 60% / 0.55), transparent 60%);
+  animation: lg-pulse-a 22s ease-in-out infinite;
+}
+.lg-blob-2 {
+  width: 45vmax; height: 45vmax;
+  bottom: -15vmax; right: -12vmax;
+  background: radial-gradient(circle, hsl(195 95% 55% / 0.5), transparent 60%);
+  animation: lg-pulse-b 26s ease-in-out infinite;
+}
+.lg-blob-3 {
+  width: 38vmax; height: 38vmax;
+  top: 40%; left: 50%;
+  background: radial-gradient(circle, hsl(320 90% 60% / 0.35), transparent 65%);
+  animation: lg-pulse-c 30s ease-in-out infinite;
+}
+@keyframes lg-pulse-a {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  50%     { transform: translate3d(6vmax,4vmax,0) scale(1.08); }
+}
+@keyframes lg-pulse-b {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  50%     { transform: translate3d(-5vmax,-3vmax,0) scale(1.1); }
+}
+@keyframes lg-pulse-c {
+  0%,100% { transform: translate3d(-50%,-50%,0) scale(1); opacity: 0.35; }
+  50%     { transform: translate3d(-46%,-54%,0) scale(1.15); opacity: 0.5; }
+}
+
+/* Activate dark canvas + skin overrides */
+html[data-skin="liquid-glass"] {
+  background-color: hsl(222 47% 4%);
+}
+html[data-skin="liquid-glass"] body {
+  background-color: transparent;
+  color: hsl(210 40% 96%);
+  -webkit-font-smoothing: antialiased;
+}
+html[data-skin="liquid-glass"] #root {
+  position: relative;
+  z-index: 1;
+}
+
+/* Glass plate tiers */
+html[data-skin="liquid-glass"] .lg-plate,
+html[data-skin="liquid-glass"] header,
+html[data-skin="liquid-glass"] [data-radix-popper-content-wrapper] > * {
+  background: hsl(222 47% 8% / 0.55) !important;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border-color: hsl(0 0% 100% / 0.08) !important;
+}
+html[data-skin="liquid-glass"] .lg-plate-smoky {
+  background: hsl(222 47% 6% / 0.7) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+}
+html[data-skin="liquid-glass"] .lg-plate-clear {
+  background: hsl(0 0% 100% / 0.06) !important;
+  backdrop-filter: blur(16px) saturate(200%);
+  -webkit-backdrop-filter: blur(16px) saturate(200%);
+}
+
+/* Skin component reskins — additive, no JSX changes */
+html[data-skin="liquid-glass"] .bg-background\/80,
+html[data-skin="liquid-glass"] .bg-background\/90,
+html[data-skin="liquid-glass"] .bg-background\/95 {
+  background-color: hsl(222 47% 8% / 0.55) !important;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+}
+
+/* Cards become glass plates */
+html[data-skin="liquid-glass"] [class*="rounded-2xl"][class*="border"],
+html[data-skin="liquid-glass"] [class*="rounded-xl"][class*="border"] {
+  border-color: hsl(0 0% 100% / 0.06);
+}
+
+/* Spring transitions everywhere */
+html[data-skin="liquid-glass"] button,
+html[data-skin="liquid-glass"] a,
+html[data-skin="liquid-glass"] .lg-spring {
+  transition-timing-function: var(--lg-spring) !important;
+}
+
+/* Tap feedback */
+html[data-skin="liquid-glass"] button:active,
+html[data-skin="liquid-glass"] [role="button"]:active {
+  transform: scale(0.94);
+}
+
+/* Story avatar ring (conic gradient) */
+html[data-skin="liquid-glass"] .story-ring,
+html[data-skin="liquid-glass"] [class*="ring-primary"] {
+  background: conic-gradient(
+    from 180deg,
+    hsl(320 95% 60%),
+    hsl(265 95% 65%),
+    hsl(195 95% 60%),
+    hsl(320 95% 60%)
+  );
+}
+
+/* Hardware acceleration hint */
+html[data-skin="liquid-glass"] nav,
+html[data-skin="liquid-glass"] header,
+html[data-skin="liquid-glass"] [data-radix-scroll-area-viewport] {
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Extended layout modes (AI agent presets) */
+[data-layout="cinematic"] {
+  --spacing-multiplier: 1.35;
+}
+[data-layout="cinematic"] .p-4 { padding: 1.75rem; }
+[data-layout="cinematic"] img, [data-layout="cinematic"] video {
+  border-radius: 1.25rem;
+}
+
+[data-layout="quiet"] {
+  --spacing-multiplier: 1.1;
+}
+[data-layout="quiet"] body { filter: saturate(0.75); }
+[data-layout="quiet"] [class*="badge"],
+[data-layout="quiet"] .animate-pulse { opacity: 0; }

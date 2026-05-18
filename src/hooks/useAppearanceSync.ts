@@ -21,6 +21,9 @@ export const useAppearanceSync = () => {
     root.setAttribute('data-font-size', fontSize);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-accent', accent);
+    const skin = localStorage.getItem('app_skin') || '';
+    if (skin) root.setAttribute('data-skin', skin);
+    else root.removeAttribute('data-skin');
   }, []);
 
   // Sync from Supabase user_settings once authenticated
