@@ -78,24 +78,23 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if user exists in auth.users
-    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
-    
-    if (userError) {
-      console.error('Error checking user:', userError);
-      // Don't reveal if user exists or not for security
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'If an account exists with this email, a verification code will be sent.' 
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Targeted lookup — never download the entire user list.
+    let userExists = false;
+    try {
+      const { data: userData, error: userError } = await (supabase.auth.admin as any).listUsers({
+        filter: `email eq "${sanitizedEmail}"`,
+        perPage: 1,
+      });
+      if (userError) {
+        console.error('Error checking user (filter):', userError);
+      } else {
+        userExists = !!userData?.users?.some(
+          (u: { email?: string | null }) => u.email?.toLowerCase() === sanitizedEmail
+        );
+      }
+    } catch (e) {
+      console.error('listUsers filter unsupported, denying silently:', e);
     }
-
-    const userExists = userData.users.some(
-      (user) => user.email?.toLowerCase() === sanitizedEmail
-    );
 
     if (!userExists) {
       // Don't reveal that user doesn't exist - return same message
