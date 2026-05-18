@@ -1,120 +1,93 @@
-## Goal
 
-Fix 5 messaging/AI issues in one pass without changing data models or unrelated logic.
+# iOS 26 "Liquid Glass" — Apply to Post Up + Standalone Artifact
 
----
+Two deliverables in one pass: (1) layer the Liquid Glass visual language onto the live Post Up React app without breaking existing logic, and (2) generate a single-file HTML reference prototype at `/mnt/documents/liquid-glass-postup.html` you can download and revisit.
 
-### 1. Swipe-to-delete actually works (chat list)
+## 1. Standalone artifact (downloadable HTML)
 
-File: `src/components/messaging/ChatListItem.tsx`, wired in `src/pages/MessagesPage.tsx`.
+File: `/mnt/documents/liquid-glass-postup.html`
 
-Problems:
+Single self-contained file containing the full spec from the brief:
+- Tailwind CDN + Phosphor Icons CDN + system-font `@font-face` swap stack
+- Ambient dark canvas (`#020617`) with animated radial backlit blobs (blur ≥ 90px, infinite pulse)
+- SVG `<filter id="goo">` with `feGaussianBlur stdDeviation=6` + `feColorMatrix` alpha boost (matrix `0 0 0 18 -8`) for gooey metaball notifications, story bubble fusion, and tab indicator morph
+- Spring cubic-beziers exposed as CSS vars: `--spring: cubic-bezier(0.25,1.15,0.35,1.15)`, `--dampen: cubic-bezier(0.175,0.885,0.32,1.275)`, `--collapse: cubic-bezier(0.16,1,0.3,1)`
+- Three glass plate tiers (Standard / Smoky / Clear) as utility classes with `backdrop-filter: blur() saturate()` + thin borders
+- `will-change: transform, opacity` + `-webkit-overflow-scrolling: touch` on scroll viewports, tab bar, moving plates
+- Components: glass header w/ AI trigger, conic-gradient Vibe Ring story hub, feed cards, morphing bottom tab capsule (scroll-down collapse → scroll-up expand, JS-driven active dot morph), comments drawer (translate-y-full → 0 with drag handle + overlay tap close)
+- AI Agent core: command search bar that parses `compact|cinematic|quiet` queries, mutates a `data-mode` attribute on `<html>`, logs to a floating telemetry console, and emits micro-toasts
+- Like animation: scale+rotate spring, count in `k` format, toast notification
+- All animation via `transform` / `opacity` only — no layout thrash
 
-- `onDelete` in `MessagesPage` only shows a toast ("Use chat menu to delete") — swipe never deletes.
-- `onArchive` says "coming soon".
-- After a row is opened (`swipeX = -160`), there is no global way to close it; tapping another row leaves stale open state.
-- Long-press timer can race with the swipe gesture on slow finger drags.
+After writing, emit:
+```
+<presentation-artifact path="liquid-glass-postup.html" mime_type="text/html"></presentation-artifact>
+```
 
-Fix:
+## 2. Apply to the Post Up React app
 
-- In `MessagesPage.tsx`, replace the toast-only `onDelete` with a real handler that opens a confirm dialog, then calls a new `deleteChat(chatId)` helper that removes the user's `chat_participants` row (already RLS-allowed) and refetches via `refetchChats()`. Keep `onArchive` toast for now (no schema change requested), but make Archive close the row instead of doing nothing visible.
-- In `ChatListItem.tsx`:
-  - Add a small `useEffect` that listens for a custom `chatlist:close-swipes` event on `window` and calls `setSwipeX(0)`. Dispatch that event from `MessagesPage` whenever a row is opened, a chat is selected, or the list scrolls.
-  - In `handleTouchStart`, only start the long-press timer if `swipeX === 0` so it doesn't fire while the row is already swiped open.
-  - In `handleTouchEnd`, if the swipe never crossed the 10px movement threshold, do not call `setSwipeX` at all (prevents accidental snap-back jitter).
+Goal: introduce Liquid Glass as an **additive theming layer** — no business logic, routes, hooks, Supabase calls, or component structure touched. UI-only per project rules.
 
-### 2. Bottom borders on Messages list and in-chat view
+### 2a. Design tokens & primitives (`src/index.css`)
 
-Files: `src/pages/MessagesPage.tsx`, `src/index.css`.
+Add new CSS variables and utility classes scoped under a `data-skin="liquid-glass"` attribute on `<html>` so we can ship it without forcibly overriding existing themes:
 
-Problems:
+- `--lg-bg: 222 47% 4%` (slate base)
+- `--lg-spring`, `--lg-dampen`, `--lg-collapse` cubic-beziers
+- `.lg-plate`, `.lg-plate-smoky`, `.lg-plate-clear` — backdrop-filter glass tiers using semantic HSL tokens (no raw hex in components per design rules)
+- `.lg-ambient` — fixed full-viewport layer with two/three animated radial blobs using the existing accent token (`--primary`) + a secondary hue; `@keyframes lg-pulse` shifts hue/translate over 18s
+- `.lg-spring`, `.lg-dampen` transition helpers
+- `.lg-ring` — conic-gradient ring for story avatars (fuchsia → indigo → cyan via HSL)
+- `.lg-tap` — `active:scale-[0.92] transition-transform` with spring curve
+- Global `will-change` + `transform: translateZ(0)` on `.lg-accelerated`
+- Inline SVG `<filter id="lg-goo">` injected once via a tiny `LiquidGlassRoot` component
 
-- The chat list currently relies on per-row `border-b border-border/30 last:border-b-0`, which is fine, but the AI assistant pinned card adds another `border-b` directly above the list, so the first chat row gets a double divider.
-- In the chat view, the input section uses `border-t border-border/40` AND the messages container's wallpaper class adds its own visual line, producing a stacked border feel above the input.
-- `no-bottom-pad` override is present, but the chat view still inherits 1px from a parent `border-b` on `<main>` in some themes.
+### 2b. Theme activation
 
-Fix:
+- Extend `useAppearanceSync.ts` to read a new `app_skin` localStorage key (default unchanged) and set `data-skin` on `<html>`. Anti-flash script in `index.html` reads the same key before paint — same pattern already used for theme/font/layout/accent. No DB change; this is local-only.
+- Add a Settings → Appearance toggle "Liquid Glass (iOS 26)" in `src/pages/SettingsPage.tsx` that writes `app_skin` and updates the attribute. Default OFF so existing users see no change unless they opt in.
 
-- Remove the `border-b border-border/30` from the AI pinned card wrapper in `renderListView` (let the next `ChatListItem` own the divider).
-- In `renderChatView`, remove the duplicate top border on the wrapper around `TypingIndicator` + `ChatInput`. Keep only one `border-t border-border/40` on the outer input section, and drop any inner border on `ChatInput` form (`bg-card` only).
-- In `index.css`, ensure `main.no-bottom-pad`, `[data-no-bottom-pad="true"]` removes both `padding-bottom` AND any `border-bottom` so the chat surfaces sit flush.
+### 2c. Component skinning (additive class swaps only)
 
-### 3. Initial message scroll: show newest first, not the top
+When `data-skin="liquid-glass"` is active, CSS rules in `index.css` retheme these existing components without editing their JSX structure:
 
-File: `src/pages/MessagesPage.tsx` and `src/hooks/useMessages.ts`.
+- `BottomNavigation.tsx` capsule (`bg-background/80 backdrop-blur-lg border-border/30`) → glass plate styling, spring transition curve, scroll-collapse via existing `isVisible` state (already wired, just restyle)
+- `FeedTabs.tsx` sticky header → smoky glass plate + animated underline using spring curve
+- `Stories.tsx` avatar ring → conic-gradient ring via `[data-skin="liquid-glass"] .story-ring` selector
+- `Feed.tsx` post cards (`PostCardModern`) → standard glass plate background, hover lift with spring
+- Drawers / Dialogs (Radix) → smoky glass via `[data-skin="liquid-glass"] [data-radix-popper-content-wrapper]` + drawer content selectors
+- Toasts (sonner) → clear glass plate
+- App root: render `<div className="lg-ambient" aria-hidden />` once inside `App.tsx` (conditional on `data-skin`), z-index behind content
 
-Problem:
+All changes are restricted to `className` additions wrapped behind the `data-skin` selector. No JSX deletions. No state/logic edits. No new components beyond `LiquidGlassRoot` (filter SVG + ambient layer).
 
-- `loadMessagesFromCache` sets cached messages, the auto-scroll `useEffect` fires once with `isInitialLoadRef.current = true` and snaps to bottom. Then `fetchMessages` resolves and replaces `messages`, but `isInitialLoadRef.current` is now `false`, so the second render does NOT re-scroll. The user sees old cached top while the fresh list mounts above the viewport.
+### 2d. AI agent layout modes (optional, opt-in)
 
-Fix:
+Add three layout modes (`compact` / `cinematic` / `quiet`) wired through the existing `app_layout_mode` localStorage key already handled by `useAppearanceSync`. Extend `data-layout` CSS rules in `index.css` to cover the new values:
+- `[data-layout="compact"]` → tighter paddings, smaller radii, hidden hero media
+- `[data-layout="cinematic"]` → expanded media, richer gradients on cards
+- `[data-layout="quiet"]` → 75% opacity, desaturated, badges hidden
 
-- Track initial load until the FIRST network fetch resolves, not until the first render. In `useMessages.ts`, expose `messagesInitialLoaded: boolean` that flips to `true` only after `fetchMessages()` completes for the current `chatId`. Reset it to `false` whenever `chatId` changes.
-- In `MessagesPage.tsx`, set `isInitialLoadRef.current = true` whenever `selectedChatId` changes (already done) AND keep it `true` until `messagesInitialLoaded` is `true`. Then run the existing "scroll to first unread or bottom" logic exactly once on the merged list.
-- Sort safety net: in `fetchMessages`, keep `.order('created_at', { ascending: true })` (already correct) and after merging cache + network, sort by `created_at` ASC before `setMessages` to guarantee newest is at the bottom.
-
-### 4. AI Assistant: blank replies
-
-Files: `src/hooks/useAIChat.ts`, `supabase/functions/ai-chat/index.ts`.
-
-Problem:
-
-- `useAIChat` only parses an SSE `data:`  stream. The edge function's Google branch returns a non-streaming JSON body (`{ choices: [{ message: { content }}]}`), and so does the OpenAI/Anthropic error fallback. The reader sees no `data:`  lines → `assistantContent` stays empty → bubble is blank.
-
-Fix in `useAIChat.ts`:
-
-- After the `fetch`, inspect `response.headers.get('content-type')`.
-- If it includes `text/event-stream`, keep the existing SSE loop.
-- Otherwise, `await response.json()` and read `data.choices?.[0]?.message?.content` (and fallback to `data.content` for Anthropic-style). Set `streamingContent` to it, then push the assistant message exactly like the streaming path.
-- Keep the existing toast on `!response.ok` so 401/402/429/500 still surface.
-
-No edge-function changes are required for this fix; the function already returns the right shapes per provider.
-
-### 5. AI chat history persistence
-
-File: `src/hooks/useAIChat.ts`.
-
-Problem:
-
-- `messages` lives only in `useState`. Reload or navigation clears it.
-
-Fix (frontend-only, no schema changes):
-
-- Persist to `localStorage` under a key scoped per user: `postup_ai_chat_history_${userId}` (read `userId` from `supabase.auth.getUser()` once on mount; fall back to a generic key if not signed in).
-- On mount, hydrate `messages` from that key (parse timestamps back to `Date`).
-- On every `setMessages` change (via a `useEffect`), write the array back. Cap to last 100 entries to keep storage small.
-
-`clearHistory()` also clears that localStorage key.  
-  
-6. animations for pages dosent match so does the what user describes it should be 120hz smooth  
-7.typing in the text area once user sends it still stays there instead of sending it out immediately  
-8. hold down on a users chat should preview chat in a popup view without marking as read   
-
-
-This satisfies the project's "use AsyncStorage / localStorage caching" rule and does not touch DB.
-
----
-
-## Verification
-
-- Swipe a chat row left → Delete confirms → row disappears and chat list refetches.
-- Open another row's swipe → previous row auto-closes.
-- Chat list: only one divider between every row, including under the AI card.
-- Chat view: only one divider above the input; no phantom gap below.
-- Open a chat with cached + new messages → view starts at the newest message, not the top.
-- Send a message in AI Assistant → response renders (streaming or JSON), no blank bubble.
-- Reload the page → AI conversation history is still there until "Trash" is pressed.
-- animations for pages dosent match so does the what user describes it should be 120hz smooth
-- .typing in the text area once user sends it still stays there instead of sending it out immediately
--  hold down on a users chat should preview chat in a popup view without marking as read   
-
+Surface these in the Settings appearance panel next to the existing layout choices. No new state machine; reuses the sync hook.
 
 ## Files touched
 
-- `src/components/messaging/ChatListItem.tsx`
-- `src/pages/MessagesPage.tsx`
-- `src/hooks/useMessages.ts`
-- `src/hooks/useAIChat.ts`
-- `src/index.css`
+Created:
+- `/mnt/documents/liquid-glass-postup.html` (artifact)
+- `src/components/LiquidGlassRoot.tsx` (SVG filter + ambient layer; rendered once in `App.tsx`)
 
-No DB migrations, no edge function changes, no auth/routing changes.
+Edited:
+- `src/index.css` — tokens, utilities, `[data-skin="liquid-glass"]` skinning rules, new `[data-layout]` modes
+- `index.html` — anti-flash block reads `app_skin`, applies `data-skin`
+- `src/hooks/useAppearanceSync.ts` — read/apply `app_skin`
+- `src/pages/SettingsPage.tsx` — Liquid Glass toggle + extended layout options
+- `src/App.tsx` — mount `<LiquidGlassRoot />` once
+
+Not touched: routing, auth, Supabase, edge functions, messaging logic, hooks beyond `useAppearanceSync`, any component's JSX structure or business logic.
+
+## Technical guarantees
+
+- Opt-in by default → zero visual regression for current users
+- All animations on `transform`/`opacity` only → 120Hz safe
+- HSL tokens only in components; raw rgba glass values stay inside `index.css` utility classes
+- No DB writes, no schema changes, no new API surface
