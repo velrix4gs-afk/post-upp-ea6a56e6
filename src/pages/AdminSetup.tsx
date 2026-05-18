@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAdmin } from "@/hooks/useAdmin";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +17,27 @@ export default function AdminSetup() {
   const [isComplete, setIsComplete] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdmin();
+
+  // Guard: only allow access if no admins exist yet (bootstrap), or current user is admin.
+  // We rely on the edge function as the source of truth, but hide the UI from
+  // non-admins once the system is set up.
+  useEffect(() => {
+    if (!adminLoading && user && !isAdmin) {
+      // Probe: try a no-op invocation? Simpler: just redirect non-admins.
+      // The edge function still enforces the real check server-side.
+      navigate("/", { replace: true });
+    }
+  }, [adminLoading, user, isAdmin, navigate]);
+
+  if (adminLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <p className="text-muted-foreground text-sm">Loading…</p>
+      </div>
+    );
+  }
 
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();

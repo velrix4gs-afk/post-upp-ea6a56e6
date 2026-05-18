@@ -174,11 +174,10 @@ serve(async (req) => {
           .single();
 
         if (chatError) {
-          return new Response(JSON.stringify({ 
-            error: `CHAT_004: ${chatError.message}`,
-            code: 'CHAT_004',
-            message: 'Failed to create chat - check RLS policies',
-            details: chatError
+          console.error('CHAT_004 create chat error:', chatError);
+          return new Response(JSON.stringify({
+            error: 'Failed to create chat. Please try again.',
+            code: 'CHAT_004'
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -186,10 +185,9 @@ serve(async (req) => {
         }
         
         if (!newChat?.id) {
-          return new Response(JSON.stringify({ 
-            error: 'CHAT_005: No chat ID returned',
-            code: 'CHAT_005',
-            message: 'Chat created but no ID returned - RLS policy issue'
+          return new Response(JSON.stringify({
+            error: 'Failed to create chat. Please try again.',
+            code: 'CHAT_005'
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -204,11 +202,10 @@ serve(async (req) => {
           ]);
 
         if (participantsError) {
-          return new Response(JSON.stringify({ 
-            error: `CHAT_006: ${participantsError.message}`,
-            code: 'CHAT_006',
-            message: 'Failed to add participants - check RLS policies',
-            details: participantsError
+          console.error('CHAT_006 add participants error:', participantsError);
+          return new Response(JSON.stringify({
+            error: 'Failed to add participants. Please try again.',
+            code: 'CHAT_006'
           }), {
             status: 500,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

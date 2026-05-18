@@ -6,6 +6,23 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// Simple in-memory rate limit: max 5 verify attempts per email per 10 minutes.
+const attemptCache = new Map<string, { count: number; resetAt: number }>();
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 10 * 60 * 1000;
+
+const checkVerifyRateLimit = (email: string): boolean => {
+  const now = Date.now();
+  const entry = attemptCache.get(email);
+  if (!entry || now > entry.resetAt) {
+    attemptCache.set(email, { count: 1, resetAt: now + WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= MAX_ATTEMPTS) return false;
+  entry.count++;
+  return true;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -49,6 +66,13 @@ serve(async (req) => {
       );
     }
 
+    if (!checkVerifyRateLimit(sanitizedEmail)) {
+      return new Response(
+        JSON.stringify({ error: 'Too many attempts. Please request a new code.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -63,11 +87,19 @@ serve(async (req) => {
       .maybeSingle();
 
     if (otpError || !otpData) {
+      // On wrong code, also invalidate stored OTPs after MAX_ATTEMPTS to prevent brute force
+      const entry = attemptCache.get(sanitizedEmail);
+      if (entry && entry.count >= MAX_ATTEMPTS) {
+        await supabase.from('email_otps').delete().eq('email', sanitizedEmail);
+      }
       return new Response(
         JSON.stringify({ error: 'Invalid or expired code' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Success — reset attempts
+    attemptCache.delete(sanitizedEmail);
 
     // Delete the used OTP
     await supabase

@@ -94,7 +94,9 @@ serve(async (req) => {
     console.log(`Posts API: ${method} ${url.pathname}`);
 
     if (method === 'GET') {
-      // Get posts feed
+      // Get posts feed — only public, non-deleted posts for unauth/general feed.
+      // Anything more sensitive must go through an authenticated path that
+      // respects RLS instead of using the service-role client.
       const { data: posts, error } = await supabaseClient
         .from('posts')
         .select(`
@@ -106,6 +108,8 @@ serve(async (req) => {
             is_verified
           )
         `)
+        .eq('privacy', 'public')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .limit(20);
 

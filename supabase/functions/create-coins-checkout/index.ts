@@ -24,11 +24,26 @@ serve(async (req) => {
     const user = data.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
 
-    const { coins, price } = await req.json();
+    const { coins } = await req.json();
 
-    if (!coins || !price) {
-      throw new Error("Missing required fields: coins and price");
+    // Server-side price table — never trust client-supplied price.
+    const COIN_PRICES: Record<number, number> = {
+      100: 0.99,
+      500: 3.99,
+      1000: 6.99,
+      2500: 14.99,
+      5000: 24.99,
+      10000: 44.99,
+    };
+
+    const coinsNum = Number(coins);
+    if (!Number.isInteger(coinsNum) || !(coinsNum in COIN_PRICES)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid coin package" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+    const price = COIN_PRICES[coinsNum];
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
@@ -49,8 +64,8 @@ serve(async (req) => {
           price_data: {
             currency: "usd",
             product_data: {
-              name: `${coins} Coins`,
-              description: `Purchase ${coins} coins to tip creators`,
+            name: `${coinsNum} Coins`,
+              description: `Purchase ${coinsNum} coins to tip creators`,
               images: ["https://ccyyxkjpgebjnstevgkw.supabase.co/storage/v1/object/public/avatars/coin-icon.png"],
             },
             unit_amount: Math.round(price * 100), // Convert to cents
@@ -59,11 +74,11 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/premium?coins_purchased=${coins}`,
+      success_url: `${req.headers.get("origin")}/premium?coins_purchased=${coinsNum}`,
       cancel_url: `${req.headers.get("origin")}/premium`,
       metadata: {
         user_id: user.id,
-        coins: coins.toString(),
+        coins: coinsNum.toString(),
         type: "coins_purchase",
       },
     });
