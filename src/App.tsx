@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { initNetworkMonitor } from "@/lib/networkMonitor";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAppearanceSync } from "@/hooks/useAppearanceSync";
+import LiquidGlassRoot from "@/components/LiquidGlassRoot";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -190,6 +191,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <ToasterMobile />
+        <LiquidGlassRoot />
         <BrowserRouter>
           <AuthenticatedFeatures />
           <Suspense fallback={<PageLoader />}>
