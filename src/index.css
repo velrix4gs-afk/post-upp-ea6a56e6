@@ -2,6 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Facebook 2026 skin (fb26) — opt-in visual layer.
+   Activates when <html data-skin="fb26">. Scoped token overrides
+   + utility helpers (depth, springs, page transitions).
+   ============================================================ */
+:root {
+  --fb-spring: cubic-bezier(.34, 1.56, .64, 1);
+  --fb-glide: cubic-bezier(.22, 1, .36, 1);
+  --fb-shadow-card: 0 1px 2px hsl(220 13% 50% / 0.08), 0 2px 8px hsl(220 13% 50% / 0.06);
+  --fb-shadow-pop: 0 8px 28px hsl(220 13% 30% / 0.18);
+}
+
+html[data-skin="fb26"] {
+  --background: 210 14% 95%;
+  --foreground: 220 10% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 10% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 10% 12%;
+  --primary: 214 89% 52%;
+  --primary-foreground: 0 0% 100%;
+  --primary-hover: 214 89% 46%;
+  --secondary: 210 14% 93%;
+  --secondary-foreground: 220 10% 18%;
+  --muted: 210 14% 93%;
+  --muted-foreground: 220 9% 40%;
+  --accent: 214 89% 52%;
+  --accent-foreground: 0 0% 100%;
+  --border: 220 13% 88%;
+  --input: 220 13% 88%;
+  --ring: 214 89% 60%;
+  --radius: 0.75rem;
+}
+
+html[data-skin="fb26"].dark,
+.dark html[data-skin="fb26"] {
+  --background: 220 7% 11%;
+  --foreground: 0 0% 96%;
+  --card: 220 7% 15%;
+  --card-foreground: 0 0% 96%;
+  --popover: 220 7% 15%;
+  --popover-foreground: 0 0% 96%;
+  --primary: 214 100% 62%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 6% 20%;
+  --secondary-foreground: 0 0% 96%;
+  --muted: 220 6% 20%;
+  --muted-foreground: 220 5% 65%;
+  --border: 220 5% 24%;
+  --input: 220 5% 24%;
+}
+
+/* Translucent depth surfaces with backdrop blur */
+.fb-depth-1 {
+  background: hsl(var(--card) / 0.86);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid hsl(var(--border) / 0.6);
+  box-shadow: var(--fb-shadow-card);
+}
+.fb-depth-2 {
+  background: hsl(var(--card) / 0.78);
+  backdrop-filter: blur(22px) saturate(1.6);
+  -webkit-backdrop-filter: blur(22px) saturate(1.6);
+  border: 1px solid hsl(var(--border) / 0.5);
+  box-shadow: var(--fb-shadow-pop);
+}
+.fb-card {
+  background: hsl(var(--card));
+  border-radius: var(--radius);
+  box-shadow: var(--fb-shadow-card);
+}
+.fb-spring { transition: transform 280ms var(--fb-spring), opacity 240ms var(--fb-glide); }
+.fb-press { transition: transform 180ms var(--fb-spring); }
+.fb-press:active { transform: scale(0.96); }
+
+/* Page transition: fade + subtle scale spring (GPU only) */
+@keyframes fb-page-in {
+  0%   { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.992); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+.fb-page-enter {
+  animation: fb-page-in 320ms var(--fb-glide) both;
+  will-change: transform, opacity;
+}
+
+/* Right-side slide-in panel */
+@keyframes fb-slide-in-right {
+  from { transform: translate3d(100%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+@keyframes fb-slide-out-right {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(100%, 0, 0); }
+}
+.fb-panel-in  { animation: fb-slide-in-right  340ms var(--fb-spring) both; will-change: transform; }
+.fb-panel-out { animation: fb-slide-out-right 260ms var(--fb-glide)  both; will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fb-page-enter,
+  .fb-panel-in,
+  .fb-panel-out,
+  .fb-spring,
+  .fb-press { animation: none !important; transition: none !important; }
+}
+
+
 /* Marquee animation for music text */
 @keyframes marquee {
   0% { transform: translateX(0); }
