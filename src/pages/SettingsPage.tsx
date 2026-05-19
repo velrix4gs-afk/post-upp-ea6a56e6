@@ -964,6 +964,33 @@ const SettingsPage = () => {
                       }}
                     />
                   </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label className="text-base">Facebook 2026 skin</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Familiar blue palette, translucent depth, cinematic spring transitions
+                      </p>
+                    </div>
+                    <Switch
+                      checked={
+                        typeof window !== 'undefined' &&
+                        (localStorage.getItem('app_skin') ?? 'fb26') === 'fb26'
+                      }
+                      onCheckedChange={(checked) => {
+                        const root = document.documentElement;
+                        if (checked) {
+                          localStorage.setItem('app_skin', 'fb26');
+                          root.setAttribute('data-skin', 'fb26');
+                          toast({ description: 'Facebook 2026 skin enabled' });
+                        } else {
+                          localStorage.setItem('app_skin', '');
+                          root.removeAttribute('data-skin');
+                          toast({ description: 'Classic Post Up skin' });
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             </Card>

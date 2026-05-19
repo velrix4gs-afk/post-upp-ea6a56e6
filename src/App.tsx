@@ -13,6 +13,8 @@ import { initNetworkMonitor } from "@/lib/networkMonitor";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
 import { useAppearanceSync } from "@/hooks/useAppearanceSync";
 import LiquidGlassRoot from "@/components/LiquidGlassRoot";
+import RightSlidePanel from "@/components/nav/RightSlidePanel";
+import PageTransition from "@/components/transitions/PageTransition";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -179,7 +181,8 @@ const AuthenticatedFeatures = () => {
         <RealtimeNotifications />
         <IncomingCallOverlay />
       </Suspense>
-      <BottomNavigation />
+      {/* Right-side slide-in panel replaces bottom nav under the fb26 skin */}
+      <RightSlidePanel />
     </>
   );
 };
@@ -195,6 +198,7 @@ const App = () => (
         <BrowserRouter>
           <AuthenticatedFeatures />
           <Suspense fallback={<PageLoader />}>
+            <PageTransition>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/signin" element={<SignIn />} />
@@ -408,6 +412,7 @@ const App = () => (
                 } />
                 <Route path="*" element={<NotFound />} />
             </Routes>
+            </PageTransition>
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>

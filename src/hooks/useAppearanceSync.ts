@@ -21,7 +21,9 @@ export const useAppearanceSync = () => {
     root.setAttribute('data-font-size', fontSize);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-accent', accent);
-    const skin = localStorage.getItem('app_skin') || '';
+    // Default to the Facebook 2026 skin (fb26) unless the user explicitly opted out.
+    const stored = localStorage.getItem('app_skin');
+    const skin = stored === null ? 'fb26' : stored;
     if (skin) root.setAttribute('data-skin', skin);
     else root.removeAttribute('data-skin');
   }, []);

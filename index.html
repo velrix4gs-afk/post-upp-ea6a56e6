@@ -50,7 +50,8 @@
           root.setAttribute('data-layout', layout);
           root.setAttribute('data-accent', accent);
           root.setAttribute('data-color-theme', colorTheme);
-          var skin = localStorage.getItem('app_skin') || '';
+          var storedSkin = localStorage.getItem('app_skin');
+          var skin = storedSkin === null ? 'fb26' : storedSkin;
           if (skin) root.setAttribute('data-skin', skin);
         } catch (e) { /* no-op */ }
       })();
