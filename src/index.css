@@ -1189,3 +1189,115 @@ html[data-skin="liquid-glass"] [data-radix-scroll-area-viewport] {
 [data-layout="quiet"] body { filter: saturate(0.75); }
 [data-layout="quiet"] [class*="badge"],
 [data-layout="quiet"] .animate-pulse { opacity: 0; }
+
+/* ============================================================
+   fb26 — Phase 2: Facebook + Twitter blend
+   Scoped overrides for chat bubbles, header, input, feed cards.
+   Touches presentation only; no component edits required.
+   ============================================================ */
+
+/* --- Feed timeline: Twitter open-feed feel on FB card structure --- */
+html[data-skin="fb26"] .fb-feed-card,
+html[data-skin="fb26"] [data-feed-card] {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border) / 0.7);
+  border-radius: 14px;
+  box-shadow: var(--fb-shadow-card);
+  transition: transform 220ms var(--fb-spring), box-shadow 220ms var(--fb-glide);
+}
+html[data-skin="fb26"] .fb-feed-card:hover,
+html[data-skin="fb26"] [data-feed-card]:hover {
+  transform: translate3d(0,-1px,0);
+  box-shadow: 0 4px 16px hsl(220 13% 40% / 0.10);
+}
+
+/* --- Chat / Messenger overrides --- */
+
+/* Remove inner chat bottom borders */
+html[data-skin="fb26"] .chat-scroll,
+html[data-skin="fb26"] [data-chat-thread],
+html[data-skin="fb26"] [data-chat-thread] > *,
+html[data-skin="fb26"] [data-chat-thread] .border-b,
+html[data-skin="fb26"] [data-chat-thread] .border-t {
+  border-bottom-width: 0 !important;
+  border-top-width: 0 !important;
+}
+
+/* Chat header — translucent glass, no bottom border */
+html[data-skin="fb26"] [data-chat-header],
+html[data-skin="fb26"] .chat-header {
+  background: hsl(var(--card) / 0.78) !important;
+  backdrop-filter: blur(18px) saturate(1.5);
+  -webkit-backdrop-filter: blur(18px) saturate(1.5);
+  border-bottom: 0 !important;
+  box-shadow: 0 1px 0 hsl(var(--border) / 0.35);
+}
+
+/* Chat input pill */
+html[data-skin="fb26"] [data-chat-input],
+html[data-skin="fb26"] .chat-input-bar {
+  background: transparent !important;
+  border-top: 0 !important;
+  padding: 8px 10px;
+}
+html[data-skin="fb26"] [data-chat-input] textarea,
+html[data-skin="fb26"] .chat-input-bar textarea {
+  background: hsl(var(--muted));
+  border-radius: 22px !important;
+  padding: 10px 16px;
+  border: 1px solid hsl(var(--border) / 0.6);
+  transition: border-color 180ms var(--fb-glide), box-shadow 180ms var(--fb-glide);
+}
+html[data-skin="fb26"] [data-chat-input] textarea:focus,
+html[data-skin="fb26"] .chat-input-bar textarea:focus {
+  border-color: hsl(var(--primary) / 0.6);
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+  outline: none;
+}
+
+/* Message bubbles — iOS Messages / Messenger blend.
+   Target both MessageBubble.tsx and EnhancedMessageBubble.tsx by overriding
+   the WhatsApp / Material color classes already in markup. */
+html[data-skin="fb26"] .bg-\[\#d9fdd3\],
+html[data-skin="fb26"] .dark\:bg-\[\#005c4b\],
+html[data-skin="fb26"] .bg-\[\#d3e3fd\],
+html[data-skin="fb26"] .dark\:bg-\[\#004a77\] {
+  background: linear-gradient(180deg, #0A84FF 0%, #0066D9 100%) !important;
+  color: #ffffff !important;
+  border-radius: 22px 22px 6px 22px !important;
+  box-shadow: 0 1px 2px hsl(214 89% 30% / 0.25);
+}
+html[data-skin="fb26"] .bg-\[\#d9fdd3\] *,
+html[data-skin="fb26"] .dark\:bg-\[\#005c4b\] *,
+html[data-skin="fb26"] .bg-\[\#d3e3fd\] *,
+html[data-skin="fb26"] .dark\:bg-\[\#004a77\] * {
+  color: #ffffff !important;
+}
+
+/* Other user bubble */
+html[data-skin="fb26"] .bg-white.dark\:bg-\[\#202c33\],
+html[data-skin="fb26"] .bg-gray-100,
+html[data-skin="fb26"] .dark\:bg-\[\#303134\] {
+  background: hsl(220 13% 91%) !important;
+  color: hsl(220 10% 12%) !important;
+  border-radius: 22px 22px 22px 6px !important;
+  box-shadow: 0 1px 1px hsl(220 13% 50% / 0.08);
+}
+.dark html[data-skin="fb26"] .bg-white.dark\:bg-\[\#202c33\],
+.dark html[data-skin="fb26"] .bg-gray-100,
+.dark html[data-skin="fb26"] .dark\:bg-\[\#303134\] {
+  background: hsl(220 6% 22%) !important;
+  color: hsl(0 0% 96%) !important;
+}
+
+/* Neutralize WhatsApp tail corners on fb26 */
+html[data-skin="fb26"] .rounded-tr-none { border-top-right-radius: 22px !important; }
+html[data-skin="fb26"] .rounded-tl-none { border-top-left-radius:  22px !important; }
+html[data-skin="fb26"] .rounded-tr-sm   { border-top-right-radius: 6px  !important; }
+html[data-skin="fb26"] .rounded-tl-sm   { border-top-left-radius:  6px  !important; }
+
+/* Soft spring on bubble entrance */
+html[data-skin="fb26"] .animate-message-send,
+html[data-skin="fb26"] .animate-message-receive {
+  animation-timing-function: var(--fb-spring) !important;
+}
