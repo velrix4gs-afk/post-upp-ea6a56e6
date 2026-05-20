@@ -693,6 +693,7 @@ const MessagesPage = () => {
         {/* Messages area */}
         <div
           ref={messagesContainerRef}
+          data-chat-thread
           className={cn(
             'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative',
             !chatSettings?.wallpaper_url && 'chat-wallpaper',

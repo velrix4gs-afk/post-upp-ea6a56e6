@@ -304,7 +304,7 @@ export const PostCardModern = ({
           </DialogContent>
         </Dialog>
 
-        <Card className={cn("post-card bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
+        <Card data-feed-card className={cn("post-card fb-feed-card bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
           {/* Pinned indicator */}
           {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
               <Pin className="h-3 w-3" />

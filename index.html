@@ -45,14 +45,16 @@
           var fontSize = localStorage.getItem('app_font_size') || 'medium';
           var layout = localStorage.getItem('app_layout_mode') || 'spacious';
           var accent = localStorage.getItem('app_accent_color') || 'blue';
-          var colorTheme = localStorage.getItem('colorTheme') || 'deep-teal';
           root.setAttribute('data-font-size', fontSize);
           root.setAttribute('data-layout', layout);
           root.setAttribute('data-accent', accent);
-          root.setAttribute('data-color-theme', colorTheme);
-          var storedSkin = localStorage.getItem('app_skin');
-          var skin = storedSkin === null ? 'fb26' : storedSkin;
-          if (skin) root.setAttribute('data-skin', skin);
+          // Only apply a custom color-theme if the user explicitly picked one.
+          var colorTheme = localStorage.getItem('colorTheme');
+          if (colorTheme) root.setAttribute('data-color-theme', colorTheme);
+          else root.removeAttribute('data-color-theme');
+          // fb26 skin (Facebook + Twitter blend, iOS 26 motion) is ALWAYS on.
+          root.setAttribute('data-skin', 'fb26');
+          localStorage.setItem('app_skin', 'fb26');
         } catch (e) { /* no-op */ }
       })();
     </script>
