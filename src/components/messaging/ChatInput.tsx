@@ -61,6 +61,7 @@ export const ChatInput = ({
         e.preventDefault();
         if (hasContent) onSend();
       }}
+      data-chat-input
       className="flex items-end gap-1.5 px-2 py-2 bg-card"
     >
       {isEditing && onCancelEdit && (
