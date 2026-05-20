@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
-type ColorTheme = 'deep-teal' | 'lemon-yellow' | 'seamist' | 'curious-blue' | 'mulled-wine';
+type ColorTheme = 'deep-teal' | 'lemon-yellow' | 'seamist' | 'curious-blue' | 'mulled-wine' | null;
 
 export const useTheme = () => {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -13,16 +13,17 @@ export const useTheme = () => {
 
   const [colorTheme, setColorTheme] = useState<ColorTheme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('colorTheme') as ColorTheme) || 'deep-teal';
+      const stored = localStorage.getItem('colorTheme') as ColorTheme;
+      return stored || null;
     }
-    return 'deep-teal';
+    return null;
   });
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
+
     root.classList.remove('light', 'dark');
-    
+
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
         ? 'dark'
@@ -31,11 +32,19 @@ export const useTheme = () => {
     } else {
       root.classList.add(theme);
     }
+    // Always persist so reloads & cross-page navs restore correctly.
+    try { localStorage.setItem('theme', theme); } catch {}
   }, [theme]);
 
   useEffect(() => {
     const root = window.document.documentElement;
-    root.setAttribute('data-color-theme', colorTheme);
+    if (colorTheme) {
+      root.setAttribute('data-color-theme', colorTheme);
+      try { localStorage.setItem('colorTheme', colorTheme); } catch {}
+    } else {
+      root.removeAttribute('data-color-theme');
+      try { localStorage.removeItem('colorTheme'); } catch {}
+    }
   }, [colorTheme]);
 
   const setThemeValue = (newTheme: Theme) => {
@@ -44,7 +53,8 @@ export const useTheme = () => {
   };
 
   const setColorThemeValue = (newColorTheme: ColorTheme) => {
-    localStorage.setItem('colorTheme', newColorTheme);
+    if (newColorTheme) localStorage.setItem('colorTheme', newColorTheme);
+    else localStorage.removeItem('colorTheme');
     setColorTheme(newColorTheme);
   };
 
