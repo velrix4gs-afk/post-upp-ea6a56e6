@@ -938,58 +938,24 @@ const SettingsPage = () => {
                     </Select>
                   </div>
 
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-primary/5">
                     <div>
-                      <Label className="text-base">Liquid Glass (iOS 26)</Label>
+                      <Label className="text-base">Default skin</Label>
                       <p className="text-sm text-muted-foreground">
-                        Aero glass skin with ambient backlight & spring motion
+                        Facebook + Twitter blend with iOS 26 spring motion — always on for everyone.
                       </p>
                     </div>
-                    <Switch
-                      checked={
-                        typeof window !== 'undefined' &&
-                        localStorage.getItem('app_skin') === 'liquid-glass'
-                      }
-                      onCheckedChange={(checked) => {
-                        const root = document.documentElement;
-                        if (checked) {
-                          localStorage.setItem('app_skin', 'liquid-glass');
-                          root.setAttribute('data-skin', 'liquid-glass');
-                          toast({ description: 'Liquid Glass enabled' });
-                        } else {
-                          localStorage.removeItem('app_skin');
-                          root.removeAttribute('data-skin');
-                          toast({ description: 'Liquid Glass disabled' });
-                        }
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setColorTheme(null as any);
+                        toast({ description: 'Restored default appearance' });
                       }}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div>
-                      <Label className="text-base">Facebook 2026 skin</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Familiar blue palette, translucent depth, cinematic spring transitions
-                      </p>
-                    </div>
-                    <Switch
-                      checked={
-                        typeof window !== 'undefined' &&
-                        (localStorage.getItem('app_skin') ?? 'fb26') === 'fb26'
-                      }
-                      onCheckedChange={(checked) => {
-                        const root = document.documentElement;
-                        if (checked) {
-                          localStorage.setItem('app_skin', 'fb26');
-                          root.setAttribute('data-skin', 'fb26');
-                          toast({ description: 'Facebook 2026 skin enabled' });
-                        } else {
-                          localStorage.setItem('app_skin', '');
-                          root.removeAttribute('data-skin');
-                          toast({ description: 'Classic Post Up skin' });
-                        }
-                      }}
-                    />
+                    >
+                      Reset
+                    </Button>
                   </div>
                 </div>
               </div>
