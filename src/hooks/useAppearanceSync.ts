@@ -21,11 +21,9 @@ export const useAppearanceSync = () => {
     root.setAttribute('data-font-size', fontSize);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-accent', accent);
-    // Default to the Facebook 2026 skin (fb26) unless the user explicitly opted out.
-    const stored = localStorage.getItem('app_skin');
-    const skin = stored === null ? 'fb26' : stored;
-    if (skin) root.setAttribute('data-skin', skin);
-    else root.removeAttribute('data-skin');
+    // fb26 skin is ALWAYS enabled (Facebook + Twitter blend + iOS 26 spring motion).
+    root.setAttribute('data-skin', 'fb26');
+    localStorage.setItem('app_skin', 'fb26');
   }, []);
 
   // Sync from Supabase user_settings once authenticated
