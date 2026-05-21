@@ -39,6 +39,7 @@ const Navigation = () => {
   const authPages = ['/auth', '/signin', '/signup', '/forgot-password'];
   const isAuthPage = authPages.some(page => location.pathname.startsWith(page));
   const isMessagesPage = location.pathname === '/messages';
+  const isCreatorPage = location.pathname.startsWith('/create');
 
   // Pages where auto-hide should be enabled
   const isFeedPage = location.pathname === '/feed' || location.pathname === '/';
@@ -76,7 +77,7 @@ const Navigation = () => {
       });
     };
   }, [handleInteraction, isFeedPage]);
-  if (isAuthPage || isMessagesPage) {
+  if (isAuthPage || isMessagesPage || isCreatorPage) {
     return null;
   }
 
