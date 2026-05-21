@@ -1,86 +1,77 @@
-## Goal
 
-Transform Post Up's Feed, Navigation, and Messages surfaces into a Facebook (2024–2026) look-and-feel with cinematic iOS-26-style motion. Light/airy with depth and translucency — not Liquid Glass. No business logic, no DB, no routing changes. Every existing feature stays.
+# Story Creation Revamp — Instagram-style (no IG colors)
 
-## What changes
+## Problems today
+1. The global **RightSlidePanel** FAB (`fixed top z-40`) and top **Navigation** bar (`z-50`) bleed over the full-screen `/create/story` editor — that's the "profile button overlay" the user sees.
+2. The active page (`src/pages/CreateStoryPage.tsx`) is a half-finished version: tools render in a separate `<StoryTextOverlay>` full-screen view, the share/audience header sits over the canvas, the filter strip is hidden behind the side toolbar, text/draw/sticker editors aren't wired into the same preview, and the duplicate `src/components/CreateStoryPage.tsx` (not routed) is actually the more complete one.
+3. Filters preview thumbnails are blank, no live tap-feedback, no pinch/drag for overlays, no clear "Next → Share" flow.
 
-### 1. Design tokens — `src/index.css` + `tailwind.config.ts`
+## Goals
+- IG-style flow & ergonomics (camera/gallery → edit canvas → filters carousel → stickers/text/draw → audience → share) with our own colors (keep `fb26` tokens, `--primary`, no IG pink/purple).
+- Everything wired to existing `useStories.createStory` — no schema changes, no new buckets, no new uuid logic.
+- Zero overlay from global chrome on `/create/story` and `/create/reel`.
 
-New "Facebook 2026" token layer scoped under `[data-skin="fb26"]` (default ON for everyone unless user opts out in Settings):
-- `--background: 210 14% 95%` (#F0F2F5), surface white, card radius `0.75rem`
-- `--primary: 214 89% 52%` (#1877F2), `--primary-hover` darker
-- `--fb-surface-elevated`, `--fb-divider 220 13% 91%`, soft shadow tokens (`--fb-shadow-card`, `--fb-shadow-pop`)
-- Spring easings: `--fb-spring: cubic-bezier(.34,1.56,.64,1)`, `--fb-glide: cubic-bezier(.22,1,.36,1)`
-- Translucent depth helpers `.fb-depth-1/2/3` (white @ 70–85% + `backdrop-blur(18px) saturate(1.4)`)
-- Page transition wrapper class `.fb-page-enter` (fade+scale 0.98→1, 240ms spring)
+## Plan
 
-Dark variant under same skin uses `#18191A` / `#242526` (auto when system or theme=dark).
+### 1. Hide global chrome on creator routes
+- In `src/components/nav/RightSlidePanel.tsx`: read `useLocation()`, return `null` when `pathname.startsWith('/create/')` (also `/create/reel`, `/create/page`).
+- In `src/components/Navigation.tsx`: same guard — don't render the top bar on `/create/*`.
+- In `src/components/BottomNavigation.tsx`: same guard (it already hides on some routes, extend list).
+- Result: `/create/story` becomes a true full-screen editor.
 
-### 2. Right-side navigation panel — replaces bottom nav
+### 2. Consolidate to one editor file
+- Keep the routed `src/pages/CreateStoryPage.tsx` as the single source.
+- Pull in the better bits from `src/components/CreateStoryPage.tsx` (unified toolbar, crop, adjustments, drawing, stickers, audience all rendered inside one preview).
+- Leave `src/components/CreateStoryPage.tsx` on disk untouched per project rules (not deleted, just unused — already unrouted today).
 
-New component `src/components/nav/RightSlidePanel.tsx`:
-- Edge-mounted FAB (top-right, avatar) + swipe-from-right gesture opens panel
-- Translucent panel (`fb-depth-2`), spring slide-in (`translateX 100% → 0`, 320ms `--fb-spring`)
-- Sections: primary nav (Feed, Reels, Messages, Friends, Pages, Bookmarks, Profile, Settings), quick actions (Create post/story/reel), theme toggle, sign out
-- Active route highlight, tap-outside dismiss, swipe-right close
-- Replaces `<BottomNavigation />` in `App.tsx`. `BottomNavigation.tsx` kept but un-mounted (preserve file per project rule).
+### 3. New IG-style layout inside the routed page
+```text
+┌──────────────────────────────┐
+│ ✕   Story         Audience▾  │  top bar (translucent, over canvas)
+├──────────────────────────────┤
+│                              │
+│      9:16 preview canvas     │  rounded-2xl, object-cover
+│   (text/stickers/draw live   │
+│    on top of media + filter) │
+│                              │
+├──────────────────────────────┤
+│  [Filters carousel — IG-like]│  thumb = same image w/ filter css
+├──────────────────────────────┤
+│  Aa  ✏️  😊  ⤴   📐  ✨   │  bottom tool dock (Text/Draw/Stickers/Crop/Adjust/Effects)
+├──────────────────────────────┤
+│   Text  •  Photo  •  Video   │  source switcher (only when empty)
+└──────────────────────────────┘
+                                ┌──────┐
+                                │Share→│  primary CTA pill, bottom-right
+                                └──────┘
+```
+- Tools open as bottom sheets (`fixed bottom-0` slide-up with spring) instead of replacing the canvas, so the user always sees the preview.
+- Active-tool indicator (dot under icon), tap-scale feedback (`active:scale-95 transition-transform`).
+- Filters strip: render mini 56×72 thumbnails using the actual `mediaPreview` with `style={{filter: f.css}}` so previews are real, not blank.
+- Text/stickers become draggable on the canvas (simple pointer-move with % coords stored on the overlay; already partially in `StoryStickers`/`StoryTextOverlay` — wire `onDragEnd` back to state).
+- "Adjust" sheet uses existing `StoryAdjustments`. "Crop" uses existing `StoryCropTool` but rendered as a full-screen sheet from the same page.
+- Text-only story: gradient picker stays, but typing happens directly on the canvas (centered textarea), with a quick-style row at the bottom.
 
-`Navigation.tsx` top bar is hidden on mobile when skin=fb26 (panel covers nav). Desktop keeps a slim Facebook-style top bar: logo + search pill + center icon rail (Home/Reels/Messages/Friends) + right cluster (Menu, Notifications, Avatar opens RightSlidePanel).
+### 4. Styling
+- All chrome uses `bg-black/40 backdrop-blur-md` pills, `text-white`, `rounded-full`.
+- Active accents use `--primary` (our blue), not IG's gradient — keeps brand consistency per the constraint.
+- Spring motion via existing `--fb-spring` / `--fb-glide` tokens for sheet transitions and button feedback.
 
-### 3. Feed — `src/pages/Feed.tsx` + `src/components/feed/*` + `PostCard/PostCardModern.tsx`
+### 5. Share flow
+- Single `handlePost` already uses `createStory(content?, mediaFile?)` from `useStories` — keep as is.
+- Compose final image: if there are text overlays, stickers, drawing, filters, or adjustments on an **image**, render the preview to a canvas (html2canvas-free approach: draw image + apply filter via `ctx.filter` + draw overlays at the stored % positions) before upload. For video, upload the original file (filters/overlays preview-only this pass — note in TODO comment, no behavior regression vs today).
+- Audience selection is captured but not yet persisted (no schema change) — leave existing behavior intact.
 
-Mirror the standalone HTML prototype's feed:
-- Soft gray canvas, centered column (max-w 680), cards = pure white w/ `--fb-shadow-card`, 12px radius
-- Stories rail: rounded 12px tall cards, gradient overlay, "Create Story" first card
-- Composer card: avatar + "What's on your mind?" pill button (opens existing CreatePostSimple drawer); row of Photo/Video/Reel/Live shortcuts under a divider
-- PostCardModern restyled: header (avatar 40, name bold, meta row with privacy icon + dot + relative time), content, media edge-to-edge inside card, reaction stat row (emoji stack + counts), divider, action row (Like / Comment / Share) with hover bg, all existing handlers preserved
-- Spring entrance on cards as they enter viewport (translateY 12→0, opacity, 280ms `--fb-spring`), liquid press feedback on actions (`active:scale-95 transition-transform`)
+### 6. Verify
+- Build passes, no TS errors.
+- Visit `/create/story` on mobile viewport: no top nav, no right-side FAB.
+- Pick an image → filters carousel shows live thumbnails → tap one, canvas updates → add text, drag it → tap Share → story appears in feed Stories rail via existing realtime subscription.
 
-### 4. Messages — `src/pages/MessagesPage.tsx` and `messaging/*`
+## Files touched
+- `src/pages/CreateStoryPage.tsx` — rewritten layout (single canvas + bottom-sheet tools + live filter strip + draggable overlays + canvas-composite share for images).
+- `src/components/nav/RightSlidePanel.tsx` — hide on `/create/*`.
+- `src/components/Navigation.tsx` — hide on `/create/*`.
+- `src/components/BottomNavigation.tsx` — extend hidden-route list with `/create/*`.
 
-- Two-pane Messenger layout on md+: left chat list (320px, white w/ subtle divider), right chat panel
-- On mobile keep current single-pane stack, but restyle: rounded search pill, pinned/active row with blue accent, swipe-to-delete row uses spring (`cubic-bezier(.34,1.56,.64,1)`), iOS-style red delete affordance
-- ChatHeader: avatar + name + presence dot, right-aligned call/video/info icons in blue
-- Bubbles: own = `#0084FF` gradient with white text, other = `#E4E6EB` with `--foreground`; rounded-[18px] with tail-radius variation for consecutive messages
-- ChatInput: pill input + circular send button (blue primary, spring scale on press)
-- Bottom borders inside chat panel removed (`border-0 border-none` on inner scroll containers) — fixes existing border bug
-- AI Assistant chat tile in list; opening uses existing `AIAssistantChat` (no logic change)
-
-### 5. Cinematic motion + zero-flicker route transitions
-
-- Wrap `<Routes>` in `src/App.tsx` with a `<PageTransition>` component (keyed by `location.pathname`) using CSS-only fade+scale spring on mount — pure `transform/opacity`, GPU-accelerated.
-- Already-eager Feed/Messages/Profile/Search stay eager; extend `usePagePrefetch` to also prefetch Reels, Friends, Bookmarks, Pages, Settings, Notifications immediately after auth (already partial). Add hover/touch preloaders to RightSlidePanel buttons (mirrors the existing `preloadRoute` pattern in `BottomNavigation`).
-- Add `prefers-reduced-motion` guard to disable spring motion.
-
-### 6. Settings — `src/pages/SettingsPage.tsx`
-
-Add toggle "Classic Post Up look" that flips `app_skin` between `fb26` (default) and empty string. Read by existing `useAppearanceSync`. Keep Liquid Glass option alongside.
-
-## Files
-
-Created
-- `src/components/nav/RightSlidePanel.tsx`
-- `src/components/transitions/PageTransition.tsx`
-
-Edited
-- `src/index.css` (fb26 token layer + utilities)
-- `tailwind.config.ts` (spring easing tokens, fb shadows)
-- `src/App.tsx` (mount RightSlidePanel instead of BottomNavigation when authenticated, wrap Routes in PageTransition, default skin)
-- `src/hooks/useAppearanceSync.ts` (default to `fb26` if no preference saved)
-- `src/components/Navigation.tsx` (Facebook-style top bar on desktop, hidden on mobile under fb26)
-- `src/pages/Feed.tsx`, `src/components/feed/CreatePostCard.tsx`, `src/components/feed/FeedTabs.tsx`, `src/components/feed/FeedSidebar.tsx`, `src/components/PostCard/PostCardModern.tsx`, `src/components/Stories.tsx`
-- `src/pages/MessagesPage.tsx`, `src/components/messaging/ChatListItem.tsx`, `src/components/messaging/ChatHeader.tsx`, `src/components/messaging/ChatInput.tsx`, `src/components/EnhancedMessageBubble.tsx`
-- `src/pages/SettingsPage.tsx` (skin toggle)
-- `index.html` (anti-flash skin script already exists — extend default to fb26)
-
-Untouched: every hook, every Supabase call, every edge function, routes, auth, schema, UUIDs, `BottomNavigation.tsx` file itself (just unmounted).
-
-## Out of scope (Phase 2 candidates)
-
-Profile, Reels, Search, Explore, Settings sub-pages, Notifications panel restyling, Stories viewer, Page profiles. They keep working — just inherit token colors but not the full Facebook restyle yet.
-
-## Risk + verification
-
-- No schema, no API, no logic changes → zero data risk.
-- After build, verify in preview: Feed renders, post create works, message send works, AI chat opens, route switches don't flicker, swipe-to-delete on chat list still triggers, right panel opens/closes.
-- Reduced-motion users get instant transitions.
+## Untouched
+- `useStories.ts`, Supabase tables, `stories` bucket, RLS, edge functions, auth, routes, UUIDs, every other page, `src/components/CreateStoryPage.tsx`, all sub-tools (`StoryFilters`, `StoryStickers`, `StoryAdjustments`, `StoryCropTool`, `StoryDrawing`, `StoryTextOverlay`, `StoryAudienceSelector`).
