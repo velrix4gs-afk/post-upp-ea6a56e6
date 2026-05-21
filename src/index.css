@@ -101,6 +101,13 @@ html[data-skin="fb26"].dark,
 .fb-panel-in  { animation: fb-slide-in-right  340ms var(--fb-spring) both; will-change: transform; }
 .fb-panel-out { animation: fb-slide-out-right 260ms var(--fb-glide)  both; will-change: transform; }
 
+/* Bottom sheet (story editor tools) */
+@keyframes fb-sheet-in {
+  from { transform: translate3d(0, 100%, 0); opacity: 0; }
+  to   { transform: translate3d(0, 0, 0); opacity: 1; }
+}
+.fb-sheet-in { animation: fb-sheet-in 320ms var(--fb-spring) both; will-change: transform, opacity; }
+
 @media (prefers-reduced-motion: reduce) {
   .fb-page-enter,
   .fb-panel-in,
