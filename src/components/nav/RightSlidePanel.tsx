@@ -29,7 +29,7 @@ const preloadRoute = (path: string) => {
   if (key) ROUTE_PRELOADERS[key]().catch(() => {});
 };
 
-const HIDDEN_ROUTES = ["/auth", "/signin", "/signup", "/forgot-password", "/reset-password"];
+const HIDDEN_ROUTES = ["/auth", "/signin", "/signup", "/forgot-password", "/reset-password", "/create"];
 
 export const RightSlidePanel = () => {
   const { user, signOut } = useAuth();
