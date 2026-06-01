@@ -126,7 +126,7 @@ export const ChatSettingsDialog = ({
             <Row
               icon={isMuted ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
               label={isMuted ? 'Unmute Chat' : 'Mute Chat'}
-              onClick={() => toggleMute(!isMuted)}
+              onClick={() => toggleMute()}
             />
 
             <Row
