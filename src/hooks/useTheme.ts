@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
-type ColorTheme = 'deep-teal' | 'lemon-yellow' | 'seamist' | 'curious-blue' | 'mulled-wine' | null;
+type ColorTheme =
+  | 'fb-twitter'
+  | 'deep-teal'
+  | 'lemon-yellow'
+  | 'seamist'
+  | 'curious-blue'
+  | 'mulled-wine'
+  | null;
 
 export const useTheme = () => {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -14,9 +21,10 @@ export const useTheme = () => {
   const [colorTheme, setColorTheme] = useState<ColorTheme>(() => {
     if (typeof window !== 'undefined') {
       const stored = localStorage.getItem('colorTheme') as ColorTheme;
-      return stored || null;
+      // Default to the clean Facebook+Twitter combined skin if user has no pick.
+      return stored || 'fb-twitter';
     }
-    return null;
+    return 'fb-twitter';
   });
 
   useEffect(() => {

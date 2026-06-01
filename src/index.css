@@ -355,13 +355,13 @@ All colors MUST be HSL.
 
 /* Accent color variants */
 :root[data-accent="default"],
+:root[data-accent="blue"] {
+  --primary: 217 92% 52%;
+  --primary-glow: 217 92% 70%;
+}
 :root[data-accent="purple"] {
   --primary: 262 83% 58%;
   --primary-glow: 262 83% 75%;
-}
-:root[data-accent="blue"] {
-  --primary: 221 83% 53%;
-  --primary-glow: 221 83% 70%;
 }
 :root[data-accent="green"] {
   --primary: 142 76% 36%;
