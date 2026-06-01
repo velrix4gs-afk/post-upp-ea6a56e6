@@ -776,6 +776,24 @@ const SettingsPage = () => {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
+                        onClick={() => setColorTheme('fb-twitter')}
+                        className={`p-6 rounded-lg border-2 transition-all ${
+                          colorTheme === 'fb-twitter' || !colorTheme ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4 mb-3">
+                          <div className="flex gap-2">
+                            <div className="h-10 w-10 rounded-full bg-white border border-border" />
+                            <div className="h-10 w-10 rounded-full bg-[#1877F2]" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <span className="font-semibold text-base block mb-1">Default · FB + Twitter</span>
+                            <p className="text-xs text-muted-foreground">Clean white • Facebook blue (#1877F2)</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      <button
                         onClick={() => setColorTheme('deep-teal')}
                         className={`p-6 rounded-lg border-2 transition-all ${
                           colorTheme === 'deep-teal' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
@@ -882,7 +900,7 @@ const SettingsPage = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="default">Default (Purple)</SelectItem>
+                        <SelectItem value="default">Default (Blue)</SelectItem>
                         <SelectItem value="blue">Blue</SelectItem>
                         <SelectItem value="purple">Purple</SelectItem>
                         <SelectItem value="green">Green</SelectItem>
@@ -950,7 +968,7 @@ const SettingsPage = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        setColorTheme(null as any);
+                        setColorTheme('fb-twitter');
                         toast({ description: 'Restored default appearance' });
                       }}
                     >
