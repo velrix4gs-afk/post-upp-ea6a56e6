@@ -1,209 +1,174 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
+import { useNavigate } from 'react-router-dom';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { useChatSettings } from '@/hooks/useChatSettings';
-import { Palette, Image, Bell, Trash2, Shield } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import { haptic } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
+import {
+  UserCircle,
+  Pencil,
+  Images,
+  BellOff,
+  Bell,
+  Sparkles,
+  Trash2,
+  Ban,
+} from 'lucide-react';
 
 interface ChatSettingsDialogProps {
   chatId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Other user id, for navigating to their profile. Optional for group chats. */
+  otherUserId?: string;
+  isGroup?: boolean;
+  onDeleteChat?: () => void;
+  onBlockUser?: () => void;
 }
 
-export const ChatSettingsDialog = ({ chatId, open, onOpenChange }: ChatSettingsDialogProps) => {
-  const { settings, updateSettings, toggleMute, togglePin } = useChatSettings(chatId);
-  const [wallpaperUrl, setWallpaperUrl] = useState(settings?.wallpaper_url || '');
+type RowProps = {
+  icon: React.ReactNode;
+  label: string;
+  danger?: boolean;
+  premium?: boolean;
+  trailing?: React.ReactNode;
+  onClick?: () => void;
+};
 
-  const handleWallpaperChange = () => {
-    updateSettings({ wallpaper_url: wallpaperUrl });
-  };
+const Row = ({ icon, label, danger, premium, trailing, onClick }: RowProps) => (
+  <button
+    type="button"
+    onClick={() => {
+      haptic('light');
+      onClick?.();
+    }}
+    className={cn(
+      'w-full h-14 px-5 flex items-center gap-4 text-left text-[15px] transition-colors',
+      'hover:bg-muted/60 active:bg-muted',
+      danger && 'text-destructive',
+      premium && 'relative'
+    )}
+  >
+    <span
+      className={cn(
+        'h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0',
+        danger ? 'bg-destructive/10 text-destructive' : 'bg-muted text-foreground/80',
+        premium && 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 text-purple-500 dark:text-purple-300'
+      )}
+    >
+      {icon}
+    </span>
+    <span className="flex-1 font-medium">{label}</span>
+    {trailing}
+  </button>
+);
 
-  const handleAutoDeleteChange = (value: string) => {
-    const duration = value === 'never' ? undefined : parseInt(value);
-    updateSettings({ auto_delete_duration: duration });
-  };
+/**
+ * Bottom-sheet chat info panel.
+ * Trimmed to the essential quick actions; deep settings live on dedicated pages.
+ */
+export const ChatSettingsDialog = ({
+  chatId,
+  open,
+  onOpenChange,
+  otherUserId,
+  isGroup,
+  onDeleteChat,
+  onBlockUser,
+}: ChatSettingsDialogProps) => {
+  const { settings, toggleMute } = useChatSettings(chatId);
+  const navigate = useNavigate();
+  const isMuted = !!settings?.is_muted;
+
+  const close = () => onOpenChange(false);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Chat Settings</DialogTitle>
-        </DialogHeader>
-        
-        <div className="space-y-6 py-4">
-          {/* Mute/Notifications */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-muted-foreground" />
-              <Label htmlFor="mute">Mute notifications</Label>
-            </div>
-            <Switch
-              id="mute"
-              checked={settings?.is_muted || false}
-              onCheckedChange={toggleMute}
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="p-0 rounded-t-3xl border-0 bg-background/95 backdrop-blur-xl max-h-[85dvh]"
+      >
+        <div className="fb-sheet-in">
+          {/* Grab handle */}
+          <div className="flex justify-center pt-3 pb-2">
+            <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
+          </div>
+
+          <div className="pb-[max(env(safe-area-inset-bottom,0px),16px)]">
+            {!isGroup && otherUserId && (
+              <Row
+                icon={<UserCircle className="h-5 w-5" />}
+                label="View Profile"
+                onClick={() => {
+                  close();
+                  navigate(`/profile/${otherUserId}`);
+                }}
+              />
+            )}
+
+            <Row
+              icon={<Pencil className="h-5 w-5" />}
+              label="Add Nickname"
+              onClick={() => {
+                toast({ title: 'Nicknames', description: 'Coming soon' });
+              }}
             />
-          </div>
 
-          {/* Pin Chat */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-muted-foreground" />
-              <Label htmlFor="pin">Pin this chat</Label>
-            </div>
-            <Switch
-              id="pin"
-              checked={settings?.is_pinned || false}
-              onCheckedChange={togglePin}
+            <Row
+              icon={<Images className="h-5 w-5" />}
+              label="View Shared Media"
+              onClick={() => {
+                close();
+                navigate(`/chat-media?chat=${chatId}`);
+              }}
             />
-          </div>
 
-          {/* Wallpaper */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Image className="h-4 w-4 text-muted-foreground" />
-              <Label>Chat Wallpaper URL</Label>
-            </div>
-            <div className="flex gap-2">
-              <Input
-                placeholder="https://example.com/wallpaper.jpg"
-                value={wallpaperUrl}
-                onChange={(e) => setWallpaperUrl(e.target.value)}
-              />
-              <Button onClick={handleWallpaperChange} size="sm">
-                Set
-              </Button>
-            </div>
-          </div>
+            <Row
+              icon={isMuted ? <BellOff className="h-5 w-5" /> : <Bell className="h-5 w-5" />}
+              label={isMuted ? 'Unmute Chat' : 'Mute Chat'}
+              onClick={() => toggleMute(!isMuted)}
+            />
 
-          {/* Chat Bubble Color */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Palette className="h-4 w-4 text-muted-foreground" />
-              <Label>Chat Bubble Color</Label>
-            </div>
-            <div className="grid grid-cols-5 gap-2">
-              <button
-                onClick={() => updateSettings({ theme_color: 'default' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  (!settings?.theme_color || settings.theme_color === 'default')
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: 'hsl(var(--primary))' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'blue' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'blue'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#3b82f6' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'green' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'green'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#10b981' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'purple' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'purple'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#a855f7' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'pink' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'pink'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#ec4899' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'orange' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'orange'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#f97316' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'red' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'red'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#ef4444' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'teal' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'teal'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#14b8a6' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'yellow' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'yellow'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#eab308' }}
-              />
-              <button
-                onClick={() => updateSettings({ theme_color: 'indigo' })}
-                className={`h-12 rounded-lg border-2 transition-all ${
-                  settings?.theme_color === 'indigo'
-                    ? 'border-primary ring-2 ring-primary/20'
-                    : 'border-border hover:border-primary/50'
-                }`}
-                style={{ backgroundColor: '#6366f1' }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">Your chat bubbles will use this color</p>
-          </div>
+            <Row
+              icon={<Sparkles className="h-5 w-5" />}
+              label="AI Summary"
+              premium
+              trailing={
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+                  Premium
+                </span>
+              }
+              onClick={() => {
+                toast({ title: 'AI Summary', description: 'Premium feature — coming soon' });
+              }}
+            />
 
-          {/* Auto-delete messages */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Trash2 className="h-4 w-4 text-muted-foreground" />
-              <Label>Auto-delete messages</Label>
-            </div>
-            <Select
-              value={settings?.auto_delete_duration?.toString() || 'never'}
-              onValueChange={handleAutoDeleteChange}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Never" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="never">Never</SelectItem>
-                <SelectItem value="3600">1 hour</SelectItem>
-                <SelectItem value="86400">24 hours</SelectItem>
-                <SelectItem value="604800">7 days</SelectItem>
-                <SelectItem value="2592000">30 days</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="h-px bg-border/60 my-1 mx-5" />
+
+            <Row
+              icon={<Trash2 className="h-5 w-5" />}
+              label="Delete Chat"
+              danger
+              onClick={() => {
+                close();
+                onDeleteChat?.();
+              }}
+            />
+
+            {!isGroup && (
+              <Row
+                icon={<Ban className="h-5 w-5" />}
+                label="Block User"
+                danger
+                onClick={() => {
+                  close();
+                  onBlockUser?.();
+                }}
+              />
+            )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 };
