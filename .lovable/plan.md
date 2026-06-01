@@ -1,77 +1,114 @@
+## Scope
 
-# Story Creation Revamp — Instagram-style (no IG colors)
+Six fixes, all UI/presentation only. No schema, no auth, no routing, no API changes. Existing hooks (`useThreadedComments`, `useStories`, `useChats`, `useMessages`) reused as-is.
 
-## Problems today
-1. The global **RightSlidePanel** FAB (`fixed top z-40`) and top **Navigation** bar (`z-50`) bleed over the full-screen `/create/story` editor — that's the "profile button overlay" the user sees.
-2. The active page (`src/pages/CreateStoryPage.tsx`) is a half-finished version: tools render in a separate `<StoryTextOverlay>` full-screen view, the share/audience header sits over the canvas, the filter strip is hidden behind the side toolbar, text/draw/sticker editors aren't wired into the same preview, and the duplicate `src/components/CreateStoryPage.tsx` (not routed) is actually the more complete one.
-3. Filters preview thumbnails are blank, no live tap-feedback, no pinch/drag for overlays, no clear "Next → Share" flow.
+---
 
-## Goals
-- IG-style flow & ergonomics (camera/gallery → edit canvas → filters carousel → stickers/text/draw → audience → share) with our own colors (keep `fb26` tokens, `--primary`, no IG pink/purple).
-- Everything wired to existing `useStories.createStory` — no schema changes, no new buckets, no new uuid logic.
-- Zero overlay from global chrome on `/create/story` and `/create/reel`.
+## 1. Themes — restore old 5 + add new default, kill rainbow
 
-## Plan
+**Problem:** iOS 26 motion layer overrode `data-color-theme` tokens; "Default" in Settings shows stray pink/rainbow gradients leaking from the motion background.
 
-### 1. Hide global chrome on creator routes
-- In `src/components/nav/RightSlidePanel.tsx`: read `useLocation()`, return `null` when `pathname.startsWith('/create/')` (also `/create/reel`, `/create/page`).
-- In `src/components/Navigation.tsx`: same guard — don't render the top bar on `/create/*`.
-- In `src/components/BottomNavigation.tsx`: same guard (it already hides on some routes, extend list).
-- Result: `/create/story` becomes a true full-screen editor.
+**Fix:**
+- `src/index.css` — locate the rainbow/aurora gradient (likely a `body::before` or `.ios26-bg` rule) and gate it behind `[data-motion="aurora"]`. Default body bg stays solid `hsl(var(--background))`.
+- Keep the 5 existing presets (`deep-teal`, `lemon-yellow`, `seamist`, `curious-blue`, `mulled-wine`) in `data-color-theme` blocks — re-verify each still defines `--primary`, `--accent`, `--background` after the iOS 26 additions.
+- Add a 6th preset `fb-twitter` (clean white/zinc + Facebook blue `#1877F2` primary) and make it the value written when no `colorTheme` is stored.
+- `src/pages/SettingsPage.tsx` — theme picker shows 6 swatches: Default (fb-twitter), Deep Teal, Lemon, Seamist, Curious Blue, Mulled Wine. Each swatch renders its real `--primary` hex, not a random gradient.
+- `src/hooks/useTheme.ts` — initial `colorTheme` resolves to `'fb-twitter'` instead of `null` on first load; persistence already fixed last pass, keep as is.
 
-### 2. Consolidate to one editor file
-- Keep the routed `src/pages/CreateStoryPage.tsx` as the single source.
-- Pull in the better bits from `src/components/CreateStoryPage.tsx` (unified toolbar, crop, adjustments, drawing, stickers, audience all rendered inside one preview).
-- Leave `src/components/CreateStoryPage.tsx` on disk untouched per project rules (not deleted, just unused — already unrouted today).
+---
 
-### 3. New IG-style layout inside the routed page
-```text
-┌──────────────────────────────┐
-│ ✕   Story         Audience▾  │  top bar (translucent, over canvas)
-├──────────────────────────────┤
-│                              │
-│      9:16 preview canvas     │  rounded-2xl, object-cover
-│   (text/stickers/draw live   │
-│    on top of media + filter) │
-│                              │
-├──────────────────────────────┤
-│  [Filters carousel — IG-like]│  thumb = same image w/ filter css
-├──────────────────────────────┤
-│  Aa  ✏️  😊  ⤴   📐  ✨   │  bottom tool dock (Text/Draw/Stickers/Crop/Adjust/Effects)
-├──────────────────────────────┤
-│   Text  •  Photo  •  Video   │  source switcher (only when empty)
-└──────────────────────────────┘
-                                ┌──────┐
-                                │Share→│  primary CTA pill, bottom-right
-                                └──────┘
-```
-- Tools open as bottom sheets (`fixed bottom-0` slide-up with spring) instead of replacing the canvas, so the user always sees the preview.
-- Active-tool indicator (dot under icon), tap-scale feedback (`active:scale-95 transition-transform`).
-- Filters strip: render mini 56×72 thumbnails using the actual `mediaPreview` with `style={{filter: f.css}}` so previews are real, not blank.
-- Text/stickers become draggable on the canvas (simple pointer-move with % coords stored on the overlay; already partially in `StoryStickers`/`StoryTextOverlay` — wire `onDragEnd` back to state).
-- "Adjust" sheet uses existing `StoryAdjustments`. "Crop" uses existing `StoryCropTool` but rendered as a full-screen sheet from the same page.
-- Text-only story: gradient picker stays, but typing happens directly on the canvas (centered textarea), with a quick-style row at the bottom.
+## 2. Device back-navigation + haptic vibration
 
-### 4. Styling
-- All chrome uses `bg-black/40 backdrop-blur-md` pills, `text-white`, `rounded-full`.
-- Active accents use `--primary` (our blue), not IG's gradient — keeps brand consistency per the constraint.
-- Spring motion via existing `--fb-spring` / `--fb-glide` tokens for sheet transitions and button feedback.
+**Fix:**
+- New `src/hooks/useDeviceNavigation.ts`:
+  - Listens to `popstate` so Android hardware back / browser back closes the topmost open overlay (long-press popup, image viewer, chat sheet, story viewer) before leaving the route. Overlays register via a tiny context (`OverlayStackContext`).
+  - Listens to iOS swipe-back via existing browser history (no extra code needed once overlays push synthetic history entries).
+- New `src/lib/haptics.ts`:
+  - `haptic(type: 'light' | 'medium' | 'heavy' | 'success')` → calls `navigator.vibrate([10])` / `[18]` / `[28]` / `[10,40,10]` when supported; no-op otherwise.
+  - Wired into: long-press start, reaction pick, send message, pull-to-refresh trigger, story capture. Pure additive.
+- `src/App.tsx` mounts the overlay stack provider once.
 
-### 5. Share flow
-- Single `handlePost` already uses `createStory(content?, mediaFile?)` from `useStories` — keep as is.
-- Compose final image: if there are text overlays, stickers, drawing, filters, or adjustments on an **image**, render the preview to a canvas (html2canvas-free approach: draw image + apply filter via `ctx.filter` + draw overlays at the stored % positions) before upload. For video, upload the original file (filters/overlays preview-only this pass — note in TODO comment, no behavior regression vs today).
-- Audience selection is captured but not yet persisted (no schema change) — leave existing behavior intact.
+---
 
-### 6. Verify
-- Build passes, no TS errors.
-- Visit `/create/story` on mobile viewport: no top nav, no right-side FAB.
-- Pick an image → filters carousel shows live thumbnails → tap one, canvas updates → add text, drag it → tap Share → story appears in feed Stories rail via existing realtime subscription.
+## 3. Long-press post popup — outside tap should ONLY dismiss popup
 
-## Files touched
-- `src/pages/CreateStoryPage.tsx` — rewritten layout (single canvas + bottom-sheet tools + live filter strip + draggable overlays + canvas-composite share for images).
-- `src/components/nav/RightSlidePanel.tsx` — hide on `/create/*`.
-- `src/components/Navigation.tsx` — hide on `/create/*`.
-- `src/components/BottomNavigation.tsx` — extend hidden-route list with `/create/*`.
+**Problem:** Tapping the dimmed area behind the long-press action sheet currently bubbles into the underlying post (opens thread / triggers like).
 
-## Untouched
-- `useStories.ts`, Supabase tables, `stories` bucket, RLS, edge functions, auth, routes, UUIDs, every other page, `src/components/CreateStoryPage.tsx`, all sub-tools (`StoryFilters`, `StoryStickers`, `StoryAdjustments`, `StoryCropTool`, `StoryDrawing`, `StoryTextOverlay`, `StoryAudienceSelector`).
+**Fix:**
+- Locate the long-press sheet (likely `MessageLongPressActions.tsx` pattern adapted for posts, or inside `PostCardModern`). Wrap the backdrop in a `<div onPointerDown={(e)=>{e.stopPropagation(); e.preventDefault(); close();}} className="fixed inset-0 z-[80] touch-manipulation">`.
+- Sheet body uses `onPointerDown={(e)=>e.stopPropagation()}` so taps inside don't close.
+- Matches the project memory rule: "Popups/modals must have secure close buttons and tap-outside dismissal (`touch-manipulation`)."
+
+---
+
+## 4. Threaded comments in the feed
+
+**Problem:** Feed currently uses `CommentsSection` (flat). `ThreadedCommentsSection` + `useThreadedComments` already exist and work (used in ThreadView).
+
+**Fix:**
+- `src/pages/Feed.tsx` and any inline comment area on `PostCardModern` — swap `<CommentsSection postId={...} />` for `<ThreadedCommentsSection postId={...} />`. No hook or schema changes; reply UI, like-on-comment, and collapse already built in.
+- `ThreadView.tsx` — same swap so the dedicated post page uses threading too.
+- `CommentsSection.tsx` stays in the repo (per project rule "never remove existing files") but becomes unused by feed surfaces.
+
+---
+
+## 5. Premium immersive Image Viewer (prompt 1)
+
+**File:** rewrite `src/components/ImageGalleryViewer.tsx` (and update `ProfileImageViewer.tsx` to match shell). Keep all existing props/callers.
+
+- Backdrop: `bg-black/85 backdrop-blur-lg` instead of solid black.
+- Remove the top toolbar (zoom in/out/download buttons).
+- Floating header overlay:
+  - Left: white `←` (or `×`) close button, `bg-black/30 backdrop-blur rounded-full p-2`.
+  - Right: white `⋮` button opening a small floating menu (`DropdownMenu`) with: Save to Device, Share Media, View Original Post, separator, Report Content (red).
+- Image: centered, `object-contain`, full viewport.
+- Bottom caption gradient: `bg-gradient-to-t from-black/80 via-black/30 to-transparent`, shows `@handle` bold + caption underneath in white.
+- Gestures: pinch-to-zoom + double-tap-to-zoom (use existing transform state, add `touch-action: none` and a small pointer-events handler — no new library).
+- Swipe left/right between multiple images with spring transition (prompt 3 carry-over) using CSS transforms.
+
+---
+
+## 6. Chat info bottom-sheet overhaul (prompt 2)
+
+**File:** `src/components/messaging/ChatSettingsDialog.tsx` (and the trigger from `ChatHeader.tsx` 3-dot menu).
+
+- Convert to a true bottom sheet: `fixed inset-x-0 bottom-0 rounded-t-3xl bg-background/95 backdrop-blur-xl`, spring-in via existing `.fb-sheet-in`.
+- Remove from this sheet (move references to a future profile/info view, do NOT delete the components): Search in Chat, Starred Messages, Shared Links, Change Theme, Change Wallpaper, Disappearing Messages.
+- Render exactly in order: View Profile, Add Nickname, View Shared Media, Mute Chat, AI Summary (Premium — purple sparkle icon + subtle gradient), separator, Delete / Block Chat (red danger zone).
+- Each row: `icon + label`, `h-14 px-5`, tap target full-width.
+
+---
+
+## 7. In-chat image bubbles + chat-list snippet (prompt 3)
+
+**Chat list snippet** — `src/components/messaging/ChatListItem.tsx`:
+- Replace any `"📷 Photo"` / emoji preview with plain `"Image"` or `"Video"` in `font-medium text-zinc-400 dark:text-zinc-500`.
+
+**In-chat image bubble** — `src/components/MessageBubble.tsx` (and `EnhancedMessageBubble.tsx`):
+- When message is image-only (no text), drop the bubble background/border/padding.
+- Image element: `max-w-[300px] rounded-3xl object-cover` + click opens the new ImageGalleryViewer.
+- Overlay timestamp + read ticks bottom-right inside the image:
+  ```
+  <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-black/60 to-transparent text-white text-[11px]">
+    11:29 am ✓✓
+  </div>
+  ```
+
+---
+
+## Files to touch
+
+- `src/index.css` — gate rainbow bg, add `fb-twitter` token block
+- `src/hooks/useTheme.ts` — default to `fb-twitter`
+- `src/pages/SettingsPage.tsx` — 6-swatch picker, real preview colors
+- `src/hooks/useDeviceNavigation.ts` (new), `src/lib/haptics.ts` (new), `src/App.tsx` (mount provider)
+- Long-press popup component (post action sheet) — backdrop pointer handler
+- `src/pages/Feed.tsx`, `src/components/PostCard/PostCardModern.tsx`, `src/pages/ThreadView.tsx` — swap to `ThreadedCommentsSection`
+- `src/components/ImageGalleryViewer.tsx`, `src/components/ProfileImageViewer.tsx` — premium viewer rewrite
+- `src/components/messaging/ChatSettingsDialog.tsx`, `src/components/messaging/ChatHeader.tsx` — bottom sheet + trimmed rows
+- `src/components/messaging/ChatListItem.tsx` — preview snippet
+- `src/components/MessageBubble.tsx`, `src/components/EnhancedMessageBubble.tsx` — bubble-less image + overlay timestamp
+
+## Explicitly untouched
+
+Supabase schema, RLS, edge functions, auth/OTP, routing, UUIDs, `useThreadedComments`/`useStories`/`useChats`/`useMessages` hook internals, deprecated polls system, removed components (`CommentsSection` stays in repo unused).
