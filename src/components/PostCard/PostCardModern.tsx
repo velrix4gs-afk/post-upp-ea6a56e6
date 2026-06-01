@@ -222,7 +222,19 @@ export const PostCardModern = ({
   };
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('button') || target.closest('a') || target.closest('[role="button"]')) {
+    if (
+      target.closest('button') ||
+      target.closest('a') ||
+      target.closest('[role="button"]') ||
+      target.closest('[role="menu"]') ||
+      target.closest('[role="dialog"]') ||
+      target.closest('[data-radix-popper-content-wrapper]')
+    ) {
+      return;
+    }
+    // Guard: if any Radix overlay (popover/dropdown/dialog) is currently open,
+    // this click is the outside-dismiss for that overlay — do NOT also navigate.
+    if (document.querySelector('[data-radix-popper-content-wrapper] [data-state="open"], [data-state="open"][role="dialog"]')) {
       return;
     }
     navigate(`/post/${post.id}`);

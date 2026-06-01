@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { PostCard } from '@/components/PostCard';
-import { CommentsSection } from '@/components/CommentsSection';
+import { ThreadedCommentsSection } from '@/components/ThreadedCommentsSection';
 import Navigation from '@/components/Navigation';
 import { BackNavigation } from '@/components/BackNavigation';
 import { Button } from '@/components/ui/button';
@@ -103,7 +103,7 @@ export const ThreadView = () => {
 
         {/* Comments Thread */}
         <div className="p-4">
-          <CommentsSection postId={postId!} />
+          <ThreadedCommentsSection postId={postId!} />
         </div>
       </main>
     </div>
