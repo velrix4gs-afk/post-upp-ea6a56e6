@@ -46,6 +46,7 @@ import { MessageReactions } from "./messaging/MessageReactions";
 import { ReactionPicker } from "./ReactionPicker";
 import { toast } from "@/hooks/use-toast";
 import { VoiceMessagePlayer } from "./messaging/VoiceMessagePlayer";
+import { haptic } from "@/lib/haptics";
 
 const getBubbleColorValue = (color: string): string => {
   const colorMap: Record<string, string> = {
@@ -141,6 +142,7 @@ export const EnhancedMessageBubble = ({
   const { reactions, loading: reactionsLoading } = useMessageReactions(id);
 
   const handleDelete = () => {
+    haptic('warning');
     onDelete?.(id, deleteFor);
     setShowDeleteDialog(false);
   };
@@ -182,17 +184,26 @@ export const EnhancedMessageBubble = ({
                 </div>
               )}
               
+              {(() => {
+                const isImageOnly = !!mediaUrl &&
+                  (mediaType?.startsWith('image') || mediaType === 'image') &&
+                  !content && !replyTo && !isForwarded;
+                return (
               <div
                 style={{
-                  backgroundColor: isOwn && bubbleColor 
+                  backgroundColor: isImageOnly
+                    ? 'transparent'
+                    : isOwn && bubbleColor
                     ? getBubbleColorValue(bubbleColor)
-                    : undefined
+                    : undefined,
                 }}
                 className={cn(
-                  "rounded-2xl px-3 py-2 md:px-4 md:py-2",
-                  isOwn
+                  isImageOnly
+                    ? "p-0 bg-transparent shadow-none"
+                    : "rounded-2xl px-3 py-2 md:px-4 md:py-2",
+                  !isImageOnly && (isOwn
                     ? !bubbleColor ? "bg-[#d3e3fd] text-[#1a1c1e] dark:bg-[#004a77] dark:text-[#d3e3fd] rounded-tr-sm" : "text-primary-foreground rounded-tr-sm"
-                    : "bg-gray-100 text-[#1a1c1e] dark:bg-[#303134] dark:text-[#e3e3e3] rounded-tl-sm"
+                    : "bg-gray-100 text-[#1a1c1e] dark:bg-[#303134] dark:text-[#e3e3e3] rounded-tl-sm")
                 )}
               >
                 {isForwarded && (
@@ -236,18 +247,26 @@ export const EnhancedMessageBubble = ({
                 )}
                 
                 {mediaUrl && (
-                  <div className="mb-2 relative group">
+                  <div className={cn("relative group", isImageOnly ? "mb-0" : "mb-2")}>
                     {mediaType?.startsWith('image') || mediaType === 'image' ? (
-                      <div className="relative">
-                        <img 
-                          src={mediaUrl} 
-                          alt="Message attachment" 
-                          className="rounded-lg max-w-full w-full max-h-64 object-cover cursor-pointer hover:opacity-90 transition"
+                      <div className="relative inline-block">
+                        <img
+                          src={mediaUrl}
+                          alt="Message attachment"
+                          className={cn(
+                            "max-w-[300px] w-full max-h-72 object-cover cursor-pointer hover:opacity-95 transition",
+                            isImageOnly ? "rounded-3xl" : "rounded-2xl"
+                          )}
                           onClick={() => setShowImageViewer(true)}
                         />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
-                          <ZoomIn className="h-8 w-8 text-white" />
-                        </div>
+                        {isImageOnly && (
+                          <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-black/65 to-black/10 text-white text-[11px] backdrop-blur-sm">
+                            <span>
+                              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                          </div>
+                        )}
                       </div>
                     ) : mediaType?.startsWith('video') || mediaType === 'video' ? (
                       <video 
@@ -280,14 +299,18 @@ export const EnhancedMessageBubble = ({
                   </p>
                 )}
 
-                {/* Timestamp and read receipt */}
-                <div className="flex justify-end items-center gap-1 mt-1">
-                  <span className="text-[10px] opacity-60">
-                    {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <ReadReceiptIndicator status={status} isOwn={isOwn} />
-                </div>
+                {/* Timestamp and read receipt — hidden when image-only (overlaid on image instead) */}
+                {!isImageOnly && (
+                  <div className="flex justify-end items-center gap-1 mt-1">
+                    <span className="text-[10px] opacity-60">
+                      {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                  </div>
+                )}
               </div>
+                );
+              })()}
 
               {/* Reactions display using MessageReactions component */}
               {!reactionsLoading && reactions.length > 0 && (
