@@ -39,6 +39,25 @@ const formatChatTime = (iso?: string): string => {
   }
 };
 
+/**
+ * Strip emoji-prefixed media placeholders ("📷 Photo", "🎥 Video", etc.)
+ * and replace with clean typographic labels.
+ */
+const cleanLastMessage = (text?: string): string => {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (/^📷\s*Photo$/i.test(trimmed) || /^📸\s*Photo$/i.test(trimmed) || /^📷$/.test(trimmed)) return 'Image';
+  if (/^🎥\s*Video$/i.test(trimmed) || /^📹\s*Video$/i.test(trimmed) || /^🎥$/.test(trimmed)) return 'Video';
+  if (/^🎤\s*Voice/i.test(trimmed) || /^🎙️?\s*Voice/i.test(trimmed)) return 'Voice message';
+  if (/^📎\s*(File|Document|Media)/i.test(trimmed)) return 'File';
+  if (/^📍\s*Location/i.test(trimmed)) return 'Location';
+  if (/^👤\s*Contact/i.test(trimmed)) return 'Contact';
+  return trimmed;
+};
+
+const isMediaSnippet = (cleaned: string): boolean =>
+  cleaned === 'Image' || cleaned === 'Video' || cleaned === 'Voice message' || cleaned === 'File' || cleaned === 'Location' || cleaned === 'Contact';
+
 export const ChatListItem = ({
   id,
   name,
@@ -229,14 +248,25 @@ export const ChatListItem = ({
                   )}
                 </span>
               )}
-              <p
-                className={cn(
-                  'text-[13px] truncate leading-tight',
-                  unreadCount > 0 ? 'text-foreground' : 'text-muted-foreground'
-                )}
-              >
-                {lastMessage || (isGroup ? 'Group chat' : 'Tap to chat')}
-              </p>
+              {(() => {
+                const cleaned = cleanLastMessage(lastMessage);
+                const text = cleaned || (isGroup ? 'Group chat' : 'Tap to chat');
+                const media = isMediaSnippet(cleaned);
+                return (
+                  <p
+                    className={cn(
+                      'text-[13px] truncate leading-tight',
+                      media
+                        ? 'font-medium text-zinc-400 dark:text-zinc-500'
+                        : unreadCount > 0
+                        ? 'text-foreground'
+                        : 'text-muted-foreground'
+                    )}
+                  >
+                    {text}
+                  </p>
+                );
+              })()}
             </div>
 
             <div className="flex items-center gap-1.5 flex-shrink-0">
