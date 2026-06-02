@@ -12,6 +12,8 @@ interface TextOverlay {
   fontSize: number;
   fontFamily: string;
   align: 'left' | 'center' | 'right';
+  fontPreset?: string;
+  hasBgPill?: boolean;
 }
 
 interface StoryTextOverlayProps {
@@ -28,11 +30,26 @@ const colors = [
 ];
 
 const fonts = [
-  { id: 'sans', name: 'Classic', family: 'ui-sans-serif, system-ui, sans-serif' },
-  { id: 'serif', name: 'Serif', family: 'ui-serif, Georgia, serif' },
-  { id: 'mono', name: 'Typewriter', family: 'ui-monospace, monospace' },
-  { id: 'cursive', name: 'Script', family: 'cursive' },
+  { id: 'sans',    name: 'Modern',   family: 'ui-sans-serif, system-ui, -apple-system, sans-serif' },
+  { id: 'serif',   name: 'Classic',  family: 'ui-serif, Georgia, "Times New Roman", serif' },
+  { id: 'neon',    name: 'Neon',     family: 'ui-sans-serif, system-ui, sans-serif' },
+  { id: 'cursive', name: 'Elegant',  family: '"Dancing Script", "Brush Script MT", cursive' },
+  { id: 'mono',    name: 'Mono',     family: 'ui-monospace, "SF Mono", monospace' },
 ];
+
+const presetExtraStyle = (preset?: string, color?: string): React.CSSProperties => {
+  if (preset === 'neon') {
+    return {
+      fontWeight: 900,
+      letterSpacing: '0.04em',
+      textShadow: `0 0 8px ${color || '#fff'}, 0 0 16px ${color || '#fff'}, 2px 2px 4px rgba(0,0,0,0.45)`,
+    };
+  }
+  if (preset === 'cursive') {
+    return { fontWeight: 600 };
+  }
+  return { textShadow: '2px 2px 4px rgba(0,0,0,0.5)' };
+};
 
 export const StoryTextOverlay = ({
   overlay,
@@ -45,6 +62,8 @@ export const StoryTextOverlay = ({
   const [color, setColor] = useState(overlay.color);
   const [fontSize, setFontSize] = useState(overlay.fontSize);
   const [fontFamily, setFontFamily] = useState(overlay.fontFamily);
+  const [fontPreset, setFontPreset] = useState<string>(overlay.fontPreset || 'sans');
+  const [hasBgPill, setHasBgPill] = useState<boolean>(!!overlay.hasBgPill);
   const [align, setAlign] = useState<'left' | 'center' | 'right'>(overlay.align);
 
   const handleSave = () => {
@@ -54,6 +73,8 @@ export const StoryTextOverlay = ({
       color,
       fontSize,
       fontFamily,
+      fontPreset,
+      hasBgPill,
       align
     });
     onEditComplete();
@@ -125,19 +146,34 @@ export const StoryTextOverlay = ({
           </div>
 
           {/* Fonts */}
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-2 justify-center overflow-x-auto pb-1">
             {fonts.map((font) => (
               <Button
                 key={font.id}
-                variant={fontFamily === font.family ? 'default' : 'outline'}
+                variant={fontPreset === font.id ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFontFamily(font.family)}
+                onClick={() => {
+                  setFontPreset(font.id);
+                  setFontFamily(font.family);
+                }}
                 style={{ fontFamily: font.family }}
-                className="text-white border-white/30"
+                className="text-white border-white/30 flex-shrink-0"
               >
                 {font.name}
               </Button>
             ))}
+          </div>
+
+          {/* Background pill toggle */}
+          <div className="flex justify-center">
+            <Button
+              variant={hasBgPill ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setHasBgPill((v) => !v)}
+              className="text-white border-white/30"
+            >
+              {hasBgPill ? 'Pill background ON' : 'Pill background OFF'}
+            </Button>
           </div>
 
           {/* Colors */}
@@ -169,12 +205,21 @@ export const StoryTextOverlay = ({
         fontFamily: overlay.fontFamily,
         fontSize: `${overlay.fontSize}px`,
         textAlign: overlay.align,
-        textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
         maxWidth: '80%',
-        wordBreak: 'break-word'
+        wordBreak: 'break-word',
+        ...presetExtraStyle(overlay.fontPreset, overlay.color),
       }}
     >
-      {overlay.text}
+      {overlay.hasBgPill ? (
+        <span
+          className="px-3 py-1 rounded-full backdrop-blur-sm"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)' }}
+        >
+          {overlay.text}
+        </span>
+      ) : (
+        overlay.text
+      )}
     </div>
   );
 };

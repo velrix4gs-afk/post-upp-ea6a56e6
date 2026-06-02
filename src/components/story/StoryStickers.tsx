@@ -72,6 +72,24 @@ export const StoryStickerPicker = ({ onSelect, onClose }: StoryStickerPickerProp
     }
   };
 
+  const handleAddCurrentLocation = () => {
+    if (!('geolocation' in navigator)) {
+      onSelect({ type: 'location', data: { location: '📍 Current Location' } });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      () => onSelect({ type: 'location', data: { location: '📍 Current Location' } }),
+      () => onSelect({ type: 'location', data: { location: '📍 Current Location' } }),
+      { timeout: 4000 }
+    );
+  };
+
+  const handleAddLiveTimestamp = () => {
+    const now = new Date();
+    const label = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    onSelect({ type: 'mention', data: { username: label } });
+  };
+
   const handleAddMention = () => {
     if (mentionText) {
       onSelect({
@@ -123,16 +141,35 @@ export const StoryStickerPicker = ({ onSelect, onClose }: StoryStickerPickerProp
 
       <ScrollArea className="flex-1">
         {activeTab === 'emoji' ? (
-          <div className="grid grid-cols-8 gap-2 p-4">
-            {emojis.map((emoji, i) => (
+          <div className="p-4 space-y-4">
+            {/* Quick utility chips */}
+            <div className="flex gap-2 overflow-x-auto pb-1">
               <button
-                key={i}
-                onClick={() => onSelect({ type: 'emoji', data: { emoji } })}
-                className="text-3xl p-2 hover:bg-white/10 rounded-lg transition"
+                onClick={handleAddCurrentLocation}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm transition"
               >
-                {emoji}
+                <MapPin className="h-4 w-4" />
+                Current Location
               </button>
-            ))}
+              <button
+                onClick={handleAddLiveTimestamp}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm transition"
+              >
+                <Clock className="h-4 w-4" />
+                Live Time
+              </button>
+            </div>
+            <div className="grid grid-cols-8 gap-2">
+              {emojis.map((emoji, i) => (
+                <button
+                  key={i}
+                  onClick={() => onSelect({ type: 'emoji', data: { emoji } })}
+                  className="text-3xl p-2 hover:bg-white/10 rounded-lg transition"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="p-4 space-y-6">
