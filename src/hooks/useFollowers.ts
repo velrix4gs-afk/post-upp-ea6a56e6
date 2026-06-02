@@ -134,79 +134,83 @@ export const useFollowers = (userId?: string) => {
   };
 
   const followUser = async (followingId: string, isPrivate: boolean = false) => {
-    if (!user) return;
+    if (!user || followingId === user.id) return;
 
-    // Optimistic update
-    setFollowing(prev => [...prev, {
-      id: 'temp',
+    const tempId = `temp-${followingId}`;
+    const optimisticRow: Follower = {
+      id: tempId,
       follower_id: user.id,
       following_id: followingId,
-      status: 'accepted' as const,
-      created_at: new Date().toISOString()
-    }]);
+      status: (isPrivate ? 'pending' : 'accepted') as Follower['status'],
+      created_at: new Date().toISOString(),
+    };
+
+    // Optimistic UI flip — instant.
+    setFollowing((prev) =>
+      prev.some((f) => f.following_id === followingId) ? prev : [...prev, optimisticRow]
+    );
 
     try {
-      // Add to followers table (the trigger will auto-create friendship)
-      const { error: followError } = await supabase
+      const { error } = await supabase
         .from('followers')
-        .insert({
-          follower_id: user.id,
-          following_id: followingId,
-          status: isPrivate ? 'pending' : 'accepted'
-        });
+        .upsert(
+          {
+            follower_id: user.id,
+            following_id: followingId,
+            status: isPrivate ? 'pending' : 'accepted',
+          },
+          { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
+        );
 
-      if (followError) {
-        // Revert optimistic update
-        setFollowing(prev => prev.filter(f => f.id !== 'temp'));
-        throw followError;
+      // Treat duplicate as success (already following) — never throw.
+      if (error && error.code !== '23505') {
+        // Revert optimistic row, keep app alive.
+        setFollowing((prev) => prev.filter((f) => f.id !== tempId));
+        toast({
+          description: error.message?.toLowerCase().includes('network')
+            ? 'Network error — try again'
+            : 'Failed to follow',
+          variant: 'destructive',
+        });
+        return;
       }
 
-      toast({
-        description: isPrivate ? 'Follow request sent' : 'Following'
-      });
-
-      // Fetch to get the real record
-      await fetchFollowers();
-    } catch (err: any) {
-      console.error('Error following user:', err);
-      toast({
-        description: err.message?.includes('duplicate') 
-          ? 'Already following' 
-          : 'Failed to follow',
-        variant: 'destructive'
-      });
+      // Quiet success — realtime subscription will reconcile the row.
+      toast({ description: isPrivate ? 'Follow request sent' : 'Following' });
+    } catch (err) {
+      // Any unexpected throw — revert + soft toast, do NOT propagate.
+      console.error('[follow] unexpected error', err);
+      setFollowing((prev) => prev.filter((f) => f.id !== tempId));
+      toast({ description: 'Failed to follow', variant: 'destructive' });
     }
   };
 
   const unfollowUser = async (followingId: string) => {
     if (!user) return;
 
-    // Optimistic update
-    setFollowing(prev => prev.filter(f => f.following_id !== followingId));
+    const snapshot = following;
+    // Optimistic UI flip — instant.
+    setFollowing((prev) => prev.filter((f) => f.following_id !== followingId));
 
     try {
-      // Remove from followers table (the trigger will auto-remove friendship)
-      const { error: followError } = await supabase
+      const { error } = await supabase
         .from('followers')
         .delete()
         .eq('follower_id', user.id)
         .eq('following_id', followingId);
 
-      if (followError) {
-        // Revert optimistic update
-        await fetchFollowers();
-        throw followError;
+      if (error) {
+        // Revert quietly.
+        setFollowing(snapshot);
+        toast({ description: 'Failed to unfollow', variant: 'destructive' });
+        return;
       }
 
-      toast({
-        description: 'Unfollowed'
-      });
-    } catch (err: any) {
-      console.error('Error unfollowing user:', err);
-      toast({
-        description: 'Failed to unfollow',
-        variant: 'destructive'
-      });
+      toast({ description: 'Unfollowed' });
+    } catch (err) {
+      console.error('[unfollow] unexpected error', err);
+      setFollowing(snapshot);
+      toast({ description: 'Failed to unfollow', variant: 'destructive' });
     }
   };
 

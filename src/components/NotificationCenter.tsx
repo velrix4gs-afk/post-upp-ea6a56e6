@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -44,6 +44,22 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
   const [expandedGroup, setExpandedGroup] = useState<NotificationGroup | null>(null);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const navigate = useNavigate();
+  const autoReadFiredRef = useRef(false);
+
+  // Auto mark-as-read when the panel opens, so the badge clears instantly.
+  useEffect(() => {
+    if (!isOpen) {
+      autoReadFiredRef.current = false;
+      return;
+    }
+    if (autoReadFiredRef.current) return;
+    if (unreadCount > 0) {
+      autoReadFiredRef.current = true;
+      const t = setTimeout(() => { markAllAsRead(); }, 350);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, unreadCount]);
 
   const clearNotification = async (notificationId: string) => {
     try {
