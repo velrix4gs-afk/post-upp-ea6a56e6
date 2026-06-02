@@ -1,114 +1,115 @@
 ## Scope
 
-Six fixes, all UI/presentation only. No schema, no auth, no routing, no API changes. Existing hooks (`useThreadedComments`, `useStories`, `useChats`, `useMessages`) reused as-is.
+Six fixes/features. Reuses every existing hook, table and edge function. No schema changes for items 1–4 and 6. Item 5 only touches the existing `pages` table flow (already in repo) — no new tables unless audit finds a missing column.
 
 ---
 
-## 1. Themes — restore old 5 + add new default, kill rainbow
+## 1. iOS "Hold to Peek" chat preview
 
-**Problem:** iOS 26 motion layer overrode `data-color-theme` tokens; "Default" in Settings shows stray pink/rainbow gradients leaking from the motion background.
+**Where:** `src/components/messaging/ChatListItem.tsx` + new `src/components/messaging/ChatPeekOverlay.tsx`.
 
-**Fix:**
-- `src/index.css` — locate the rainbow/aurora gradient (likely a `body::before` or `.ios26-bg` rule) and gate it behind `[data-motion="aurora"]`. Default body bg stays solid `hsl(var(--background))`.
-- Keep the 5 existing presets (`deep-teal`, `lemon-yellow`, `seamist`, `curious-blue`, `mulled-wine`) in `data-color-theme` blocks — re-verify each still defines `--primary`, `--accent`, `--background` after the iOS 26 additions.
-- Add a 6th preset `fb-twitter` (clean white/zinc + Facebook blue `#1877F2` primary) and make it the value written when no `colorTheme` is stored.
-- `src/pages/SettingsPage.tsx` — theme picker shows 6 swatches: Default (fb-twitter), Deep Teal, Lemon, Seamist, Curious Blue, Mulled Wine. Each swatch renders its real `--primary` hex, not a random gradient.
-- `src/hooks/useTheme.ts` — initial `colorTheme` resolves to `'fb-twitter'` instead of `null` on first load; persistence already fixed last pass, keep as is.
-
----
-
-## 2. Device back-navigation + haptic vibration
-
-**Fix:**
-- New `src/hooks/useDeviceNavigation.ts`:
-  - Listens to `popstate` so Android hardware back / browser back closes the topmost open overlay (long-press popup, image viewer, chat sheet, story viewer) before leaving the route. Overlays register via a tiny context (`OverlayStackContext`).
-  - Listens to iOS swipe-back via existing browser history (no extra code needed once overlays push synthetic history entries).
-- New `src/lib/haptics.ts`:
-  - `haptic(type: 'light' | 'medium' | 'heavy' | 'success')` → calls `navigator.vibrate([10])` / `[18]` / `[28]` / `[10,40,10]` when supported; no-op otherwise.
-  - Wired into: long-press start, reaction pick, send message, pull-to-refresh trigger, story capture. Pure additive.
-- `src/App.tsx` mounts the overlay stack provider once.
+- Add a `usePress` long-press handler (~400ms, pointer-based, cancels on move >8px) on each row. Fires `haptic('medium')` from `src/lib/haptics.ts`.
+- On trigger, render a portal overlay:
+  - Backdrop `fixed inset-0 z-[90] backdrop-blur-md bg-black/30` with `onPointerDown={close}` and `touch-manipulation` (per project memory rule).
+  - Floating window `mx-auto w-[340px] max-w-[90%] rounded-3xl shadow-2xl bg-background overflow-hidden` with spring `scale-95 → 1 + opacity` (CSS keyframe).
+  - Body = scroll-locked snapshot of the last ~20 messages for that chat — reuse `useMessages(chatId)` in a child component so the live data is shared, no new fetch path.
+  - Header strip = avatar + name (from existing `ChatListItem` props).
+- Sheet body `onPointerDown` stops propagation so taps inside don't close.
+- Tap outside scales back down to 0.95 + fades, then unmounts.
+- No navigation, no DB write. Pure presentation.
 
 ---
 
-## 3. Long-press post popup — outside tap should ONLY dismiss popup
+## 2. GetStream Video calling
 
-**Problem:** Tapping the dimmed area behind the long-press action sheet currently bubbles into the underlying post (opens thread / triggers like).
+**Secret required first.** Need `VITE_STREAM_API_KEY` (publishable, frontend) and `STREAM_API_SECRET` (edge-function only). I'll request both before code lands.
 
-**Fix:**
-- Locate the long-press sheet (likely `MessageLongPressActions.tsx` pattern adapted for posts, or inside `PostCardModern`). Wrap the backdrop in a `<div onPointerDown={(e)=>{e.stopPropagation(); e.preventDefault(); close();}} className="fixed inset-0 z-[80] touch-manipulation">`.
-- Sheet body uses `onPointerDown={(e)=>e.stopPropagation()}` so taps inside don't close.
-- Matches the project memory rule: "Popups/modals must have secure close buttons and tap-outside dismissal (`touch-manipulation`)."
+**Edge function (new):** `supabase/functions/stream-token/index.ts`
+- POST `{ user_id }` → returns `{ token }` signed with `STREAM_API_SECRET` using `jsr:@stream-io/node-sdk` (or HMAC fallback). JWT verified via existing pattern, Zod-validated.
 
----
+**Client:**
+- `bun add @stream-io/video-react-sdk`.
+- New `src/lib/streamClient.ts` — lazy singleton `StreamVideoClient` keyed by current `auth.user.id`, fetches token from the edge function.
+- `src/App.tsx` — wrap routes in `<StreamVideo client={...}>` only after auth resolves (skip when signed out, so SDK never inits unauthenticated).
+- `src/components/VoiceCall.tsx` & `src/components/VideoCall.tsx` — replace the placeholder timer with `client.call('default', callId).getOrCreate()` + `<StreamCall>` + `<SpeakerLayout>`/audio-only layout. Keep existing prop signature so `IncomingCallOverlay` and chat header call buttons keep working.
+- `src/hooks/useCallNotifications.ts` — already exists; extend it to also listen to Stream's `call.ring` event for incoming-call UI activation. Existing `IncomingCallOverlay` stays the visual layer.
 
-## 4. Threaded comments in the feed
-
-**Problem:** Feed currently uses `CommentsSection` (flat). `ThreadedCommentsSection` + `useThreadedComments` already exist and work (used in ThreadView).
-
-**Fix:**
-- `src/pages/Feed.tsx` and any inline comment area on `PostCardModern` — swap `<CommentsSection postId={...} />` for `<ThreadedCommentsSection postId={...} />`. No hook or schema changes; reply UI, like-on-comment, and collapse already built in.
-- `ThreadView.tsx` — same swap so the dedicated post page uses threading too.
-- `CommentsSection.tsx` stays in the repo (per project rule "never remove existing files") but becomes unused by feed surfaces.
+Untouched: chat schema, presence, existing call notification rows.
 
 ---
 
-## 5. Premium immersive Image Viewer (prompt 1)
+## 3. Notifications: realtime delivery + mark-as-read
 
-**File:** rewrite `src/components/ImageGalleryViewer.tsx` (and update `ProfileImageViewer.tsx` to match shell). Keep all existing props/callers.
+**Realtime delivery for new messages:**
+- DB already has `messages_broadcast_trigger`. Audit `useRealtimeMessages` and `useUnreadMessages` — wire a global subscription in `src/components/RealtimeNotifications.tsx` that on incoming `messages` insert where `sender_id != auth.uid()` and chat not currently open, calls existing `insert into notifications` via the message trigger (verify trigger exists; if missing, add `notify_new_message` trigger in migration — schema-additive only, no table change).
+- Bump global unread badge by invalidating `useUnreadMessages` cache on the same event.
 
-- Backdrop: `bg-black/85 backdrop-blur-lg` instead of solid black.
-- Remove the top toolbar (zoom in/out/download buttons).
-- Floating header overlay:
-  - Left: white `←` (or `×`) close button, `bg-black/30 backdrop-blur rounded-full p-2`.
-  - Right: white `⋮` button opening a small floating menu (`DropdownMenu`) with: Save to Device, Share Media, View Original Post, separator, Report Content (red).
-- Image: centered, `object-contain`, full viewport.
-- Bottom caption gradient: `bg-gradient-to-t from-black/80 via-black/30 to-transparent`, shows `@handle` bold + caption underneath in white.
-- Gestures: pinch-to-zoom + double-tap-to-zoom (use existing transform state, add `touch-action: none` and a small pointer-events handler — no new library).
-- Swipe left/right between multiple images with spring transition (prompt 3 carry-over) using CSS transforms.
+**Mark-as-read fix:**
+- `src/components/NotificationCenter.tsx` — on open (`useEffect` when panel becomes visible), call `supabase.from('notifications').update({ read: true }).eq('user_id', uid).eq('read', false)`. Optimistic local state flip + cache clear so badge clears instantly.
+- When user navigates into a chat thread, additionally mark all notifications with `data->>chat_id = currentChatId` as read.
+- Add `useNotifications.markAllRead()` if not already present; reuse it.
 
----
-
-## 6. Chat info bottom-sheet overhaul (prompt 2)
-
-**File:** `src/components/messaging/ChatSettingsDialog.tsx` (and the trigger from `ChatHeader.tsx` 3-dot menu).
-
-- Convert to a true bottom sheet: `fixed inset-x-0 bottom-0 rounded-t-3xl bg-background/95 backdrop-blur-xl`, spring-in via existing `.fb-sheet-in`.
-- Remove from this sheet (move references to a future profile/info view, do NOT delete the components): Search in Chat, Starred Messages, Shared Links, Change Theme, Change Wallpaper, Disappearing Messages.
-- Render exactly in order: View Profile, Add Nickname, View Shared Media, Mute Chat, AI Summary (Premium — purple sparkle icon + subtle gradient), separator, Delete / Block Chat (red danger zone).
-- Each row: `icon + label`, `h-14 px-5`, tap target full-width.
+No new tables. Migration only if the `notify_new_message` trigger is missing.
 
 ---
 
-## 7. In-chat image bubbles + chat-list snippet (prompt 3)
+## 4. Story editor — text styles + sticker drawer
 
-**Chat list snippet** — `src/components/messaging/ChatListItem.tsx`:
-- Replace any `"📷 Photo"` / emoji preview with plain `"Image"` or `"Video"` in `font-medium text-zinc-400 dark:text-zinc-500`.
+**Files:** `src/components/story/StoryTextOverlay.tsx`, `src/components/story/StoryStickers.tsx`, `src/pages/CreateStoryPage.tsx`.
 
-**In-chat image bubble** — `src/components/MessageBubble.tsx` (and `EnhancedMessageBubble.tsx`):
-- When message is image-only (no text), drop the bubble background/border/padding.
-- Image element: `max-w-[300px] rounded-3xl object-cover` + click opens the new ImageGalleryViewer.
-- Overlay timestamp + read ticks bottom-right inside the image:
+- **Text font picker:** horizontal scroller above the text input with 5 presets — Modern Sans (`font-sans`), Classic Serif (`font-serif`), Bold Neon (`font-black tracking-wider drop-shadow-[0_0_8px_currentColor]`), Elegant Cursive (Google font `Dancing Script` loaded in index.html), Mono (`font-mono`). Each preset stored on the text layer as `fontPreset` string.
+- **Pill background toggle:** new boolean `hasBgPill` on the text layer. When on, render text inside `<span class="px-3 py-1 rounded-full bg-black/55 backdrop-blur-sm">` so contrast is guaranteed.
+- **Sticker drawer:** floating sticker icon top-right of canvas. Tap opens a `bottom-0 inset-x-0 rounded-t-3xl bg-background/95 backdrop-blur-xl` sheet (~40vh) with three tabs: Emojis (grid of common emojis), Location (uses `navigator.geolocation` → reverse-geocode-free "📍 Current Location" chip), Live Timestamp (`new Date().toLocaleTimeString()` chip, auto-frozen on stamp).
+- Tapping any item pushes a new draggable layer onto the existing `stickers` array — reuses existing drag/scale logic.
+
+No DB or storage changes.
+
+---
+
+## 5. Facebook-style Pages — verify + polish
+
+Pages table already exists with `owner_id`, `page_name`, `handle`, `category`, `bio`, `profile_avatar`, `cover_banner`, and posting context. Verify in audit; only migrate if a field is missing.
+
+- **`/pages/create`** (existing `CreatePagePage.tsx`) — convert to true 3-step wizard with progress dots:
+  1. Page Name + Category (`Brand`, `Community`, `Entertainment`, `Digital Creator`, `Business`, `Other`).
+  2. Handle with live availability check (`supabase.from('pages').select('id').eq('handle', value).maybeSingle()` debounced 400ms, green/red indicator).
+  3. Avatar + cover upload (existing `avatars`/`covers` storage buckets, or `posts` if pages bucket missing) + bio.
+- Posting context switcher in `CreatePost.tsx`/`FixedPostBar.tsx` — dropdown to post as User or one of the user's owned pages. When a page is selected, `posts.page_id` is set instead of `user_id` (or alongside, depending on existing schema). Verify with audit before coding.
+- `PageProfilePage.tsx` — already exists; just make sure the feed query joins on `page_id`.
+
+---
+
+## 6. Follow / unfollow crash fix
+
+**File:** `src/hooks/useFollowers.ts` (`followUser` / `unfollowUser`).
+
+- Wrap full body in `try/catch`. Catch Supabase unique-violation (`23505`) silently and treat as "already following".
+- Use atomic pattern:
   ```
-  <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-black/60 to-transparent text-white text-[11px]">
-    11:29 am ✓✓
-  </div>
+  const { error } = await supabase
+    .from('followers')
+    .upsert({ follower_id: uid, following_id: targetId, status: isPrivate ? 'pending' : 'accepted' },
+            { onConflict: 'follower_id,following_id', ignoreDuplicates: true });
   ```
+- Unfollow uses a single `.delete().eq(...).eq(...)` with caught errors.
+- Optimistic UI: flip local `isFollowing` state and button label immediately. On error → revert + `toast.destructive`, no throw.
+- Wrap the consuming button (`FollowersDialog`, `ProfileHeader`, `MutualFollowers`, `FriendSuggestions`) in `ErrorBoundary` so any unexpected throw doesn't unmount the parent.
 
 ---
 
-## Files to touch
+## Files touched (no deletions)
 
-- `src/index.css` — gate rainbow bg, add `fb-twitter` token block
-- `src/hooks/useTheme.ts` — default to `fb-twitter`
-- `src/pages/SettingsPage.tsx` — 6-swatch picker, real preview colors
-- `src/hooks/useDeviceNavigation.ts` (new), `src/lib/haptics.ts` (new), `src/App.tsx` (mount provider)
-- Long-press popup component (post action sheet) — backdrop pointer handler
-- `src/pages/Feed.tsx`, `src/components/PostCard/PostCardModern.tsx`, `src/pages/ThreadView.tsx` — swap to `ThreadedCommentsSection`
-- `src/components/ImageGalleryViewer.tsx`, `src/components/ProfileImageViewer.tsx` — premium viewer rewrite
-- `src/components/messaging/ChatSettingsDialog.tsx`, `src/components/messaging/ChatHeader.tsx` — bottom sheet + trimmed rows
-- `src/components/messaging/ChatListItem.tsx` — preview snippet
-- `src/components/MessageBubble.tsx`, `src/components/EnhancedMessageBubble.tsx` — bubble-less image + overlay timestamp
+New: `src/components/messaging/ChatPeekOverlay.tsx`, `src/lib/streamClient.ts`, `supabase/functions/stream-token/index.ts`.
+
+Edited: `ChatListItem.tsx`, `App.tsx`, `VoiceCall.tsx`, `VideoCall.tsx`, `useCallNotifications.ts`, `RealtimeNotifications.tsx`, `NotificationCenter.tsx`, `useNotifications.ts`, `StoryTextOverlay.tsx`, `StoryStickers.tsx`, `CreateStoryPage.tsx`, `CreatePagePage.tsx`, `CreatePost.tsx`/`FixedPostBar.tsx`, `useFollowers.ts`, follow-button consumers.
 
 ## Explicitly untouched
 
-Supabase schema, RLS, edge functions, auth/OTP, routing, UUIDs, `useThreadedComments`/`useStories`/`useChats`/`useMessages` hook internals, deprecated polls system, removed components (`CommentsSection` stays in repo unused).
+Auth/OTP, routing, UUIDs, deprecated polls, existing chat schema, RLS unless audit forces a single trigger addition for new-message notifications.
+
+## Order of execution
+
+1. Secrets request (GetStream keys) — blocks item 2 only.
+2. Quick audit of `pages` table + `notifications` mark-read column to confirm no migration needed.
+3. Implement items 1, 3, 4, 5, 6 in parallel-friendly batches.
+4. Item 2 after secrets land.
