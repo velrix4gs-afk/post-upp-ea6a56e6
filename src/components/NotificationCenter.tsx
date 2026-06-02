@@ -48,16 +48,18 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
 
   // Auto mark-as-read when the panel opens, so the badge clears instantly.
   useEffect(() => {
-    if (isOpen && !autoReadFiredRef.current && unreadCount > 0) {
+    if (!isOpen) {
+      autoReadFiredRef.current = false;
+      return;
+    }
+    if (autoReadFiredRef.current) return;
+    if (unreadCount > 0) {
       autoReadFiredRef.current = true;
-      // Slight defer so the user perceives the unread state before it clears.
       const t = setTimeout(() => { markAllAsRead(); }, 350);
       return () => clearTimeout(t);
     }
-    if (!isOpen) {
-      autoReadFiredRef.current = false;
-    }
-  }, [isOpen, unreadCount, markAllAsRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, unreadCount]);
 
   const clearNotification = async (notificationId: string) => {
     try {
