@@ -45,13 +45,10 @@ export const LiquidGlassRoot = () => {
         </defs>
       </svg>
 
-      {active && (
-        <div className="lg-ambient" aria-hidden>
-          <span className="lg-blob lg-blob-1" />
-          <span className="lg-blob lg-blob-2" />
-          <span className="lg-blob lg-blob-3" />
-        </div>
-      )}
+      {/* Ambient rainbow blob backdrop intentionally removed — the iOS 26
+          liquid-glass skin now relies purely on translucent plates over the
+          active color theme background, so it remixes cleanly with the
+          existing themes instead of overpowering them. */}
     </>
   );
 };
