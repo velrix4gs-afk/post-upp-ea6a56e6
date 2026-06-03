@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { 
   Plus, Heart, MessageCircle, Share2, Bookmark, Pause, Play, 
   Volume2, VolumeX, Film, Loader2, Send, MoreHorizontal, 
-  UserPlus, Eye, Pin, Reply, Trash2, Flag
+  UserPlus, Eye, Pin, Reply, Trash2, Flag, X
 } from 'lucide-react';
 import { useReels, ReelComment } from '@/hooks/useReels';
 import { useAuth } from '@/hooks/useAuth';
