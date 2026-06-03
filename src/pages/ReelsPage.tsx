@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { 
   Plus, Heart, MessageCircle, Share2, Bookmark, Pause, Play, 
   Volume2, VolumeX, Film, Loader2, Send, MoreHorizontal, 
-  UserPlus, Eye, Pin, Reply, Trash2, Flag
+  UserPlus, Eye, Pin, Reply, Trash2, Flag, X
 } from 'lucide-react';
 import { useReels, ReelComment } from '@/hooks/useReels';
 import { useAuth } from '@/hooks/useAuth';
@@ -476,7 +476,16 @@ const ReelsPage = () => {
     <div className="h-screen bg-black overflow-hidden relative">
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent">
-        <h1 className="text-xl font-bold text-white">Reels</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/feed')}
+            aria-label="Close reels"
+            className="h-9 w-9 rounded-full bg-black/40 backdrop-blur flex items-center justify-center text-white hover:bg-black/60 active:scale-95 transition touch-manipulation"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <h1 className="text-xl font-bold text-white">Reels</h1>
+        </div>
 
         {/* Tabs */}
         <div className="flex items-center gap-4">
