@@ -12,14 +12,31 @@ import { showCleanError } from '@/lib/errorHandler';
 interface TipDialogProps {
   recipientId: string;
   recipientName: string;
+  /**
+   * When false (or omitted with strict=true), the trigger button is not
+   * rendered. Pass the recipient profile's is_verified flag here so tipping
+   * is only offered for verified creators.
+   */
+  recipientVerified?: boolean;
+  /** When true, the trigger is hidden unless recipientVerified === true. */
+  strict?: boolean;
 }
 
-export const TipDialog = ({ recipientId, recipientName }: TipDialogProps) => {
+export const TipDialog = ({
+  recipientId,
+  recipientName,
+  recipientVerified,
+  strict = true,
+}: TipDialogProps) => {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('1');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Per plan: tipping is restricted to verified creators. Hide trigger
+  // entirely when the recipient is not verified to avoid dead UI.
+  if (strict && !recipientVerified) return null;
 
   const predefinedAmounts = ['1', '5', '10', '25', '50'];
 
