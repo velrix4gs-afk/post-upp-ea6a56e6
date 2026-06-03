@@ -158,8 +158,8 @@ export const useStories = () => {
         const fileName = `${user.id}/${Date.now()}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('posts')
-          .upload(fileName, mediaFile);
+          .from('stories')
+          .upload(fileName, mediaFile, { upsert: false, contentType: mediaFile.type });
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
@@ -167,7 +167,7 @@ export const useStories = () => {
         }
 
         const { data: { publicUrl } } = supabase.storage
-          .from('posts')
+          .from('stories')
           .getPublicUrl(fileName);
 
         media_url = publicUrl;
