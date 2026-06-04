@@ -63,6 +63,7 @@ const CreateReelPage = lazy(() => import("./pages/CreateReelPage"));
 const CreatePagePage = lazy(() => import("./pages/CreatePagePage"));
 const EditPagePage = lazy(() => import("./pages/EditPagePage"));
 const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
+const InstructionsPage = lazy(() => import("./pages/InstructionsPage"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -407,6 +408,13 @@ const App = () => (
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
                         <PageProfilePage />
+                      </Suspense>
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/instructions" element={
+                    <ProtectedRoute>
+                      <Suspense fallback={<PageLoader />}>
+                        <InstructionsPage />
                       </Suspense>
                     </ProtectedRoute>
                   } />
