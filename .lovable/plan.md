@@ -1,73 +1,107 @@
 ## Plan
 
-### 1. GetStream calling integration
+### 1. Install Stream Video SDK
 
-- Store `STREAM_API_SECRET` as backend secret; add `VITE_STREAM_API_KEY = byeg282tjdhu` to `.env` (public, frontend safe).
-- New edge function `stream-token` → validates JWT via `getClaims`, signs Stream user token using HMAC-SHA256 with secret, returns `{ token }`.
-- New `src/lib/streamClient.ts` singleton: `StreamVideoClient` initialized with user from `useAuth`, token fetched from edge function (cached).
-- Wrap authenticated routes in `App.tsx` with `<StreamVideo client={…}>`.
-- Replace internals of `VoiceCall.tsx` / `VideoCall.tsx` with `client.call('default', chatId).join({ create: true })` + `<StreamCall>` + `<SpeakerLayout>` / audio-only layout. Keep existing component props/exports so callers don't break.
-- Extend `useCallNotifications.ts` to listen to `call.ring` events from Stream and surface in existing `IncomingCallOverlay.tsx` (props unchanged).
-- Keep existing `call_signals` table & WebRTC code untouched as fallback for now (no DB changes).
+- `bun add @stream-io/video-react-sdk`
+- Verify `VITE_STREAM_API_KEY` is in `.env` and `STREAM_API_SECRET` runtime secret is configured (already added in prior step).
+- Confirm the `stream-token` edge function returns `{ token, apiKey, userId }` for the authenticated caller; patch if needed (CORS + Zod input validation, signed HS256 JWT with `user_id` claim).
 
-### 2. iOS-style chat peek (refinement)
+### 2. Stream client wiring
 
-Update `ChatPreviewModal.tsx`:
+- New file `src/hooks/useStreamVideoClient.ts`:
+  - Fetch token via `supabase.functions.invoke('stream-token')`.
+  - Create a singleton `StreamVideoClient` keyed by `user.id`.
+  - Handle disconnect on sign-out / unmount.
+- New file `src/components/calls/StreamCallProvider.tsx`:
+  - Wraps app in `<StreamVideo client={client}>` when authenticated.
+  - Mounted once in `App.tsx` inside the auth tree (do NOT remove existing providers).
 
-- Backdrop becomes `bg-background/40 backdrop-blur-2xl saturate-150` (iOS frosted look).
-- Card: `rounded-[28px]`, subtle border `border-white/10`, layered shadow, spring scale from 0.92.
-- Header: large avatar + name + small "Preview" pill; tap header → open chat.
-- Messages: bubble radius `rounded-[22px]`, tighter spacing, iOS blue for own bubbles via theme token.
-- Bottom action row: "Open chat", "Mute", "Mark as read" pill buttons (mute/mark wired to existing hooks; mark-as-read OPT-IN, doesn't auto-mark on peek per memory).
-- Tap-outside dismiss preserved; haptic on open.
-- preview should look exactly like the chat with the image showing and all 
-- in chat message bubble for image should rival that of whatsapp
+### 3. Rewrite VoiceCall + VideoCall
 
-### 3. Coins page + Tipping verified users
+- Replace internal WebRTC logic in `src/components/VoiceCall.tsx` and `src/components/VideoCall.tsx` with Stream SDK primitives:
+  - Use `client.call('default', callId)` where `callId` is deterministic from sorted participant UUIDs (so both sides join the same call).
+  - `call.join({ create: true })`, request mic (voice) or mic+cam (video).
+  - Render Stream's `<StreamCall call={call}>` + `<SpeakerLayout/>` (video) or a custom audio-only layout (voice) using existing UI shell — keep current visual chrome, buttons, durations, and prop signatures intact so `ChatHeader`, `useVideoCall`, and `MessagesPage` call sites are unchanged.
+  - End call: `call.leave()` + `call.endCall()` for initiator.
+- Keep existing props (`open`, `onClose`, `peerId`, `peerName`, `peerAvatar`, etc.) — only swap the internals.
+- `useVideoCall.ts`: keep ringing/notification trigger logic; only swap WebRTC offer/answer signaling for Stream's ring flow (`call.getOrCreate({ ring: true, data: { members } })`).
 
-- New route `/coins` → `CoinsPage.tsx`: balance from existing `useCoins`/profile, packages grid (reuse `CoinsDialog` logic), purchase via existing `create-coins-checkout` edge function, history list from `usePurchaseHistory`.
-- Tipping: extend `TipDialog.tsx` to call existing `process-tip` edge function; expose "Tip" button on `ProfileHeader.tsx` and `PostCardModern.tsx` ONLY when target profile `is_verified = true`.
-- No schema changes — uses existing `coins`, `tips`, and `process-tip` infra.
+### 4. Chat peek modal — iOS-style polish
 
-### 4. Reels page — TikTok rebuild
+- Update `src/components/messaging/ChatPreviewModal.tsx`:
+  - Card centred, max-w `380px`, rounded-3xl, subtle scale-in (0.92 → 1) + spring feel via Tailwind transition.
+  - Header: avatar (lg), name, "tap to open" hint; tappable to call `onOpenFull`.
+  - Body: last ~6 messages in iMessage-style bubbles (right = primary, left = muted), no input, no read-receipt writes.
+  - Footer pill: secure close button (X) top-right and tap-outside dismissal (already partially there — confirm `touch-manipulation` + pointer-events on backdrop per memory rules).
+  - Use semantic tokens only (no raw colors).
 
-Rewrite `ReelsPage.tsx`:
+### 5. MD instructions textarea
 
-- Full-screen vertical snap scroller (`h-[100dvh] snap-y snap-mandatory overflow-y-scroll`).
-- Each reel: muted autoplay video, tap = play/pause, double-tap = like (haptic), long-press = pause.
-- Right rail: avatar+follow, like, comment, share, more (TikTok layout) — reuse `useReactions`, `useThreadedComments` (comments open as bottom sheet `Drawer`).
-- Bottom: `@username`, caption with hashtags, audio strip.
-- Top bar: "For You / Following" tabs + **explicit close (X) button** routing back to Feed → fixes "can't get out" bug.
-- Bottom nav stays visible on this route (overrides auto-hide while on /reels so user can navigate away).
-- IntersectionObserver pauses off-screen videos.
+- Add a lightweight in-app scratchpad so you can paste extended MD instructions to me:
+  - New page `src/pages/InstructionsPage.tsx` at route `/instructions` (guarded by auth).
+  - Single `<textarea>` bound to localStorage key `postup_agent_instructions_md` + a "Copy to clipboard" button.
+- No DB writes, no schema changes. Purely a client utility so you can draft MD, copy it, and paste into chat for me to follow.
+- also follow this (## Task: Rebuild Chat UI - iOS Bottom Sheet Popup + WhatsApp Chat + Working Media Gallery
+  ### 1. Chat Popup - iOS Style Bottom Sheet
+  **Reference**: iOS Messenger style popup covering 80% screen from bottom
+  **Specs:**
+  - Component: Bottom Sheet Modal, slide up animation from bottom
+  - Height: 80% of viewport height
+  - Top: 4px grey handle bar, 36px width, 8px from top, centered
+  - Corners: 32px border radius top-left + top-right, 0px bottom
+  - Overlay: 40% black background, tap overlay = close sheet
+  - Swipe down: User can swipe down on handle bar to close
+  **Header:**
+  - Height: 56px, fixed
+  - Left: [<] Back arrow icon 24px
+  - Center: Contact name "ÑÖVÄ JÏÑX" bold 17px, status "online" 13px grey below name
+  - Right: [Call icon] [Video icon] [••• menu icon] each 24px, 16px spacing
+  - Bottom border: 1px #E5E5EA
+  **Chat area inside popup:**
+  - Background: #F2F2F7 light grey
+  - Show last 3-4 messages as bubbles, same style as main chat
+  - Bubbles: My msg = blue #007AFF right aligned, Their msg = grey #E9E9EB left aligned
+  - Timestamp: 12px inside bubble bottom right
+  - Media: Show image with "HD (126 KB)" tag bottom left like in reference
+  **Input bar:**
+  - Fixed bottom, height 52px
+  - Left: [+] icon 28px
+  - Center: Text input rounded 20px, placeholder "Message"
+  - Right: [Camera icon] [Mic icon] 28px each
+  - Padding: 12px left/right, 8px top/bottom
+  **Long press menu:**
+  - Appears above message on long press
+  - Style: White card, rounded 16px, shadow
+  - Items: Mark as unread, Archive, Mute, Lock chat, Add to Favorites. Icon + text left aligned
+  - Close when tap outside
+  ### 2. Fix "View All Media" Screen
+  **Issues**: Won't close, wrong tab shows wrong content
+  **Specs:**
+  - Top bar: [X] Close 24px left, "Media" title 17px bold center, [Search] 24px right
+  - Tabs: Photos | Videos | Files | Links. Active tab = blue underline #007AFF
+  - Default tab: Open to the tab user clicked. If from "Videos", show Videos first
+  - Photos: 3-column grid, aspect ratio 1:1, no text
+  - Videos: 2-column grid, thumbnail + ▶️ center + duration bottom right "0:32"
+  - Files: List with icon + filename + filesize
+  - Close: X button + swipe down + tap overlay all close modal
+  - Empty state: Icon + "No photos yet" centered
+  ### 3. Main Chat Screen - WhatsApp Style
+  **Issues**: Too much spacing, 3 timestamps, dotted bg
+  **Specs:**
+  - Header: Fixed. [<] + Avatar 40px + Name + "last seen today at 17:13" + [Call] [Video] [•••]
+  - Background: Solid #ECE5DD. Add setting)
 
-### 5. Story creation fix
+### 6. Out of scope (this round)
 
-Audit `CreateStoryPage.tsx` + `useStories.ts`:
+- No changes to routing structure beyond adding `/instructions`.
+- No edits to auth, DB schema, or existing message logic.
+- No removal of existing files or props.
+- No asking weather to add something add all thats needed at once 
 
-- Fix upload path (`stories` bucket) and `media_type` detection; ensure `expires_at = now()+24h` is set.
-- Ensure overlays (text/stickers/drawing) are flattened via canvas before upload OR persisted as JSON metadata column already present.
-- Guard: button disabled until media chosen; explicit error toast on failure (currently silently fails per user report).
-- Keep existing editor UI; only fix the broken save path.
+### Files touched
 
-### 6. Themes — keep changeable
+- New: `src/hooks/useStreamVideoClient.ts`, `src/components/calls/StreamCallProvider.tsx`, `src/pages/InstructionsPage.tsx`
+- Edited: `src/components/VoiceCall.tsx`, `src/components/VideoCall.tsx`, `src/hooks/useVideoCall.ts`, `src/components/messaging/ChatPreviewModal.tsx`, `src/App.tsx`, `package.json` (via bun add)
+- Possibly edited: `supabase/functions/stream-token/index.ts` (only if validation/CORS gaps found)
 
-- `useTheme.ts`: restore 5 legacy themes + new FB/Twitter default already added.
-- `SettingsPage.tsx` theme picker: ensure all themes selectable, persisted to `user_settings.theme`, applied via `data-theme` on `<html>`.
-- Remove any leftover rainbow gradient body background introduced by iOS 26 theme; gate iOS 26 visuals behind its own theme only.
-
-### 7. Secrets / env
-
-- Add `STREAM_API_SECRET` (provided by user) via add_secret.
-- Append `VITE_STREAM_API_KEY=byeg282tjdhu` to `.env`.
-
-### Files
-
-**New**: `supabase/functions/stream-token/index.ts`, `src/lib/streamClient.ts`, `src/pages/CoinsPage.tsx`.
-**Edited**: `src/App.tsx`, `src/components/VoiceCall.tsx`, `src/components/VideoCall.tsx`, `src/hooks/useCallNotifications.ts`, `src/components/messaging/ChatPreviewModal.tsx`, `src/components/premium/TipDialog.tsx`, `src/components/ProfileHeader.tsx`, `src/components/PostCard/PostCardModern.tsx`, `src/pages/ReelsPage.tsx`, `src/pages/CreateStoryPage.tsx`, `src/hooks/useStories.ts`, `src/hooks/useTheme.ts`, `src/pages/SettingsPage.tsx`, `src/index.css`, `.env`.
-
-### Order
-
-1. Add Stream secret + env → 2. Theme/rainbow fix (quick) → 3. ChatPreviewModal polish → 4. Story creation fix → 5. Coins page + tipping → 6. Reels rebuild → 7. Stream calling (last, depends on secrets + SDK install `@stream-io/video-react-sdk`).
-
-No database migrations required. No existing files removed.
+Approve and I'll execute in this order: SDK install → token verify → provider/hook → call rewrite → chat peek polish → instructions page.

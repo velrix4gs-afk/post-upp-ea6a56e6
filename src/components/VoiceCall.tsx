@@ -1,11 +1,18 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import {
+  StreamVideo,
+  StreamCall,
+  ParticipantsAudio,
+  useCallStateHooks,
+  type Call,
+  CallingState,
+} from '@stream-io/video-react-sdk';
+import { useStreamVideoClient, callIdForChat } from '@/hooks/useStreamVideoClient';
 
 interface VoiceCallProps {
   chatId: string;
@@ -15,243 +22,143 @@ interface VoiceCallProps {
   participantAvatar?: string;
 }
 
-export const VoiceCall = ({ 
-  chatId, 
-  isInitiator, 
+export const VoiceCall = ({
+  chatId,
+  isInitiator,
   onEndCall,
   participantName = 'User',
-  participantAvatar 
+  participantAvatar,
 }: VoiceCallProps) => {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
-  const [callDuration, setCallDuration] = useState(0);
-  const [isConnected, setIsConnected] = useState(false);
-  
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const channelRef = useRef<any>(null);
+  const { client, error: clientError } = useStreamVideoClient();
+  const [call, setCall] = useState<Call | null>(null);
+
+  const callId = useMemo(() => callIdForChat(chatId, 'voice'), [chatId]);
 
   useEffect(() => {
-    initializeCall();
-    
+    if (!client) return;
+    let cancelled = false;
+    const c = client.call('audio_room', callId);
+    (async () => {
+      try {
+        await c.join({ create: true });
+        await c.microphone.enable();
+        await c.camera.disable();
+        if (!cancelled) setCall(c);
+      } catch (e) {
+        console.error('[VoiceCall] join failed', e);
+        toast({
+          title: 'Call Error',
+          description: 'Failed to start voice call',
+          variant: 'destructive',
+        });
+        setTimeout(onEndCall, 1500);
+      }
+    })();
     return () => {
-      cleanup();
+      cancelled = true;
+      c.leave().catch(() => {});
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, callId]);
 
   useEffect(() => {
-    if (isConnected) {
-      timerRef.current = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [isConnected]);
-
-  const initializeCall = async () => {
-    try {
-      // Request notification and microphone permissions
-      if ('Notification' in window && Notification.permission === 'default') {
-        await Notification.requestPermission();
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true
-        }
-      });
-      
-      setLocalStream(stream);
-
-      // Use STUN/TURN servers for better connectivity
-      const configuration = {
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
-      };
-      
-      const peerConnection = new RTCPeerConnection(configuration);
-      peerConnectionRef.current = peerConnection;
-
-      stream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, stream);
-      });
-
-      peerConnection.ontrack = (event) => {
-        setRemoteStream(event.streams[0]);
-        if (audioRef.current) {
-          audioRef.current.srcObject = event.streams[0];
-        }
-        setIsConnected(true);
-        
-        // Show notification
-        if (Notification.permission === 'granted') {
-          new Notification('Call Connected', {
-            body: `Voice call with ${participantName}`,
-            icon: participantAvatar
-          });
-        }
-      };
-
-      peerConnection.onicecandidate = async (event) => {
-        if (event.candidate) {
-          await sendSignal('ice-candidate', event.candidate);
-        }
-      };
-
-      peerConnection.onconnectionstatechange = () => {
-        if (peerConnection.connectionState === 'connected') {
-          setIsConnected(true);
-        } else if (peerConnection.connectionState === 'disconnected' || 
-            peerConnection.connectionState === 'failed') {
-          toast({
-            title: 'Connection Lost',
-            description: 'The call was disconnected',
-            variant: 'destructive'
-          });
-        }
-      };
-
-      // Subscribe to call signals
-      const channel = supabase
-        .channel(`call:${chatId}`)
-        .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'call_signals',
-          filter: `call_id=eq.${chatId}`
-        }, async (payload) => {
-          const signal = payload.new;
-          if (signal.sender_id !== user?.id) {
-            await handleIncomingSignal(signal);
-          }
-        })
-        .subscribe();
-      
-      channelRef.current = channel;
-
-      if (isInitiator) {
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        await sendSignal('offer', offer);
-      }
-
-    } catch (error) {
-      console.error('Error initializing call:', error);
-      let errorMessage = 'Failed to access microphone';
-      
-      if (error instanceof Error) {
-        if (error.name === 'NotAllowedError') {
-          errorMessage = 'Microphone permission denied';
-        } else if (error.name === 'NotFoundError') {
-          errorMessage = 'No microphone found';
-        } else if (error.name === 'NotReadableError') {
-          errorMessage = 'Microphone is being used by another application';
-        }
-      }
-      
+    if (clientError) {
       toast({
         title: 'Call Error',
-        description: errorMessage,
-        variant: 'destructive'
+        description: clientError.message,
+        variant: 'destructive',
       });
-      
-      // Auto-close on error
-      setTimeout(() => handleEndCall(), 2000);
+      setTimeout(onEndCall, 1500);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientError]);
+
+  if (!client || !call) {
+    return (
+      <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 text-center space-y-4">
+          <Avatar className="h-24 w-24 mx-auto ring-4 ring-primary/20">
+            <AvatarImage src={participantAvatar} />
+            <AvatarFallback>{participantName[0]?.toUpperCase() || 'U'}</AvatarFallback>
+          </Avatar>
+          <h2 className="text-xl font-semibold">{participantName}</h2>
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>{isInitiator ? 'Calling…' : 'Connecting…'}</span>
+          </div>
+          <Button
+            size="lg"
+            variant="destructive"
+            onClick={onEndCall}
+            className="h-14 w-14 rounded-full mx-auto"
+          >
+            <PhoneOff className="h-6 w-6" />
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <StreamVideo client={client}>
+      <StreamCall call={call}>
+        <VoiceCallInner
+          onEndCall={onEndCall}
+          participantName={participantName}
+          participantAvatar={participantAvatar}
+        />
+      </StreamCall>
+    </StreamVideo>
+  );
+};
+
+interface InnerProps {
+  onEndCall: () => void;
+  participantName: string;
+  participantAvatar?: string;
+}
+
+const VoiceCallInner = ({ onEndCall, participantName, participantAvatar }: InnerProps) => {
+  const { useCallCallingState, useMicrophoneState, useParticipants } = useCallStateHooks();
+  const callingState = useCallCallingState();
+  const { microphone, isMute } = useMicrophoneState();
+  const participants = useParticipants();
+  const remoteParticipants = participants.filter((p) => !p.isLocalParticipant);
+
+  const [callDuration, setCallDuration] = useState(0);
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const isConnected = callingState === CallingState.JOINED && remoteParticipants.length > 0;
+
+  useEffect(() => {
+    if (!isConnected) return;
+    const id = setInterval(() => setCallDuration((d) => d + 1), 1000);
+    return () => clearInterval(id);
+  }, [isConnected]);
+
+  const formatDuration = (s: number) => {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
   };
 
-  const toggleAudio = () => {
-    if (localStream) {
-      const audioTrack = localStream.getAudioTracks()[0];
-      audioTrack.enabled = !audioTrack.enabled;
-      setIsAudioEnabled(audioTrack.enabled);
-    }
+  const toggleMic = async () => {
+    await microphone.toggle();
   };
 
   const toggleSpeaker = () => {
-    if (audioRef.current) {
-      audioRef.current.muted = !audioRef.current.muted;
-      setIsSpeakerEnabled(!audioRef.current.muted);
-    }
-  };
-
-  const sendSignal = async (type: string, data: any) => {
-    try {
-      await supabase
-        .from('call_signals')
-        .insert({
-          call_id: chatId,
-          sender_id: user?.id,
-          signal_type: type,
-          signal_data: data
-        });
-    } catch (error) {
-      console.error('Error sending signal:', error);
-    }
-  };
-
-  const handleIncomingSignal = async (signal: any) => {
-    const peerConnection = peerConnectionRef.current;
-    if (!peerConnection) return;
-
-    try {
-      if (signal.signal_type === 'offer') {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.signal_data));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        await sendSignal('answer', answer);
-      } else if (signal.signal_type === 'answer') {
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(signal.signal_data));
-      } else if (signal.signal_type === 'ice-candidate') {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(signal.signal_data));
-      }
-    } catch (error) {
-      console.error('Error handling signal:', error);
-    }
-  };
-
-  const cleanup = () => {
-    localStream?.getTracks().forEach(track => track.stop());
-    remoteStream?.getTracks().forEach(track => track.stop());
-    peerConnectionRef.current?.close();
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    if (channelRef.current) {
-      supabase.removeChannel(channelRef.current);
-    }
-  };
-
-  const handleEndCall = () => {
-    cleanup();
-    onEndCall();
-  };
-
-  const formatDuration = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    setSpeakerOn((v) => !v);
+    // Mute remote audio elements by toggling participant audio sink
+    document.querySelectorAll('audio[data-stream-audio]').forEach((el) => {
+      (el as HTMLAudioElement).muted = speakerOn; // about to flip
+    });
   };
 
   return (
     <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center p-4">
-      <audio ref={audioRef} autoPlay />
-      
+      {/* Stream renders hidden audio sinks for remote participants */}
+      <ParticipantsAudio participants={remoteParticipants} />
+
       <Card className="w-full max-w-md p-8 space-y-8 bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="text-center space-y-4">
           <Avatar className="h-32 w-32 mx-auto ring-4 ring-primary/20">
@@ -260,11 +167,10 @@ export const VoiceCall = ({
               {participantName[0]?.toUpperCase() || 'U'}
             </AvatarFallback>
           </Avatar>
-          
           <div>
             <h2 className="text-2xl font-semibold">{participantName}</h2>
             <p className="text-muted-foreground mt-1">
-              {isConnected ? formatDuration(callDuration) : 'Calling...'}
+              {isConnected ? formatDuration(callDuration) : 'Calling…'}
             </p>
           </div>
         </div>
@@ -284,26 +190,26 @@ export const VoiceCall = ({
         <div className="flex justify-center gap-6">
           <Button
             size="lg"
-            variant={isAudioEnabled ? 'default' : 'destructive'}
-            onClick={toggleAudio}
+            variant={!isMute ? 'default' : 'destructive'}
+            onClick={toggleMic}
             className="h-16 w-16 rounded-full"
           >
-            {isAudioEnabled ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
+            {!isMute ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
           </Button>
-          
+
           <Button
             size="lg"
-            variant={isSpeakerEnabled ? 'default' : 'secondary'}
+            variant={speakerOn ? 'default' : 'secondary'}
             onClick={toggleSpeaker}
             className="h-16 w-16 rounded-full"
           >
-            {isSpeakerEnabled ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
+            {speakerOn ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
           </Button>
-          
+
           <Button
             size="lg"
             variant="destructive"
-            onClick={handleEndCall}
+            onClick={onEndCall}
             className="h-16 w-16 rounded-full"
           >
             <PhoneOff className="h-6 w-6" />
