@@ -299,11 +299,23 @@ serve(async (req) => {
       } else {
         const { data: message, error: fetchError } = await supabaseClient
           .from('messages')
-          .select('deleted_for')
+          .select('deleted_for, chat_id')
           .eq('id', validated.messageId)
           .single();
 
         if (fetchError) throw fetchError;
+
+        const { data: membership } = await supabaseClient
+          .from('chat_participants')
+          .select('chat_id')
+          .eq('chat_id', message.chat_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (!membership) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), {
+            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
         const deletedFor = message.deleted_for || [];
         if (!deletedFor.includes(user.id)) {
@@ -326,6 +338,28 @@ serve(async (req) => {
     // React to message
     if (action === 'react') {
       const validated = reactSchema.parse(body);
+
+      const { data: srcMsg } = await supabaseClient
+        .from('messages')
+        .select('chat_id')
+        .eq('id', validated.messageId)
+        .maybeSingle();
+      if (!srcMsg) {
+        return new Response(JSON.stringify({ error: 'Message not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: reactMembership } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('chat_id', srcMsg.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!reactMembership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       const { data: existing } = await supabaseClient
         .from('message_reactions')
@@ -375,6 +409,28 @@ serve(async (req) => {
 
     // Star/unstar message
     if (action === 'star' || action === 'unstar') {
+      const { data: starMsg } = await supabaseClient
+        .from('messages')
+        .select('chat_id')
+        .eq('id', body.messageId)
+        .maybeSingle();
+      if (!starMsg) {
+        return new Response(JSON.stringify({ error: 'Message not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: starMembership } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('chat_id', starMsg.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!starMembership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       if (action === 'star') {
         const { error } = await supabaseClient
           .from('starred_messages')
@@ -400,11 +456,24 @@ serve(async (req) => {
     if (action === 'forward') {
       const { data: originalMessage, error: fetchError } = await supabaseClient
         .from('messages')
-        .select('content, media_url, media_type')
+        .select('content, media_url, media_type, chat_id')
         .eq('id', body.messageId)
         .single();
 
       if (fetchError) throw fetchError;
+
+      // Verify caller is participant in the SOURCE chat
+      const { data: srcMembership } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('chat_id', originalMessage.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!srcMembership) {
+        return new Response(JSON.stringify({ error: 'Forbidden: not a participant in source chat' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       const toChatIds: string[] = Array.isArray(body.toChatIds) ? body.toChatIds : [];
       if (toChatIds.length === 0) {
@@ -482,8 +551,7 @@ serve(async (req) => {
       });
     }
 
-    const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
