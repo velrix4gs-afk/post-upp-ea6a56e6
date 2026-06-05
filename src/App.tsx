@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { initNetworkMonitor } from "@/lib/networkMonitor";
 import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { initSyncEngine } from "@/lib/syncEngine";
 import { useAppearanceSync } from "@/hooks/useAppearanceSync";
 import LiquidGlassRoot from "@/components/LiquidGlassRoot";
 import PageTransition from "@/components/transitions/PageTransition";
@@ -167,6 +168,11 @@ const AuthenticatedFeatures = () => {
 
   // Always run offline sync for queued actions
   useOfflineSync();
+
+  // Boot the IndexedDB -> API gateway sync engine once per session.
+  useEffect(() => {
+    initSyncEngine();
+  }, []);
 
   // Apply saved appearance prefs (theme/font/layout/accent) globally
   useAppearanceSync();
