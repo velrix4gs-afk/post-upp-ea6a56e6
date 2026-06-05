@@ -50,7 +50,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Check if requesting user is already an admin (for subsequent calls)
+    // Check if requesting user is already an admin
     const { data: existingRoles } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -58,17 +58,18 @@ serve(async (req) => {
       .eq('role', 'admin')
       .maybeSingle();
 
-    // For first-time setup, allow if no admin exists yet
-    const { count: adminCount } = await supabaseAdmin
-      .from('user_roles')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'admin');
+    const body = await req.json();
+    const { email, password, bootstrap_secret } = body;
 
-    if (!existingRoles && adminCount && adminCount > 0) {
-      throw new Error('Only admins can create official accounts');
+    // Non-admins may only proceed when a valid bootstrap secret is provided AND
+    // a server-configured ADMIN_BOOTSTRAP_SECRET exists. This prevents any
+    // authenticated user from self-promoting to admin when adminCount is 0.
+    if (!existingRoles) {
+      const configuredSecret = Deno.env.get('ADMIN_BOOTSTRAP_SECRET');
+      if (!configuredSecret || !bootstrap_secret || bootstrap_secret !== configuredSecret) {
+        throw new Error('Only admins can create official accounts');
+      }
     }
-
-    const { email, password } = await req.json();
 
     if (!email || !password) {
       throw new Error('Email and password are required');

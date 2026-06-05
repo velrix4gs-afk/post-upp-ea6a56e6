@@ -343,8 +343,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Friendships API Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    return new Response(JSON.stringify({ error: 'An unexpected error occurred' }), {
       status: 400,
       headers: { ...getCorsHeaders(req.headers.get('origin')), 'Content-Type': 'application/json' },
     });

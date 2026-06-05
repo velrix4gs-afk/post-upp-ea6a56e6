@@ -178,9 +178,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'If an account exists with this email, a verification code will be sent.',
-        // In development, return the code for testing
-        ...(Deno.env.get('ENVIRONMENT') === 'development' ? { code } : {})
+        message: 'If an account exists with this email, a verification code will be sent.'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

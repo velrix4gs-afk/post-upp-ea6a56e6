@@ -203,10 +203,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[TIP_ERROR] Error processing tip:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
     return new Response(JSON.stringify({ 
-      error: errorMessage,
+      error: 'Failed to process tip',
       code: 'TIP_999',
       message: 'Failed to process tip'
     }), {

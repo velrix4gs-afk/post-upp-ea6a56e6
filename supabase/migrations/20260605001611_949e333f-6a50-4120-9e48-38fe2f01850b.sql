@@ -1,0 +1,1 @@
+REVOKE SELECT (password_hash) ON public.users FROM anon, authenticated;
