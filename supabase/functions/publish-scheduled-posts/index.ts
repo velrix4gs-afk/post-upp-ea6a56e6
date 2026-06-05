@@ -127,10 +127,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('[SCHEDULE_ERROR] Error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    
     return new Response(JSON.stringify({ 
-      error: errorMessage,
+      error: 'An unexpected error occurred',
       code: 'SCHEDULE_ERROR'
     }), {
       status: 500,
