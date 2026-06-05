@@ -325,10 +325,22 @@ serve(async (req) => {
       } else {
         const { data: message, error: fetchError } = await supabaseClient
           .from('messages')
-          .select('deleted_for')
+          .select('deleted_for, chat_id')
           .eq('id', parsed.data.messageId)
           .single();
         if (fetchError) throw fetchError;
+
+        const { data: delMembership } = await supabaseClient
+          .from('chat_participants')
+          .select('chat_id')
+          .eq('chat_id', message.chat_id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (!delMembership) {
+          return new Response(JSON.stringify({ error: 'Forbidden' }), {
+            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
         const deletedFor = message.deleted_for || [];
         if (!deletedFor.includes(user.id)) {
@@ -352,6 +364,22 @@ serve(async (req) => {
       if (!parsed.success) {
         return new Response(JSON.stringify({ error: 'Invalid reaction data', details: parsed.error.flatten() }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: rMsg } = await supabaseClient
+        .from('messages').select('chat_id').eq('id', parsed.data.messageId).maybeSingle();
+      if (!rMsg) {
+        return new Response(JSON.stringify({ error: 'Message not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: rMembership } = await supabaseClient
+        .from('chat_participants').select('chat_id')
+        .eq('chat_id', rMsg.chat_id).eq('user_id', user.id).maybeSingle();
+      if (!rMembership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
@@ -414,6 +442,22 @@ serve(async (req) => {
         });
       }
 
+      const { data: sMsg } = await supabaseClient
+        .from('messages').select('chat_id').eq('id', parsed.data.messageId).maybeSingle();
+      if (!sMsg) {
+        return new Response(JSON.stringify({ error: 'Message not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: sMembership } = await supabaseClient
+        .from('chat_participants').select('chat_id')
+        .eq('chat_id', sMsg.chat_id).eq('user_id', user.id).maybeSingle();
+      if (!sMembership) {
+        return new Response(JSON.stringify({ error: 'Forbidden' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       if (action === 'star') {
         const { error } = await supabaseClient
           .from('starred_messages')
@@ -444,10 +488,23 @@ serve(async (req) => {
 
       const { data: originalMessage, error: fetchError } = await supabaseClient
         .from('messages')
-        .select('content, media_url, media_type')
+        .select('content, media_url, media_type, chat_id')
         .eq('id', parsed.data.messageId)
         .single();
       if (fetchError) throw fetchError;
+
+      // Verify caller is a participant in the SOURCE chat
+      const { data: srcMembership } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('chat_id', originalMessage.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!srcMembership) {
+        return new Response(JSON.stringify({ error: 'Forbidden: not a participant in source chat' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
 
       // Verify caller is a participant in every target chat
       const { data: memberships, error: memErr } = await supabaseClient
