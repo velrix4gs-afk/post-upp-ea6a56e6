@@ -139,9 +139,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Verification code sent to your email',
-        // In development, return the code for testing
-        ...(Deno.env.get('ENVIRONMENT') === 'development' ? { code } : {})
+        message: 'Verification code sent to your email'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
