@@ -7,7 +7,7 @@ export const useOfflineSync = () => {
   useEffect(() => {
     const handleOnline = async () => {
       console.log('[OfflineSync] Back online — flushing queue');
-      await flushOfflineQueue();
+      try { await flushOfflineQueue(); } catch { /* silent — networkMonitor surfaces UX */ }
     };
 
     // Flush on mount if online and queue has items

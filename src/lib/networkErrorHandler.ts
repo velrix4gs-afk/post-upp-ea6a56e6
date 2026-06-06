@@ -63,15 +63,22 @@ export const getCleanErrorMessage = (error: any): string => {
 };
 
 export const handleNetworkError = (error: any, toastFn: any, title = 'Error') => {
+  // Suppress when offline OR when the error itself is a transport-level failure —
+  // the global offline indicator already speaks for those cases.
+  if (!navigator.onLine || isNetworkError(error)) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('[handleNetworkError] suppressed:', error);
+    }
+    return;
+  }
+
   const cleanMessage = getCleanErrorMessage(error);
-  
   toastFn({
     title,
     description: cleanMessage,
     variant: 'destructive',
   });
 
-  // Log the actual error for debugging (only in development)
   if (process.env.NODE_ENV === 'development') {
     console.error('[Network Error]', error);
   }

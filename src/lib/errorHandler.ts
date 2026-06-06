@@ -97,7 +97,15 @@ export const getCleanError = (error: any): { message: string; code: string } => 
   };
 };
 
+import { shouldShowErrorToast } from '@/lib/errorSuppression';
+
 export const showCleanError = (error: any, toast: any, customTitle?: string) => {
+  // Silently drop network/offline errors — the global offline indicator covers them.
+  if (!shouldShowErrorToast(error)) {
+    // eslint-disable-next-line no-console
+    console.warn('[showCleanError] suppressed (offline/network):', error);
+    return;
+  }
   const { message, code } = getCleanError(error);
   
   // Extract code from error if it contains one

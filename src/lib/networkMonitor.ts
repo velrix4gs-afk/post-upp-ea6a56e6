@@ -1,67 +1,79 @@
-import { toast } from '@/hooks/use-toast';
+import { toast as sonnerToast } from 'sonner';
 import { flushOfflineQueue, getQueueLength } from '@/lib/offlineQueue';
+import { shouldShowErrorToast } from '@/lib/errorSuppression';
 
-let isOnline = navigator.onLine;
-let lastToastTime = 0;
-const TOAST_COOLDOWN = 3000; // 3 seconds between toasts
+let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+let initialized = false;
+
+// Single sonner id so the offline / back-online indicator can never stack.
+const NET_TOAST_ID = 'net-status';
+
+const showOffline = () => {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+  sonnerToast.dismiss(NET_TOAST_ID);
+  sonnerToast('No internet', { id: NET_TOAST_ID, duration: 1000 });
+};
+
+const showBackOnline = (pending: number) => {
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+  sonnerToast.dismiss(NET_TOAST_ID);
+  sonnerToast.success(pending > 0 ? `Back online — syncing ${pending}` : 'Back online', {
+    id: NET_TOAST_ID,
+    duration: 1500,
+  });
+};
 
 export const initNetworkMonitor = () => {
+  if (initialized || typeof window === 'undefined') return;
+  initialized = true;
+
+  // Patch sonner so any `toast.error(...)` call gets globally suppressed
+  // when the device is offline or the message is a transport-level failure.
+  try {
+    const originalError = (sonnerToast as any).error?.bind(sonnerToast);
+    if (typeof originalError === 'function' && !(sonnerToast as any).__netGuarded) {
+      (sonnerToast as any).error = (message: any, opts?: any) => {
+        const haystack =
+          typeof message === 'string'
+            ? message
+            : `${message?.title ?? ''} ${message?.description ?? ''}`;
+        if (!shouldShowErrorToast(haystack)) {
+          // eslint-disable-next-line no-console
+          console.warn('[sonner.error] suppressed:', message);
+          return 'suppressed' as any;
+        }
+        return originalError(message, opts);
+      };
+      (sonnerToast as any).__netGuarded = true;
+    }
+  } catch {
+    /* non-fatal */
+  }
+
   window.addEventListener('online', async () => {
     isOnline = true;
-    const now = Date.now();
     const queueLen = getQueueLength();
-    if (now - lastToastTime > TOAST_COOLDOWN) {
-      toast({
-        title: 'Back online',
-        description: queueLen > 0 ? `Syncing ${queueLen} pending actions...` : 'Connection restored',
-        duration: 2000,
-      });
-      lastToastTime = now;
-    }
-    // Flush offline queue on reconnect
+    showBackOnline(queueLen);
     if (queueLen > 0) {
-      const result = await flushOfflineQueue();
-      if (result.processed > 0) {
-        toast({
-          title: 'Synced',
-          description: `${result.processed} action${result.processed > 1 ? 's' : ''} sent successfully`,
-          duration: 2000,
-        });
+      try {
+        await flushOfflineQueue();
+      } catch {
+        /* silent — next online tick will retry */
       }
     }
   });
 
   window.addEventListener('offline', () => {
     isOnline = false;
-    const now = Date.now();
-    if (now - lastToastTime > TOAST_COOLDOWN) {
-      toast({
-        title: 'No internet',
-        description: 'You are offline',
-        duration: 1000,
-      });
-      lastToastTime = now;
-    }
+    showOffline();
   });
 };
 
 export const isNetworkOnline = () => isOnline;
 
-export const handleNetworkError = (error: any) => {
-  console.error('[Network Error]', error);
-  
-  if (!isOnline) {
-    const now = Date.now();
-    if (now - lastToastTime > TOAST_COOLDOWN) {
-      toast({
-        title: 'No internet',
-        duration: 1000,
-      });
-      lastToastTime = now;
-    }
-    return;
-  }
-  
-  // Don't show error toasts to users, just log
-  console.error('[App Error]', error);
+export const handleNetworkError = (error: unknown) => {
+  // Never spam toasts here — the offline/online listeners own user feedback.
+  // eslint-disable-next-line no-console
+  console.warn('[NetworkMonitor] silenced error:', error);
+  if (!isOnline) showOffline();
 };
