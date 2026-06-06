@@ -1,5 +1,6 @@
 import { toast as sonnerToast } from 'sonner';
 import { flushOfflineQueue, getQueueLength } from '@/lib/offlineQueue';
+import { shouldShowErrorToast } from '@/lib/errorSuppression';
 
 let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 let initialized = false;
@@ -25,6 +26,29 @@ const showBackOnline = (pending: number) => {
 export const initNetworkMonitor = () => {
   if (initialized || typeof window === 'undefined') return;
   initialized = true;
+
+  // Patch sonner so any `toast.error(...)` call gets globally suppressed
+  // when the device is offline or the message is a transport-level failure.
+  try {
+    const originalError = (sonnerToast as any).error?.bind(sonnerToast);
+    if (typeof originalError === 'function' && !(sonnerToast as any).__netGuarded) {
+      (sonnerToast as any).error = (message: any, opts?: any) => {
+        const haystack =
+          typeof message === 'string'
+            ? message
+            : `${message?.title ?? ''} ${message?.description ?? ''}`;
+        if (!shouldShowErrorToast(haystack)) {
+          // eslint-disable-next-line no-console
+          console.warn('[sonner.error] suppressed:', message);
+          return 'suppressed' as any;
+        }
+        return originalError(message, opts);
+      };
+      (sonnerToast as any).__netGuarded = true;
+    }
+  } catch {
+    /* non-fatal */
+  }
 
   window.addEventListener('online', async () => {
     isOnline = true;
