@@ -221,7 +221,7 @@ const VideoCallInner = ({
       onEnd={onEnd}
       remoteVideo={
         connected ? (
-          <SpeakerLayout participantsBarPosition={null as any} />
+          <SpeakerLayout participantsBarPosition="bottom" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-white/80">
             <Loader2 className="h-6 w-6 animate-spin" />
