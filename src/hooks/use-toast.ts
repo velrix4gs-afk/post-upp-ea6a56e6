@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
+import { shouldShowErrorToast } from "@/lib/errorSuppression";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 2000; // 2 seconds
@@ -135,6 +136,18 @@ function dispatch(action: Action) {
 type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
+  // Suppress destructive/error toasts while offline or for transport errors —
+  // the global "No internet" indicator already covers the user-visible story.
+  const isDestructive = (props as any)?.variant === "destructive";
+  if (isDestructive) {
+    const haystack =
+      `${(props as any)?.title ?? ""} ${(props as any)?.description ?? ""}`;
+    if (!shouldShowErrorToast(haystack)) {
+      const noop = () => {};
+      return { id: "suppressed", dismiss: noop, update: noop } as any;
+    }
+  }
+
   const id = genId();
 
   const update = (props: ToasterToast) =>

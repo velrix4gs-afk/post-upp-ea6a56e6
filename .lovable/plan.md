@@ -1,84 +1,106 @@
-# Offline-First Architecture + Call UI Placeholders
+## Goal
+Fix the offline error-spam UX and ship a WhatsApp-style mobile call UI for voice + video, without touching auth, routing, schema, or existing business logic.
 
-## Security first (non-negotiable)
-- The Redis host, port, and password are NEVER written into any file in this repo. They live only as edge-function secrets (`REDIS_URL`, `REDIS_TOKEN`) added via the secrets tool, accessed server-side through `Deno.env.get(...)`.
-- No `redis` npm package, no direct TCP/WS connection from the browser, no `createClient()` on the client.
-- A short `docs/REDIS_SECRETS.md` explains the contract: credentials are injected in the Supabase dashboard, never committed.
+---
 
-## What already exists (reuse, do not duplicate)
-- `src/lib/cache.ts` — IndexedDB wrapper, DB `postup_cache` (posts/profiles/reels/pages/stories).
-- `src/lib/offlineQueue.ts` + `src/hooks/useOfflineSync.ts` — `online` listener + pending queue.
-- `src/components/VoiceCall.tsx`, `VideoCall.tsx`, `IncomingCallOverlay.tsx`, `useVideoCall.ts`, Stream Video SDK provider.
+## Part 1 — Silence the offline error spam
 
-The plan extends these instead of replacing them, to honor the project rule "never remove or rename existing files / behavior".
+**Problem:** When the network drops, every hook (`useFriends`, `useMessages`, stories, posts, reactions, etc.) fires its own `toast.error(...)` / `errorLogger` popup, so the user gets dozens of red toasts instead of one quiet "No internet" indicator.
 
-## 1. IndexedDB — `postupp_local_cache`
-New file `src/lib/localCache.ts` (separate DB so existing `postup_cache` keeps working):
-- Native IndexedDB (no new dependency), DB name `postupp_local_cache`, version 1.
-- Stores:
-  - `messages` — keyPath `id`; fields `id, conversationId, text, timestamp, syncStatus, senderId, mediaUrl?, mediaType?`. Index on `conversationId` and `syncStatus`.
-  - `interactions` — keyPath `id`; fields `id, postId, type ('like'|'comment'), content, timestamp, syncStatus, userId`. Index on `postId` and `syncStatus`.
-- API: `putMessage`, `listMessages(conversationId)`, `putInteraction`, `listPendingMessages()`, `listPendingInteractions()`, `markSynced(store, id)`.
+**Fix (presentation layer only — no business logic changes):**
 
-## 2. Optimistic UI hooks
-- `src/hooks/useOptimisticMessages.ts` — wraps existing `useMessages`. On `send()` it: (a) writes to IndexedDB with `syncStatus:'pending'` + temp UUID, (b) merges into the in-memory list immediately, (c) calls the existing send API; on success flips `syncStatus:'synced'` and reconciles ID; on offline, stays pending. No spinner, no blocking.
-- `src/hooks/useOptimisticInteractions.ts` — same shape for like/comment using existing reactions/comments APIs.
+1. **`src/lib/networkMonitor.ts`** — already the single source of truth for online/offline toasts. Tighten it:
+   - One `sonner` toast id (`'net-status'`) that gets `.dismiss()`'d and re-shown so it can never stack.
+   - `duration: 1000` for the offline toast, no description, no action.
+   - Keep the 3s cooldown but also gate by `document.visibilityState === 'visible'`.
 
-These hooks are additive — current components keep working; messaging/post components opt in.
+2. **New `src/lib/errorSuppression.ts`** — tiny helper:
+   - `isNetworkError(err)` → matches `FunctionsFetchError`, `TypeError: Failed to fetch`, `NetworkError`, `AbortError`, `!navigator.onLine`.
+   - `shouldShowErrorToast(err)` → returns `false` when offline or when the error is a network error (the global offline toast already covers it).
+   - `reportSilently(code, err)` → still calls `errorLogger` for diagnostics but never toasts.
 
-## 3. Background sync engine
-New `src/lib/syncEngine.ts`:
-- Singleton initialized once from `App.tsx` (alongside existing `useOfflineSync`).
-- `window.addEventListener('online', flush)` + initial flush on boot if `navigator.onLine`.
-- `flush()` batches pending records (chunked) and POSTs to the API gateway endpoints:
-  - messages → `messages-v2` edge function (existing).
-  - interactions → existing `reactions` / `posts` endpoints.
-- On 2xx response, calls `markSynced`. On failure, leaves as pending (no infinite loop — exponential backoff between flushes).
+3. **Wire suppression into the existing error surfaces** (no new logic, just a guard before each toast):
+   - `src/lib/errorHandler.ts`, `src/lib/networkErrorHandler.ts`, `src/lib/errorCodes.ts`/`errorCodes.enhanced.ts` — wrap their toast calls in `if (shouldShowErrorToast(err)) { ... }`.
+   - Hooks that currently toast on fetch failure get their `toast.error` swapped for `reportSilently`: `useFriends`, `useStories`, `useFeed`, `usePosts`, `useReactions`, `useMessages`, `useComments`, `useNotifications`, `useReels`, `useChats`. Console logging stays so debugging is unaffected.
+   - `ErrorBoundary` — keep, but make the fallback render `null` for offline-class errors and let the global toast speak.
 
-## 4. API gateway client
-New `src/lib/apiGateway.ts`:
-- Reads `import.meta.env.VITE_API_GATEWAY_URL` (falls back to the Supabase Functions URL derived from `VITE_SUPABASE_URL`). Variable is added to `.env.example` only.
-- Thin typed methods: `post(path, body)`, `get(path)`, attaches the current Supabase JWT, handles JSON + errors. Reuses existing `supabase.functions.invoke` under the hood so we don't duplicate auth logic.
-- All mutations go through this client — never direct fetch to a hardcoded host.
+4. **`useOfflineSync` / `syncEngine`** — collapse the "Synced N actions" toast to one debounced toast per reconnect (already partially in `networkMonitor`); remove the duplicate in `useOfflineSync`.
 
-## 5. Edge-side Redis bridge (server only)
-New edge function `supabase/functions/redis-bridge/index.ts`:
-- Reads `REDIS_URL` + `REDIS_TOKEN` from env (we will request these via the secrets tool — values entered by you, never echoed).
-- Uses the Upstash REST API over HTTPS (no TCP, works in Deno).
-- Exposes `GET`/`SET`/`DEL` style operations gated by JWT + per-user key namespacing so one user can't read another's cached blob.
-- Client calls it through `apiGateway` only.
+Result: offline → exactly one 1-second "No internet" toast. Online → one "Back online" toast (only if there were pending items). All other red popups stay silent while offline.
 
-## 6. Call UI placeholders
-- Keep existing `VoiceCall`, `VideoCall`, `IncomingCallOverlay`, Stream wiring untouched.
-- Add `src/components/calls/CallPlaceholders.tsx` — pure-UI mobile-responsive scaffolds:
-  - `ActiveCallScreen` — remote video node, local PiP preview, mute/speaker/end-call controls, semantic tokens only.
-  - `IncomingCallToast` — high-priority toast with Accept/Decline.
-- Add `src/lib/callSignaling.ts` with documented stubs `initiateWebRTCCall()`, `handleIncomingSignal()`, `endCall()`. Each has a JSDoc block stating: "Replace with Agora/Twilio/custom signaling broker — sandbox cannot host a media server." Stream SDK path remains the live implementation.
+---
 
-## 7. Files (summary)
-New:
-- `src/lib/localCache.ts`, `src/lib/syncEngine.ts`, `src/lib/apiGateway.ts`, `src/lib/callSignaling.ts`
-- `src/hooks/useOptimisticMessages.ts`, `src/hooks/useOptimisticInteractions.ts`
-- `src/components/calls/CallPlaceholders.tsx`
-- `supabase/functions/redis-bridge/index.ts`
-- `docs/REDIS_SECRETS.md`, `.env.example` entry for `VITE_API_GATEWAY_URL`
+## Part 2 — WhatsApp-style mobile call UI
 
-Edited (minimal):
-- `src/App.tsx` — boot `syncEngine` once.
+**Scope:** UI/UX only. Keep Stream SDK as the live transport (`VoiceCall.tsx`, `VideoCall.tsx`, `useStreamVideoClient.ts`). No signaling/business-logic changes.
 
-Not touched: existing messaging hooks/components, existing call components, DB schema, auth, routing.
+**New components under `src/components/calls/`:**
 
-## 8. Out of scope
-- No schema migrations.
-- No removal/rename of files.
-- No client-side Redis. No credentials anywhere in the repo.
-- No spinner/blocking UI for offline reads — components read from IndexedDB and render immediately.
+- `CallShell.tsx` — full-screen `h-[100dvh]` container, safe-area padding, dark gradient backdrop, blurred avatar background for voice. Handles swipe-down → minimize, back-button → minimize (not end).
+- `CallHeader.tsx` — caller name, status (`Ringing… / Connecting… / 00:42`), encryption badge, minimize chevron.
+- `CallControlsBar.tsx` — bottom rounded bar with WhatsApp-style large circular buttons:
+  - Voice: **Speaker**, **Mute**, **Video** (upgrade), **End**.
+  - Video: **Flip camera**, **Camera on/off**, **Mute**, **End**, plus tap-to-hide controls after 3s idle.
+- `LocalPiP.tsx` — draggable/snappable local preview (video calls), pinch-to-swap with remote.
+- `IncomingCallScreen.tsx` — full-screen incoming UI with swipe-up Accept / swipe-down Decline (WhatsApp pattern), plus tap fallbacks. Replaces the small toast on mobile; keeps `IncomingCallToast` for desktop.
+- `MinimizedCallBubble.tsx` — floating pill (avatar + timer + end-button) that persists across routes once the user minimizes a call, tap to restore. Mounted from `App.tsx` via a new lightweight `CallUIProvider`.
 
-## Order of work
-1. `localCache.ts` + tests of read/write through devtools.
-2. `apiGateway.ts` + `.env.example`.
-3. `syncEngine.ts` wired in `App.tsx`.
-4. Optimistic hooks (opt-in, no breakage).
-5. Call placeholders + signaling stubs.
-6. `redis-bridge` edge function (after you confirm and add `REDIS_URL`/`REDIS_TOKEN` as secrets).
-7. `docs/REDIS_SECRETS.md`.
+**State (new, additive — does not touch existing call hooks):**
+- `src/hooks/useCallUI.ts` — Zustand/React context holding `{ minimized, controlsVisible, durationSec }`. Pure UI state. The actual Stream `Call` object stays inside `VoiceCall` / `VideoCall`; we lift only their *render* into `CallShell` so minimize works without leaving the call.
+
+**Integration (minimal edits to existing files):**
+- `VoiceCall.tsx` — keep all Stream logic; replace the inner JSX (`<Card>` + control buttons) with `<CallShell kind="voice">…</CallShell>` using `useCallStateHooks` as today. No behavior change.
+- `VideoCall.tsx` — same swap: `SpeakerLayout` stays as the remote node, controls move into `CallControlsBar`, local preview into `LocalPiP`.
+- `IncomingCallOverlay.tsx` — on mobile (`useIsMobile`) render `IncomingCallScreen`, else current overlay.
+- `App.tsx` — mount `<CallUIProvider>` + `<MinimizedCallBubble />` once at root so the bubble survives route changes.
+
+**Design tokens only** — all colors via `bg-background`, `bg-primary`, `text-foreground`, `bg-destructive`, etc. No raw hex. Buttons use existing `Button` variants with new `rounded-full h-14 w-14` sizing.
+
+**Accessibility / mobile polish:**
+- `touch-manipulation`, `aria-label` on every control.
+- Haptic feedback on accept/decline/end via existing `src/lib/haptics.ts`.
+- Auto-hide top/bottom bars after 3s of no touch on video (matches the project's nav rule).
+- Wake-lock request during active call (best-effort, feature-detected).
+
+---
+
+## Files
+
+**New**
+- `src/lib/errorSuppression.ts`
+- `src/hooks/useCallUI.ts`
+- `src/components/calls/CallShell.tsx`
+- `src/components/calls/CallHeader.tsx`
+- `src/components/calls/CallControlsBar.tsx`
+- `src/components/calls/LocalPiP.tsx`
+- `src/components/calls/IncomingCallScreen.tsx`
+- `src/components/calls/MinimizedCallBubble.tsx`
+- `src/components/calls/CallUIProvider.tsx`
+
+**Edited (surgical, behavior preserved)**
+- `src/lib/networkMonitor.ts` — single-id toast, 1s duration.
+- `src/lib/errorHandler.ts`, `src/lib/networkErrorHandler.ts`, `src/lib/errorCodes.ts`, `src/lib/errorCodes.enhanced.ts` — gate toasts via `shouldShowErrorToast`.
+- `src/hooks/useOfflineSync.ts` — drop duplicate toast.
+- `src/hooks/useFriends.ts`, `useStories.ts`, `useFeed.ts`, `usePosts.ts`, `useReactions.ts`, `useMessages.ts`, `useComments.ts`, `useNotifications.ts`, `useReels.ts`, `useChats.ts` — swap user-facing error toasts for `reportSilently` (console + logger only).
+- `src/components/VoiceCall.tsx`, `src/components/VideoCall.tsx` — render through `CallShell`, no Stream logic changes.
+- `src/components/IncomingCallOverlay.tsx` — mobile branch to `IncomingCallScreen`.
+- `src/App.tsx` — mount `CallUIProvider` + `MinimizedCallBubble`.
+
+**Not touched:** auth, routing, Supabase schema, edge functions, Redis bridge, signaling stubs, UUIDs, existing data flow.
+
+---
+
+## Out of scope (per your rules)
+- No new edge functions, no DB migrations, no secrets work.
+- No removal/rename of files or props.
+- No invented business logic.
+
+---
+
+## Order of work (kept tight to save credits)
+1. `errorSuppression.ts` + `networkMonitor.ts` tightening.
+2. Patch the 4 error utilities + 10 hooks (one pass, no rewrites).
+3. `useCallUI` + `CallShell` + controls + PiP.
+4. Wire `VoiceCall` / `VideoCall` / `IncomingCallOverlay` into the shell.
+5. `MinimizedCallBubble` + `CallUIProvider` mounted in `App.tsx`.
+6. Manual smoke: airplane-mode toggle, start voice call, minimize, navigate, restore, end.

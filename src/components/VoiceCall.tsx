@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { PhoneOff, Mic, MicOff, Volume2, VolumeX, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { PhoneOff, Mic, MicOff, Volume2, VolumeX, Video, Loader2 } from 'lucide-react';
 import {
   StreamVideo,
   StreamCall,
@@ -13,6 +10,9 @@ import {
   CallingState,
 } from '@stream-io/video-react-sdk';
 import { useStreamVideoClient, callIdForChat } from '@/hooks/useStreamVideoClient';
+import { CallShell } from '@/components/calls/CallShell';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { haptic } from '@/lib/haptics';
 
 interface VoiceCallProps {
   chatId: string;
@@ -29,10 +29,9 @@ export const VoiceCall = ({
   participantName = 'User',
   participantAvatar,
 }: VoiceCallProps) => {
-  const { toast } = useToast();
   const { client, error: clientError } = useStreamVideoClient();
   const [call, setCall] = useState<Call | null>(null);
-
+  const [minimized, setMinimized] = useState(false);
   const callId = useMemo(() => callIdForChat(chatId, 'voice'), [chatId]);
 
   useEffect(() => {
@@ -47,11 +46,6 @@ export const VoiceCall = ({
         if (!cancelled) setCall(c);
       } catch (e) {
         console.error('[VoiceCall] join failed', e);
-        toast({
-          title: 'Call Error',
-          description: 'Failed to start voice call',
-          variant: 'destructive',
-        });
         setTimeout(onEndCall, 1500);
       }
     })();
@@ -63,40 +57,40 @@ export const VoiceCall = ({
   }, [client, callId]);
 
   useEffect(() => {
-    if (clientError) {
-      toast({
-        title: 'Call Error',
-        description: clientError.message,
-        variant: 'destructive',
-      });
-      setTimeout(onEndCall, 1500);
-    }
+    if (clientError) setTimeout(onEndCall, 1500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientError]);
 
+  const end = () => {
+    haptic('heavy');
+    onEndCall();
+  };
+
   if (!client || !call) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center p-4">
-        <Card className="w-full max-w-md p-8 text-center space-y-4">
-          <Avatar className="h-24 w-24 mx-auto ring-4 ring-primary/20">
-            <AvatarImage src={participantAvatar} />
-            <AvatarFallback>{participantName[0]?.toUpperCase() || 'U'}</AvatarFallback>
-          </Avatar>
-          <h2 className="text-xl font-semibold">{participantName}</h2>
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>{isInitiator ? 'Calling…' : 'Connecting…'}</span>
+      <CallShell
+        kind="voice"
+        participantName={participantName}
+        participantAvatar={participantAvatar}
+        statusText={isInitiator ? 'Calling…' : 'Connecting…'}
+        minimized={minimized}
+        onMinimize={() => setMinimized(true)}
+        onRestore={() => setMinimized(false)}
+        onEnd={end}
+        controls={
+          <div className="flex justify-center">
+            <Button
+              size="icon"
+              variant="destructive"
+              onClick={end}
+              className="h-16 w-16 rounded-full shadow-lg touch-manipulation"
+              aria-label="Cancel call"
+            >
+              <PhoneOff className="h-6 w-6" />
+            </Button>
           </div>
-          <Button
-            size="lg"
-            variant="destructive"
-            onClick={onEndCall}
-            className="h-14 w-14 rounded-full mx-auto"
-          >
-            <PhoneOff className="h-6 w-6" />
-          </Button>
-        </Card>
-      </div>
+        }
+      />
     );
   }
 
@@ -104,7 +98,9 @@ export const VoiceCall = ({
     <StreamVideo client={client}>
       <StreamCall call={call}>
         <VoiceCallInner
-          onEndCall={onEndCall}
+          onEnd={end}
+          minimized={minimized}
+          setMinimized={setMinimized}
           participantName={participantName}
           participantAvatar={participantAvatar}
         />
@@ -114,12 +110,20 @@ export const VoiceCall = ({
 };
 
 interface InnerProps {
-  onEndCall: () => void;
+  onEnd: () => void;
+  minimized: boolean;
+  setMinimized: (v: boolean) => void;
   participantName: string;
   participantAvatar?: string;
 }
 
-const VoiceCallInner = ({ onEndCall, participantName, participantAvatar }: InnerProps) => {
+const VoiceCallInner = ({
+  onEnd,
+  minimized,
+  setMinimized,
+  participantName,
+  participantAvatar,
+}: InnerProps) => {
   const { useCallCallingState, useMicrophoneState, useParticipants } = useCallStateHooks();
   const callingState = useCallCallingState();
   const { microphone, isMute } = useMicrophoneState();
@@ -143,79 +147,79 @@ const VoiceCallInner = ({ onEndCall, participantName, participantAvatar }: Inner
   };
 
   const toggleMic = async () => {
+    haptic('light');
     await microphone.toggle();
   };
 
   const toggleSpeaker = () => {
+    haptic('light');
     setSpeakerOn((v) => !v);
-    // Mute remote audio elements by toggling participant audio sink
     document.querySelectorAll('audio[data-stream-audio]').forEach((el) => {
-      (el as HTMLAudioElement).muted = speakerOn; // about to flip
+      (el as HTMLAudioElement).muted = speakerOn;
     });
   };
 
-  return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center p-4">
-      {/* Stream renders hidden audio sinks for remote participants */}
-      <ParticipantsAudio participants={remoteParticipants} />
+  const statusText = isConnected
+    ? formatDuration(callDuration)
+    : callingState === CallingState.RINGING
+      ? 'Ringing…'
+      : 'Connecting…';
 
-      <Card className="w-full max-w-md p-8 space-y-8 bg-gradient-to-br from-primary/5 to-accent/5">
-        <div className="text-center space-y-4">
-          <Avatar className="h-32 w-32 mx-auto ring-4 ring-primary/20">
-            <AvatarImage src={participantAvatar} />
-            <AvatarFallback className="text-4xl bg-primary/10">
-              {participantName[0]?.toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h2 className="text-2xl font-semibold">{participantName}</h2>
-            <p className="text-muted-foreground mt-1">
-              {isConnected ? formatDuration(callDuration) : 'Calling…'}
-            </p>
-          </div>
-        </div>
-
-        {isConnected && (
-          <div className="flex justify-center gap-2">
-            {[...Array(5)].map((_, i) => (
-              <div
-                key={i}
-                className="w-2 h-8 bg-primary rounded-full animate-pulse"
-                style={{ animationDelay: `${i * 0.1}s` }}
-              />
-            ))}
-          </div>
-        )}
-
-        <div className="flex justify-center gap-6">
-          <Button
-            size="lg"
-            variant={!isMute ? 'default' : 'destructive'}
-            onClick={toggleMic}
-            className="h-16 w-16 rounded-full"
-          >
-            {!isMute ? <Mic className="h-6 w-6" /> : <MicOff className="h-6 w-6" />}
-          </Button>
-
-          <Button
-            size="lg"
-            variant={speakerOn ? 'default' : 'secondary'}
-            onClick={toggleSpeaker}
-            className="h-16 w-16 rounded-full"
-          >
-            {speakerOn ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
-          </Button>
-
-          <Button
-            size="lg"
-            variant="destructive"
-            onClick={onEndCall}
-            className="h-16 w-16 rounded-full"
-          >
-            <PhoneOff className="h-6 w-6" />
-          </Button>
-        </div>
-      </Card>
+  const controls = (
+    <div className="flex items-center justify-center gap-4 sm:gap-6">
+      <Button
+        size="icon"
+        variant={speakerOn ? 'secondary' : 'outline'}
+        onClick={toggleSpeaker}
+        className="h-14 w-14 rounded-full touch-manipulation"
+        aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
+      >
+        {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+      </Button>
+      <Button
+        size="icon"
+        variant={!isMute ? 'secondary' : 'destructive'}
+        onClick={toggleMic}
+        className="h-14 w-14 rounded-full touch-manipulation"
+        aria-label={!isMute ? 'Mute' : 'Unmute'}
+      >
+        {!isMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+      </Button>
+      <Button
+        size="icon"
+        variant="secondary"
+        disabled
+        className="h-14 w-14 rounded-full touch-manipulation opacity-60"
+        aria-label="Switch to video"
+      >
+        <Video className="h-5 w-5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="destructive"
+        onClick={onEnd}
+        className="h-16 w-16 rounded-full shadow-lg touch-manipulation"
+        aria-label="End call"
+      >
+        <PhoneOff className="h-6 w-6" />
+      </Button>
     </div>
   );
+
+  return (
+    <CallShell
+      kind="voice"
+      participantName={participantName}
+      participantAvatar={participantAvatar}
+      statusText={statusText}
+      minimized={minimized}
+      onMinimize={() => setMinimized(true)}
+      onRestore={() => setMinimized(false)}
+      onEnd={onEnd}
+      hiddenStreamMount={<ParticipantsAudio participants={remoteParticipants} />}
+      controls={controls}
+    />
+  );
 };
+
+export default VoiceCall;

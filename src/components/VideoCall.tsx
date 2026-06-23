@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Monitor, Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, RefreshCw, Loader2 } from 'lucide-react';
 import {
   StreamVideo,
   StreamCall,
@@ -13,17 +11,27 @@ import {
 } from '@stream-io/video-react-sdk';
 import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { useStreamVideoClient, callIdForChat } from '@/hooks/useStreamVideoClient';
+import { CallShell } from '@/components/calls/CallShell';
+import { haptic } from '@/lib/haptics';
 
 interface VideoCallProps {
   chatId: string;
   isInitiator: boolean;
   onEndCall: () => void;
+  participantName?: string;
+  participantAvatar?: string;
 }
 
-export const VideoCall = ({ chatId, isInitiator, onEndCall }: VideoCallProps) => {
-  const { toast } = useToast();
+export const VideoCall = ({
+  chatId,
+  isInitiator,
+  onEndCall,
+  participantName = 'User',
+  participantAvatar,
+}: VideoCallProps) => {
   const { client, error: clientError } = useStreamVideoClient();
   const [call, setCall] = useState<Call | null>(null);
+  const [minimized, setMinimized] = useState(false);
   const callId = useMemo(() => callIdForChat(chatId, 'video'), [chatId]);
 
   useEffect(() => {
@@ -38,11 +46,6 @@ export const VideoCall = ({ chatId, isInitiator, onEndCall }: VideoCallProps) =>
         if (!cancelled) setCall(c);
       } catch (e) {
         console.error('[VideoCall] join failed', e);
-        toast({
-          title: 'Call Error',
-          description: 'Failed to start video call',
-          variant: 'destructive',
-        });
         setTimeout(onEndCall, 1500);
       }
     })();
@@ -54,94 +57,181 @@ export const VideoCall = ({ chatId, isInitiator, onEndCall }: VideoCallProps) =>
   }, [client, callId]);
 
   useEffect(() => {
-    if (clientError) {
-      toast({ title: 'Call Error', description: clientError.message, variant: 'destructive' });
-      setTimeout(onEndCall, 1500);
-    }
+    if (clientError) setTimeout(onEndCall, 1500);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientError]);
 
+  const end = () => {
+    haptic('heavy');
+    onEndCall();
+  };
+
   if (!client || !call) {
     return (
-      <div className="fixed inset-0 bg-background z-50 flex items-center justify-center p-4">
-        <Card className="p-8 text-center space-y-3">
-          <Loader2 className="h-6 w-6 animate-spin mx-auto text-primary" />
-          <p className="text-muted-foreground">
-            {isInitiator ? 'Starting video call…' : 'Joining video call…'}
-          </p>
-          <Button variant="destructive" onClick={onEndCall} className="rounded-full">
-            <PhoneOff className="h-5 w-5 mr-2" /> Cancel
-          </Button>
-        </Card>
-      </div>
+      <CallShell
+        kind="video"
+        participantName={participantName}
+        participantAvatar={participantAvatar}
+        statusText={isInitiator ? 'Starting video…' : 'Joining video…'}
+        minimized={minimized}
+        onMinimize={() => setMinimized(true)}
+        onRestore={() => setMinimized(false)}
+        onEnd={end}
+        remoteVideo={
+          <div className="absolute inset-0 flex items-center justify-center text-white/80">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        }
+        controls={
+          <div className="flex justify-center">
+            <Button
+              size="icon"
+              variant="destructive"
+              onClick={end}
+              className="h-16 w-16 rounded-full shadow-lg touch-manipulation"
+              aria-label="Cancel call"
+            >
+              <PhoneOff className="h-6 w-6" />
+            </Button>
+          </div>
+        }
+      />
     );
   }
 
   return (
     <StreamVideo client={client}>
       <StreamCall call={call}>
-        <VideoCallInner onEndCall={onEndCall} />
+        <VideoCallInner
+          onEnd={end}
+          minimized={minimized}
+          setMinimized={setMinimized}
+          participantName={participantName}
+          participantAvatar={participantAvatar}
+        />
       </StreamCall>
     </StreamVideo>
   );
 };
 
-const VideoCallInner = ({ onEndCall }: { onEndCall: () => void }) => {
-  const { useCallCallingState, useCameraState, useMicrophoneState, useScreenShareState } =
-    useCallStateHooks();
+interface InnerProps {
+  onEnd: () => void;
+  minimized: boolean;
+  setMinimized: (v: boolean) => void;
+  participantName: string;
+  participantAvatar?: string;
+}
+
+const VideoCallInner = ({
+  onEnd,
+  minimized,
+  setMinimized,
+  participantName,
+  participantAvatar,
+}: InnerProps) => {
+  const { useCallCallingState, useCameraState, useMicrophoneState } = useCallStateHooks();
   const callingState = useCallCallingState();
   const { camera, isMute: camMute } = useCameraState();
   const { microphone, isMute: micMute } = useMicrophoneState();
-  const { screenShare, isMute: screenOff } = useScreenShareState();
 
-  const connecting = callingState !== CallingState.JOINED;
+  const [duration, setDuration] = useState(0);
+  const connected = callingState === CallingState.JOINED;
 
-  return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
-      <div className="flex-1 relative bg-black str-video">
-        {connecting ? (
-          <div className="absolute inset-0 flex items-center justify-center text-white">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-5 w-5 animate-spin" />
-              <span>Connecting…</span>
-            </div>
-          </div>
-        ) : (
-          <SpeakerLayout participantsBarPosition="bottom" />
-        )}
-      </div>
+  useEffect(() => {
+    if (!connected) return;
+    const id = setInterval(() => setDuration((d) => d + 1), 1000);
+    return () => clearInterval(id);
+  }, [connected]);
 
-      <div className="p-4 bg-card border-t">
-        <div className="flex justify-center gap-4">
-          <Button
-            size="lg"
-            variant={!camMute ? 'default' : 'destructive'}
-            onClick={() => camera.toggle()}
-          >
-            {!camMute ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
-          </Button>
+  const formatDuration = (s: number) => {
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
+  };
 
-          <Button
-            size="lg"
-            variant={!micMute ? 'default' : 'destructive'}
-            onClick={() => microphone.toggle()}
-          >
-            {!micMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-          </Button>
+  const toggleCam = () => {
+    haptic('light');
+    camera.toggle();
+  };
+  const toggleMic = () => {
+    haptic('light');
+    microphone.toggle();
+  };
+  const flipCam = async () => {
+    haptic('light');
+    try {
+      await camera.flip();
+    } catch {
+      /* unsupported on desktop */
+    }
+  };
 
-          <Button
-            size="lg"
-            variant={!screenOff ? 'secondary' : 'outline'}
-            onClick={() => screenShare.toggle()}
-          >
-            <Monitor className="h-5 w-5" />
-          </Button>
+  const statusText = connected ? formatDuration(duration) : 'Connecting…';
 
-          <Button size="lg" variant="destructive" onClick={onEndCall}>
-            <PhoneOff className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+  const controls = (
+    <div className="flex items-center justify-center gap-4 sm:gap-6">
+      <Button
+        size="icon"
+        variant="secondary"
+        onClick={flipCam}
+        className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 touch-manipulation"
+        aria-label="Flip camera"
+      >
+        <RefreshCw className="h-5 w-5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="secondary"
+        onClick={toggleCam}
+        className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 touch-manipulation"
+        aria-label={!camMute ? 'Turn off camera' : 'Turn on camera'}
+      >
+        {!camMute ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+      </Button>
+      <Button
+        size="icon"
+        variant="secondary"
+        onClick={toggleMic}
+        className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 touch-manipulation"
+        aria-label={!micMute ? 'Mute' : 'Unmute'}
+      >
+        {!micMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+      </Button>
+      <Button
+        size="icon"
+        variant="destructive"
+        onClick={onEnd}
+        className="h-16 w-16 rounded-full shadow-lg touch-manipulation"
+        aria-label="End call"
+      >
+        <PhoneOff className="h-6 w-6" />
+      </Button>
     </div>
   );
+
+  return (
+    <CallShell
+      kind="video"
+      participantName={participantName}
+      participantAvatar={participantAvatar}
+      statusText={statusText}
+      minimized={minimized}
+      onMinimize={() => setMinimized(true)}
+      onRestore={() => setMinimized(false)}
+      onEnd={onEnd}
+      remoteVideo={
+        connected ? (
+          <SpeakerLayout participantsBarPosition="bottom" />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-white/80">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        )
+      }
+      autoHideControls
+      controls={controls}
+    />
+  );
 };
+
+export default VideoCall;
