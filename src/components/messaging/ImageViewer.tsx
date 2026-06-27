@@ -82,12 +82,12 @@ export const ImageViewer = ({
             </Button>
             <span className="text-white text-sm">{Math.round(zoom * 100)}%</span>
           </div>
-          
+
           <Button
             variant="ghost"
             size="icon"
             onClick={() => onOpenChange(false)}
-            className="text-white hover:bg-white/20"
+            className="text-white"
           >
             <X className="h-5 w-5" />
           </Button>
