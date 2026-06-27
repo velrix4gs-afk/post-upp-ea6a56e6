@@ -66,14 +66,14 @@ export const ProfileImageViewer = ({ imageUrl, alt, isOpen, onClose }: ProfileIm
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="h-10 w-10 rounded-full bg-black/50 hover:bg-black/70 text-white"
+            className="h-10 w-10 rounded-full bg-black/50 text-white"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
-        
+
         {/* Image */}
-        <div 
+        <div
           className="w-full h-full flex items-center justify-center overflow-hidden"
           onClick={onClose}
         >
