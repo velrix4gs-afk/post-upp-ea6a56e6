@@ -1,68 +1,76 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-    <title>POST UP - Connect with Friends Around the World</title>
-    <meta name="description" content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">
-    <meta name="author" content="POST UP" />
 
-    
-    
-    <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/2MLSQV2FhYTzyxqbVrLGlHwsMtU2/social-images/social-1760360857842-POST-UPP.jpg">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+  <title>POST UPP - Connect with Friends Around the World</title>
+  <meta name="description"
+    content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">
+  <meta name="author" content="POST UPP" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://storage.googleapis.com/gpt-engineer-file-uploads/2MLSQV2FhYTzyxqbVrLGlHwsMtU2/social-images/social-1760360857842-POST-UPP.jpg">
-    
-    <!-- Preconnect for external resources -->
-    <link rel="preconnect" href="https://ccyyxkjpgebjnstevgkw.supabase.co" />
-    <link rel="dns-prefetch" href="https://ccyyxkjpgebjnstevgkw.supabase.co" />
 
-    <!-- Story editor "Elegant" font preset -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&display=swap" />
-    
-    <meta property="og:title" content="POST UP - Connect with Friends Around the World">
+
+  <meta property="og:type" content="website" />
+  <meta property="og:image"
+    content="https://storage.googleapis.com/gpt-engineer-file-uploads/2MLSQV2FhYTzyxqbVrLGlHwsMtU2/social-images/social-1760360857842-POST-UPP.jpg">
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:site" content="@lovable_dev" />
+  <meta name="twitter:image"
+    content="https://storage.googleapis.com/gpt-engineer-file-uploads/2MLSQV2FhYTzyxqbVrLGlHwsMtU2/social-images/social-1760360857842-POST-UPP.jpg">
+
+  <!-- Preconnect for external resources -->
+  <link rel="preconnect" href="https://ccyyxkjpgebjnstevgkw.supabase.co" />
+  <link rel="dns-prefetch" href="https://ccyyxkjpgebjnstevgkw.supabase.co" />
+
+  <!-- Story editor "Elegant" font preset -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@500;700&display=swap" />
+
+  <meta property="og:title" content="POST UP - Connect with Friends Around the World">
   <meta name="twitter:title" content="POST UP - Connect with Friends Around the World">
-  <meta property="og:description" content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">
-  <meta name="twitter:description" content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">
-  <link rel="icon" type="image/x-icon" href="https://storage.googleapis.com/gpt-engineer-file-uploads/2MLSQV2FhYTzyxqbVrLGlHwsMtU2/uploads/1760360840335-POST-UPP.jpg">
+  <meta property="og:description"
+    content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">
+  <meta name="twitter:description"
+    content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">
+  <link rel="icon" type="image/x-icon"
+    href="https://storage.googleapis.com/gpt-engineer-file-uploads/2MLSQV2FhYTzyxqbVrLGlHwsMtU2/uploads/1760360840335-POST-UPP.jpg">
 </head>
 
-  <body>
-    <div id="root"></div>
-    <script>
-      // Anti-flash: apply saved appearance synchronously before React paints.
-      (function () {
-        try {
-          var root = document.documentElement;
-          var theme = localStorage.getItem('theme') || 'system';
-          var resolved = theme;
-          if (theme === 'system') {
-            resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          }
-          root.classList.remove('light', 'dark');
-          if (resolved === 'light' || resolved === 'dark') root.classList.add(resolved);
+<body>
+  <div id="root"></div>
+  <script>
+    // Anti-flash: apply saved appearance synchronously before React paints.
+    (function () {
+      try {
+        var root = document.documentElement;
+        var theme = localStorage.getItem('theme') || 'system';
+        var resolved = theme;
+        if (theme === 'system') {
+          resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        root.classList.remove('light', 'dark');
+        if (resolved === 'light' || resolved === 'dark') root.classList.add(resolved);
 
-          var fontSize = localStorage.getItem('app_font_size') || 'medium';
-          var layout = localStorage.getItem('app_layout_mode') || 'spacious';
-          var accent = localStorage.getItem('app_accent_color') || 'blue';
-          root.setAttribute('data-font-size', fontSize);
-          root.setAttribute('data-layout', layout);
-          root.setAttribute('data-accent', accent);
-          // Only apply a custom color-theme if the user explicitly picked one.
-          var colorTheme = localStorage.getItem('colorTheme');
-          if (colorTheme) root.setAttribute('data-color-theme', colorTheme);
-          else root.removeAttribute('data-color-theme');
-          // fb26 skin (Facebook + Twitter blend, iOS 26 motion) is ALWAYS on.
-          root.setAttribute('data-skin', 'fb26');
-          localStorage.setItem('app_skin', 'fb26');
-        } catch (e) { /* no-op */ }
-      })();
-    </script>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+        var fontSize = localStorage.getItem('app_font_size') || 'medium';
+        var layout = localStorage.getItem('app_layout_mode') || 'spacious';
+        var accent = localStorage.getItem('app_accent_color') || 'blue';
+        root.setAttribute('data-font-size', fontSize);
+        root.setAttribute('data-layout', layout);
+        root.setAttribute('data-accent', accent);
+        // Only apply a custom color-theme if the user explicitly picked one.
+        var colorTheme = localStorage.getItem('colorTheme');
+        if (colorTheme) root.setAttribute('data-color-theme', colorTheme);
+        else root.removeAttribute('data-color-theme');
+        // fb26 skin (Facebook + Twitter blend, iOS 26 motion) is ALWAYS on.
+        root.setAttribute('data-skin', 'fb26');
+        localStorage.setItem('app_skin', 'fb26');
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
