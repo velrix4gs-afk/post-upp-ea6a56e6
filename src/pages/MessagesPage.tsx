@@ -186,15 +186,14 @@ const MessagesPage = () => {
       isInitialLoadRef.current = false;
       const container = messagesContainerRef.current;
       if (container) {
-        const firstUnread = messages.find((m) => m.sender_id !== user?.id && m.status !== 'read');
-        if (firstUnread) {
-          const el = document.getElementById(`message-${firstUnread.id}`);
-          if (el) {
-            el.scrollIntoView({ behavior: 'auto', block: 'center' });
-            return;
-          }
-        }
+        // Always land on the LATEST message when opening a chat.
+        // Jumping to first-unread was confusing users — they expect the
+        // newest text to be visible, not to be dropped mid-history.
         container.scrollTop = container.scrollHeight;
+        // Belt-and-braces: also scroll the sentinel into view after paint.
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+        });
       }
     } else {
       const container = messagesContainerRef.current;
