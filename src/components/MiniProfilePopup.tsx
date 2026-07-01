@@ -79,13 +79,23 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
     }
     
     try {
-      const { data: chatId, error } = await supabase.rpc('create_private_chat', {
-        _user1: user.id,
-        _user2: userId
+      // Reuse existing DM first.
+      const { data: existingId } = await supabase.rpc('find_private_chat', {
+        p_user_a: user.id,
+        p_user_b: userId
       });
+      let chatId: string | undefined = existingId ?? undefined;
 
-      if (error) throw error;
-      
+      if (!chatId) {
+        const { data, error } = await supabase.rpc('create_private_chat', {
+          _user1: user.id,
+          _user2: userId
+        });
+        if (error) throw error;
+        chatId = Array.isArray(data) ? data?.[0]?.chat_id : (data as any)?.chat_id;
+      }
+
+      if (!chatId) throw new Error('Could not open conversation');
       navigate(`/messages?chat=${chatId}`);
       onClose?.();
     } catch (error: any) {
