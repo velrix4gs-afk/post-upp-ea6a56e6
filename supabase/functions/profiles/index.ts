@@ -96,7 +96,44 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
       const userId = userIdParam || user.id;
-      
+
+      // Privacy check: if the requested profile isn't the caller's own
+      // and is marked private, only accepted friends may see the full
+      // profile / notification-preference payload. Everyone else gets a
+      // minimal public shape mirroring the RLS logic on `public.profiles`.
+      if (userId !== user.id) {
+        const { data: target, error: targetErr } = await supabaseClient
+          .from('profiles')
+          .select('id, is_private')
+          .eq('id', userId)
+          .single();
+
+        if (targetErr || !target) {
+          return new Response(
+            JSON.stringify({ error: 'Profile not found' }),
+            { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        }
+
+        if (target.is_private) {
+          const { data: friendship } = await supabaseClient
+            .from('friendships')
+            .select('id')
+            .eq('status', 'accepted')
+            .or(
+              `and(requester_id.eq.${user.id},addressee_id.eq.${userId}),and(addressee_id.eq.${user.id},requester_id.eq.${userId})`
+            )
+            .maybeSingle();
+
+          if (!friendship) {
+            return new Response(
+              JSON.stringify({ error: 'This profile is private' }),
+              { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+            );
+          }
+        }
+      }
+
       const { data: profile, error } = await supabaseClient
         .from('profiles_view')
         .select('*')
