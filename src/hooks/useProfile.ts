@@ -100,7 +100,7 @@ export const useProfile = (userId?: string) => {
         const { data: sensitive } = await supabase.rpc('get_my_sensitive_profile');
         const row = Array.isArray(sensitive) ? sensitive[0] : sensitive;
         if (row) {
-          merged = { ...data, phone: row.phone ?? undefined, birth_date: row.birth_date ?? undefined };
+          merged = { ...(data as any), phone: (row as any).phone ?? undefined, birth_date: (row as any).birth_date ?? undefined };
         }
       }
 
