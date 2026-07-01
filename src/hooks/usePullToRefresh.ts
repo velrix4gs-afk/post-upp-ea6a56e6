@@ -15,6 +15,10 @@ export const usePullToRefresh = ({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const touchStartY = useRef(0);
+  // Only allow a pull that BEGAN at the very top of the page. This prevents
+  // rubber-band / mid-scroll gestures from triggering a refresh when the
+  // user is scrolling near the bottom of the feed.
+  const startedAtTop = useRef(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const triggerHaptic = (style: 'light' | 'medium' | 'heavy' = 'medium') => {
@@ -33,13 +37,12 @@ export const usePullToRefresh = ({
     if (!container || typeof window === 'undefined' || window.innerWidth > 1024) return;
 
     const handleTouchStart = (e: TouchEvent) => {
-      if (window.scrollY === 0 && !isRefreshing) {
-        touchStartY.current = e.touches[0].clientY;
-      }
+      startedAtTop.current = window.scrollY <= 0 && !isRefreshing;
+      touchStartY.current = e.touches[0].clientY;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      if (isRefreshing || window.scrollY > 0) return;
+      if (isRefreshing || window.scrollY > 0 || !startedAtTop.current) return;
       
       const currentY = e.touches[0].clientY;
       const distance = currentY - touchStartY.current;
@@ -51,7 +54,7 @@ export const usePullToRefresh = ({
     };
 
     const handleTouchEnd = async () => {
-      if (pullDistance >= threshold && !isRefreshing) {
+      if (startedAtTop.current && pullDistance >= threshold && !isRefreshing) {
         triggerHaptic('medium');
         setIsRefreshing(true);
         await onRefresh();
@@ -60,6 +63,7 @@ export const usePullToRefresh = ({
       setIsPulling(false);
       setPullDistance(0);
       touchStartY.current = 0;
+      startedAtTop.current = false;
     };
 
     container.addEventListener('touchstart', handleTouchStart, { passive: true });

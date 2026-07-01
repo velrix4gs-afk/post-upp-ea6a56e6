@@ -65,6 +65,10 @@ const ProfilePage = () => {
     followUser,
     unfollowUser
   } = useFollowers(profileUserId);
+  // Viewer's own following list — used to know if THIS viewer follows the
+  // profile being displayed. Without this, `following` above is the profile
+  // owner's list and the Follow button never reflects the viewer's state.
+  const { following: viewerFollowing } = useFollowers(user?.id);
   const {
     pinnedPostIds
   } = usePinnedPosts(profileUserId);
@@ -89,7 +93,7 @@ const ProfilePage = () => {
   const userPosts = posts.filter(post => post.user_id === profileUserId);
   const pinnedPosts = userPosts.filter(post => pinnedPostIds.includes(post.id));
   const regularPosts = userPosts.filter(post => !pinnedPostIds.includes(post.id));
-  const isFollowing = following.some(f => f.following_id === profileUserId);
+  const isFollowing = viewerFollowing.some(f => f.following_id === profileUserId);
   const handleFollowToggle = async () => {
     if (!profileUserId) return;
     if (isFollowing) {
@@ -101,14 +105,25 @@ const ProfilePage = () => {
   const handleMessage = async () => {
     if (!profileUserId || !user) return;
     try {
-      const {
-        data: chatId,
-        error: rpcError
-      } = await supabase.rpc('create_private_chat', {
-        _user1: user.id,
-        _user2: profileUserId
+      // 1) Try to reuse an existing DM first.
+      const { data: existingId } = await supabase.rpc('find_private_chat', {
+        p_user_a: user.id,
+        p_user_b: profileUserId
       });
-      if (rpcError) throw rpcError;
+      let chatId: string | undefined = existingId ?? undefined;
+
+      // 2) Otherwise create one. create_private_chat returns a row set
+      //    { chat_id, target_user } — must read data?.[0]?.chat_id.
+      if (!chatId) {
+        const { data, error: rpcError } = await supabase.rpc('create_private_chat', {
+          _user1: user.id,
+          _user2: profileUserId
+        });
+        if (rpcError) throw rpcError;
+        chatId = Array.isArray(data) ? data?.[0]?.chat_id : (data as any)?.chat_id;
+      }
+
+      if (!chatId) throw new Error('Could not open conversation');
       navigate(`/messages?chat=${chatId}`);
     } catch (error: any) {
       console.error('Message error:', error);

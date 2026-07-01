@@ -73,14 +73,27 @@ export const useFriends = () => {
 
   const fetchFriendships = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('friendships', {
-        method: 'GET'
-      });
+      if (!user) { setFriendships([]); return; }
+      // Query the friendships table directly under RLS to avoid the
+      // flaky edge function that spams "Failed to fetch" while offline.
+      const { data, error } = await supabase
+        .from('friendships')
+        .select(`
+          id, requester_id, addressee_id, status, created_at, updated_at,
+          requester:profiles!friendships_requester_id_fkey (
+            id, username, display_name, avatar_url, is_verified
+          ),
+          addressee:profiles!friendships_addressee_id_fkey (
+            id, username, display_name, avatar_url, is_verified
+          )
+        `)
+        .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
 
       if (error) throw error;
-      setFriendships(data || []);
+      setFriendships((data as any) || []);
     } catch (err: any) {
-      console.error('[FRIEND_001] Failed to load friendships:', err);
+      // Silent — do not spam console/toast during offline retries.
+      // Keep whatever we already had cached in state.
     } finally {
       setLoading(false);
     }
