@@ -2,6 +2,32 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
+import { AsyncStorage } from '@/lib/asyncStorage';
+
+// Sync read of persisted wallpaper so the chat background renders instantly
+// on open (matches the offline-first / device-cache project rule).
+const WALLPAPER_CACHE_PREFIX = 'chat_wallpaper:';
+const readCachedWallpaper = (chatId?: string): string | undefined => {
+  if (!chatId) return undefined;
+  try {
+    const raw = localStorage.getItem(`postup_${WALLPAPER_CACHE_PREFIX}${chatId}`);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    return parsed?.url || undefined;
+  } catch {
+    return undefined;
+  }
+};
+const writeCachedWallpaper = (chatId: string, url?: string) => {
+  try {
+    AsyncStorage.setItem(
+      `${WALLPAPER_CACHE_PREFIX}${chatId}`,
+      JSON.stringify({ url: url || '', updated_at: Date.now() })
+    );
+  } catch {
+    /* noop */
+  }
+};
 
 export interface ChatSettings {
   chat_id: string;
@@ -16,7 +42,18 @@ export interface ChatSettings {
 
 export const useChatSettings = (chatId?: string) => {
   const { user } = useAuth();
-  const [settings, setSettings] = useState<ChatSettings | null>(null);
+  const [settings, setSettings] = useState<ChatSettings | null>(() => {
+    const cachedWallpaper = readCachedWallpaper(chatId);
+    if (!cachedWallpaper || !chatId) return null;
+    return {
+      chat_id: chatId,
+      user_id: '',
+      is_muted: false,
+      is_pinned: false,
+      notifications_enabled: true,
+      wallpaper_url: cachedWallpaper,
+    };
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,6 +77,7 @@ export const useChatSettings = (chatId?: string) => {
 
       if (data) {
         setSettings(data);
+        writeCachedWallpaper(chatId, data.wallpaper_url);
       } else {
         // Create default settings
         const { data: newSettings, error: createError } = await supabase
@@ -56,6 +94,7 @@ export const useChatSettings = (chatId?: string) => {
 
         if (createError) throw createError;
         setSettings(newSettings);
+        writeCachedWallpaper(chatId, newSettings?.wallpaper_url);
       }
     } catch (error) {
       console.error('Error fetching chat settings:', error);
@@ -82,6 +121,9 @@ export const useChatSettings = (chatId?: string) => {
       if (error) throw error;
 
       setSettings(data);
+      if (chatId && 'wallpaper_url' in updates) {
+        writeCachedWallpaper(chatId, data?.wallpaper_url);
+      }
       toast({ title: 'Settings updated' });
     } catch (error) {
       console.error('Error updating settings:', error);
