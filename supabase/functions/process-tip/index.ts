@@ -173,31 +173,25 @@ serve(async (req) => {
       });
     }
 
-    // In a real implementation, you would:
-    // 1. Process payment via Stripe
-    // 2. Record transaction in database
-    // 3. Send notification to recipient
-    
-    // For now, we'll just create a notification
-    await supabaseClient.from('notifications').insert({
-      user_id: recipient_id,
-      type: 'tip',
-      title: 'New Tip Received',
-      content: message || `You received a $${amount} tip!`,
-      data: { 
-        sender_id: user.id, 
-        amount: amount,
-        message: message
-      }
+    // SECURITY: A real coin/currency ledger has not been wired up yet.
+    // Previously this function inserted a "you received a $X tip" notification
+    // without validating or deducting any balance, which let verified users
+    // spam fake payment claims for social engineering. Until an atomic
+    // balance debit (or a confirmed Stripe charge) is implemented, we refuse
+    // to send tip notifications at all. Do NOT re-enable the notification
+    // insert without a settled server-side transfer.
+    console.warn('[TIP_DISABLED] Tip attempt refused: no settled balance transfer implemented', {
+      sender_id: user.id,
+      recipient_id,
+      amount,
     });
 
-    console.log(`[TIP_002] Tip processed successfully`);
-
-    return new Response(JSON.stringify({ 
-      success: true,
-      message: 'Tip sent successfully',
-      amount: amount
+    return new Response(JSON.stringify({
+      error: 'TIP_008: Tips temporarily unavailable',
+      code: 'TIP_008',
+      message: 'Tipping is temporarily unavailable while payment settlement is being finalized. No charge or transfer was made.'
     }), {
+      status: 503,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
