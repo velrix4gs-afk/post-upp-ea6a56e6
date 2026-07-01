@@ -4776,7 +4776,6 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
-          birth_date: string | null
           cover_url: string | null
           created_at: string | null
           display_name: string | null
@@ -4996,6 +4995,13 @@ export type Database = {
           other_user_name: string
           type: string
           unread_count: number
+        }[]
+      }
+      get_my_sensitive_profile: {
+        Args: never
+        Returns: {
+          birth_date: string
+          phone: string
         }[]
       }
       get_random_feed: {
