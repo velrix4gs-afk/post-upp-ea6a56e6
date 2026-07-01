@@ -16,18 +16,38 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const shouldSendOnStopRef = useRef(false);
+  const durationOnStopRef = useRef(0);
+  const BAR_COUNT = 28;
+  const [levels, setLevels] = useState<number[]>(() => Array(BAR_COUNT).fill(0.15));
 
   useEffect(() => {
     startRecording();
     return () => {
-      stopRecording();
-      if (timerRef.current) clearInterval(timerRef.current);
+      cleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const cleanup = () => {
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    try { mediaRecorderRef.current?.state === 'recording' && mediaRecorderRef.current.stop(); } catch {}
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    try { audioCtxRef.current?.close(); } catch {}
+    audioCtxRef.current = null;
+    analyserRef.current = null;
+  };
 
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
@@ -42,6 +62,10 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         setAudioBlob(blob);
         stream.getTracks().forEach(track => track.stop());
+        if (shouldSendOnStopRef.current) {
+          shouldSendOnStopRef.current = false;
+          onSend(blob, durationOnStopRef.current);
+        }
       };
 
       mediaRecorder.start();
@@ -51,6 +75,40 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
       timerRef.current = setInterval(() => {
         setDuration(prev => prev + 1);
       }, 1000);
+
+      // Real waveform via AnalyserNode
+      try {
+        const Ctx: typeof AudioContext =
+          (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          audioCtxRef.current = ctx;
+          const source = ctx.createMediaStreamSource(stream);
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 128;
+          analyser.smoothingTimeConstant = 0.75;
+          source.connect(analyser);
+          analyserRef.current = analyser;
+          const data = new Uint8Array(analyser.frequencyBinCount);
+          const tick = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteFrequencyData(data);
+            const step = Math.max(1, Math.floor(data.length / BAR_COUNT));
+            const next: number[] = [];
+            for (let i = 0; i < BAR_COUNT; i++) {
+              let sum = 0;
+              for (let j = 0; j < step; j++) sum += data[i * step + j] || 0;
+              const avg = sum / step / 255;
+              next.push(Math.max(0.12, Math.min(1, avg * 1.4)));
+            }
+            setLevels(next);
+            rafRef.current = requestAnimationFrame(tick);
+          };
+          tick();
+        }
+      } catch {
+        // Waveform is a nice-to-have; recording continues without it.
+      }
     } catch (error) {
       toast({
         title: 'Error',
@@ -61,25 +119,35 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+  const stopRecording = (thenSend = false) => {
+    if (thenSend) {
+      shouldSendOnStopRef.current = true;
+      durationOnStopRef.current = duration;
     }
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    setIsRecording(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
   };
 
   const handleSend = () => {
     if (audioBlob) {
       onSend(audioBlob, duration);
+      return;
+    }
+    // Still recording — stop and send in one tap.
+    if (isRecording) {
+      stopRecording(true);
     }
   };
 
   const handleDelete = () => {
-    stopRecording();
+    stopRecording(false);
     onCancel();
   };
 
@@ -102,7 +170,7 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
 
       <div className="flex-1 flex items-center gap-3">
         <div className={cn(
-          "h-10 w-10 rounded-full flex items-center justify-center",
+          "h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0",
           isRecording ? "bg-destructive animate-pulse" : "bg-muted"
         )}>
           <Mic className={cn(
@@ -111,22 +179,20 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
           )} />
         </div>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <div className="flex-1 h-8 bg-primary/10 rounded-full flex items-center px-3">
-              <div className="flex gap-1 items-center">
-                {Array.from({ length: 20 }).map((_, i) => (
+            <div className="flex-1 h-10 bg-primary/10 rounded-full flex items-center justify-center px-3 overflow-hidden">
+              <div className="flex gap-[3px] items-center h-full w-full justify-center">
+                {levels.map((lvl, i) => (
                   <div
                     key={i}
-                    className={cn(
-                      "w-1 rounded-full transition-all",
-                      isRecording && i % 2 === 0 ? "h-6 bg-primary" : "h-3 bg-primary/40"
-                    )}
+                    className="w-[3px] rounded-full bg-primary origin-center transition-transform duration-75 ease-out"
+                    style={{ height: '70%', transform: `scaleY(${isRecording ? lvl : 0.2})` }}
                   />
                 ))}
               </div>
             </div>
-            <span className="text-sm font-mono font-semibold">
+            <span className="text-sm font-mono font-semibold tabular-nums">
               {formatDuration(duration)}
             </span>
           </div>
@@ -135,9 +201,10 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
 
       <Button
         size="icon"
-        onClick={isRecording ? stopRecording : handleSend}
+        onClick={handleSend}
         disabled={!audioBlob && !isRecording}
         className="bg-primary hover:bg-primary/90"
+        aria-label="Send voice message"
       >
         <Send className="h-5 w-5" />
       </Button>
