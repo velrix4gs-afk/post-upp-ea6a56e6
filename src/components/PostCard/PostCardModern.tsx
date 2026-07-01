@@ -473,13 +473,13 @@ export const PostCardModern = ({
             {post.media_url && <>
                 {post.media_url.endsWith('.mp4') || post.media_url.endsWith('.webm') || post.media_url.includes('/video/') ? <div className="rounded-xl overflow-hidden mb-3">
                     <VideoViewer videoUrl={post.media_url} />
-                  </div> : <div className="rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition" onClick={e => {
+                  </div> : <div className="rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();
               setGalleryImages([post.media_url!]);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
             }}>
-                    <img src={post.media_url} alt="Post media" className="w-full h-auto object-cover max-h-[250px]" loading="lazy" />
+                    <img src={post.media_url} alt="Post media" className="w-full h-auto object-contain" loading="lazy" />
                   </div>}
               </>}
 

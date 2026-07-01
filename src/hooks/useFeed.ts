@@ -85,41 +85,20 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
           filters.push(`page_id.in.(${followedPageIds.join(',')})`);
         }
         query = query.or(filters.join(','));
-      } else if (feedTypeRef.current === 'for-you') {
-        const { data: friendsData } = await supabase
-          .from('friends')
-          .select('requester_id, receiver_id')
-          .or(`requester_id.eq.${user.id},receiver_id.eq.${user.id}`)
-          .eq('status', 'accepted');
-
-        const friendIds = friendsData?.map(f => 
-          f.requester_id === user.id ? f.receiver_id : f.requester_id
-        ) || [];
-
-        // Also include page posts from followed pages
-        const { data: followedPages } = await supabase
-          .from('page_followers' as any)
-          .select('page_id')
-          .eq('user_id', user.id);
-        const followedPageIds = ((followedPages || []) as any[]).map((f: any) => f.page_id);
-
-        const filters: string[] = [];
-        if (friendIds.length > 0) {
-          filters.push(`user_id.in.(${[...friendIds, user.id].join(',')})`);
-        } else {
-          filters.push(`user_id.eq.${user.id}`);
-        }
-        if (followedPageIds.length > 0) {
-          filters.push(`page_id.in.(${followedPageIds.join(',')})`);
-        }
-        query = query.or(filters.join(','));
       }
+      // 'for-you' → discovery: no author/page filter. Fetch all public
+      // posts and lightly shuffle each page below so the mix feels random.
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      const newPosts = (data || []) as Post[];
+      let newPosts = (data || []) as Post[];
+
+      // For You tab: shuffle within the fetched page for a random discovery mix
+      if (feedTypeRef.current === 'for-you') {
+        newPosts = [...newPosts].sort(() => Math.random() - 0.5);
+      }
       
       if (reset) {
         setPosts(newPosts);
