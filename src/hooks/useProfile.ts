@@ -81,18 +81,34 @@ export const useProfile = (userId?: string) => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
+      // NOTE: phone and birth_date are PII and are not selectable via the
+      // public profiles policy. Fetch the safe column set for everyone and
+      // load the sensitive fields separately for the owner via RPC.
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(
+          'id, username, display_name, bio, avatar_url, cover_url, location, website, gender, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, online_status, status_message, created_at, updated_at'
+        )
         .eq('id', targetUserId)
         .single();
 
       if (error) throw error;
-      setProfile(data);
-      
+      let merged: any = data;
+
+      // Only the owner can fetch phone / birth_date.
+      if (user?.id && targetUserId === user.id) {
+        const { data: sensitive } = await supabase.rpc('get_my_sensitive_profile');
+        const row = Array.isArray(sensitive) ? sensitive[0] : sensitive;
+        if (row) {
+          merged = { ...data, phone: row.phone ?? undefined, birth_date: row.birth_date ?? undefined };
+        }
+      }
+
+      setProfile(merged);
+
       // Cache profile
-      if (targetUserId && data) {
-        await CacheHelper.saveProfile(targetUserId, data);
+      if (targetUserId && merged) {
+        await CacheHelper.saveProfile(targetUserId, merged);
       }
     } catch (err: any) {
       setError(err.message);
