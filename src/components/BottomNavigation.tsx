@@ -115,9 +115,10 @@ export const BottomNavigation = () => {
         className={cn(
           "md:hidden fixed left-0 right-0 mx-3 z-50 transition-all duration-300 ease-in-out rounded-2xl bg-background/80 backdrop-blur-lg border border-border/30",
           isVisible 
-            ? "bottom-[5px] opacity-100 translate-y-0" 
-            : "bottom-[5px] opacity-0 translate-y-4 pointer-events-none"
+            ? "opacity-100 translate-y-0" 
+            : "opacity-0 translate-y-4 pointer-events-none"
         )}
+        style={{ bottom: 'calc(5px + env(safe-area-inset-bottom))' }}
       >
         <div className="flex justify-around items-center h-16 px-2">
           {navItems.map((item, index) => {
