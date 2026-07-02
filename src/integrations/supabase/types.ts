@@ -5001,6 +5001,7 @@ export type Database = {
         Args: never
         Returns: {
           birth_date: string
+          gender: string
           phone: string
         }[]
       }

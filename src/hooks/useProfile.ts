@@ -81,13 +81,14 @@ export const useProfile = (userId?: string) => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      // NOTE: phone and birth_date are PII and are not selectable via the
-      // public profiles policy. Fetch the safe column set for everyone and
-      // load the sensitive fields separately for the owner via RPC.
+      // NOTE: phone, birth_date, and gender are PII and are not selectable
+      // via the public profiles policy. Fetch the safe column set for
+      // everyone and load the sensitive fields separately for the owner
+      // via RPC.
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, username, display_name, bio, avatar_url, cover_url, location, website, gender, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, online_status, status_message, created_at, updated_at'
+          'id, username, display_name, bio, avatar_url, cover_url, location, website, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, online_status, status_message, created_at, updated_at'
         )
         .eq('id', targetUserId)
         .single();
@@ -95,12 +96,17 @@ export const useProfile = (userId?: string) => {
       if (error) throw error;
       let merged: any = data;
 
-      // Only the owner can fetch phone / birth_date.
+      // Only the owner can fetch phone / birth_date / gender.
       if (user?.id && targetUserId === user.id) {
         const { data: sensitive } = await supabase.rpc('get_my_sensitive_profile');
         const row = Array.isArray(sensitive) ? sensitive[0] : sensitive;
         if (row) {
-          merged = { ...(data as any), phone: (row as any).phone ?? undefined, birth_date: (row as any).birth_date ?? undefined };
+          merged = {
+            ...(data as any),
+            phone: (row as any).phone ?? undefined,
+            birth_date: (row as any).birth_date ?? undefined,
+            gender: (row as any).gender ?? undefined,
+          };
         }
       }
 
