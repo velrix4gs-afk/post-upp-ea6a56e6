@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,12 +11,34 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [checkedOnboarding, setCheckedOnboarding] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate('/signin');
     }
   }, [user, loading, navigate]);
+
+  // Gate on profiles.is_profile_complete — redirect new users to /onboarding.
+  useEffect(() => {
+    let cancelled = false;
+    if (loading || !user) return;
+    if (location.pathname === '/onboarding') { setCheckedOnboarding(true); return; }
+    (async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_profile_complete')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data && data.is_profile_complete === false) {
+        navigate('/onboarding', { replace: true });
+      }
+      setCheckedOnboarding(true);
+    })();
+    return () => { cancelled = true; };
+  }, [user, loading, location.pathname, navigate]);
 
   if (loading) {
     return (
