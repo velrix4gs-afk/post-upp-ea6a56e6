@@ -85,7 +85,8 @@ const Navigation = () => {
   const isHomePage = location.pathname === '/feed' || location.pathname === '/' || location.pathname === '/dashboard';
   const isCompactMode = !isHomePage;
   return <nav style={{
-    position: 'static'
+    position: 'static',
+    paddingTop: 'env(safe-area-inset-top)'
   }} className={cn("border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/60 z-50 transition-all duration-300", isCompactMode ? 'py-1' : 'py-1.5',
   // On feed pages, nav scrolls with page (not sticky). On other pages, it's sticky.
   isFeedPage ? "" : "sticky top-0",

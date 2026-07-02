@@ -3,6 +3,25 @@
 @tailwind utilities;
 
 /* ============================================================
+   iOS full-screen safe-area support (notch + Dynamic Island).
+   Paired with viewport-fit=cover + apple-mobile-web-app-status-bar-style.
+   ============================================================ */
+html, body, #root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: hsl(var(--background));
+}
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left: env(safe-area-inset-left); }
+.safe-right  { padding-right: env(safe-area-inset-right); }
+.safe-x      { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+.safe-y      { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+/* Fixed/sticky bars use these to sit below the notch / above the home indicator */
+.safe-top-inset    { top: env(safe-area-inset-top); }
+.safe-bottom-inset { bottom: env(safe-area-inset-bottom); }
+
+/* ============================================================
    Facebook 2026 skin (fb26) — opt-in visual layer.
    Activates when <html data-skin="fb26">. Scoped token overrides
    + utility helpers (depth, springs, page transitions).

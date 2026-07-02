@@ -65,6 +65,7 @@ const CreatePagePage = lazy(() => import("./pages/CreatePagePage"));
 const EditPagePage = lazy(() => import("./pages/EditPagePage"));
 const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
 const InstructionsPage = lazy(() => import("./pages/InstructionsPage"));
+const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -215,6 +216,14 @@ const App = () => (
                   <Route path="/auth/login-verify" element={<LoginVerification />} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/auth/magic-link-sent" element={<MagicLinkSent />} />
+                  <Route
+                    path="/onboarding"
+                    element={
+                      <ProtectedRoute>
+                        <OnboardingPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route
                     path="/dashboard"
                     element={

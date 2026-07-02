@@ -88,7 +88,7 @@ const EmailVerification = () => {
         description: 'Your account has been created successfully.'
       });
 
-      navigate('/feed');
+      navigate('/onboarding', { replace: true });
 
     } catch (error: any) {
       console.error('Verification error:', error);

@@ -59,16 +59,30 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        setAudioBlob(blob);
-        stream.getTracks().forEach(track => track.stop());
-        if (shouldSendOnStopRef.current) {
-          shouldSendOnStopRef.current = false;
-          onSend(blob, durationOnStopRef.current);
+        try {
+          const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+          setAudioBlob(blob);
+          stream.getTracks().forEach(track => track.stop());
+          if (shouldSendOnStopRef.current) {
+            shouldSendOnStopRef.current = false;
+            if (blob.size > 0) {
+              onSend(blob, durationOnStopRef.current || 1);
+            } else {
+              toast({
+                title: 'Recording too short',
+                description: 'Hold to record a longer voice note.',
+                variant: 'destructive',
+              });
+            }
+          }
+        } catch (err) {
+          console.error('[VoiceRecorder] onstop error', err);
         }
       };
 
-      mediaRecorder.start();
+      // Use a timeslice so ondataavailable fires periodically — some browsers
+      // otherwise emit an empty buffer when stop() is called quickly after start().
+      mediaRecorder.start(250);
       setIsRecording(true);
 
       // Start timer

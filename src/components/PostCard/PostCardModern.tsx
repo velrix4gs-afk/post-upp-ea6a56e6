@@ -31,6 +31,7 @@ import { ProfileHoverCard } from "../ProfileHoverCard";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 export interface PostCardModernProps {
@@ -612,9 +613,7 @@ export const PostCardModern = ({
             </div>
 
             {/* Comments Section */}
-            {showComments && <div className="mt-3 pt-3 border-t border-border">
-                <ThreadedCommentsSection postId={post.id} />
-              </div>}
+            {/* Comments now open in a bottom-sheet popup (see below) */}
           </div>
         </Card>
 
@@ -623,6 +622,21 @@ export const PostCardModern = ({
         <ImageGalleryViewer images={galleryImages} initialIndex={galleryStartIndex} open={showImageGallery} onOpenChange={setShowImageGallery} />
 
         <ReportDialog open={showReportDialog} onOpenChange={setShowReportDialog} contentId={post.id} contentType="post" />
+
+        <Sheet open={showComments} onOpenChange={setShowComments}>
+          <SheetContent
+            side="bottom"
+            className="h-[85vh] max-h-[85vh] p-0 flex flex-col rounded-t-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SheetHeader className="px-4 py-3 border-b border-border">
+              <SheetTitle className="text-base">Comments</SheetTitle>
+            </SheetHeader>
+            <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]">
+              <ThreadedCommentsSection postId={post.id} />
+            </div>
+          </SheetContent>
+        </Sheet>
       </>
     </TooltipProvider>;
 };
