@@ -3,6 +3,17 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
 import { CacheHelper } from '@/lib/asyncStorage';
+import { shouldShowErrorToast } from '@/lib/errorSuppression';
+
+// Module-level dedupe so multiple useProfile consumers don't stack the same
+// "Failed to load profile" toast on top of each other.
+const _lastProfileToastAt: Record<string, number> = {};
+const profileErrorToastOnce = (key: string) => {
+  const now = Date.now();
+  if (_lastProfileToastAt[key] && now - _lastProfileToastAt[key] < 15_000) return;
+  _lastProfileToastAt[key] = now;
+  toast({ title: 'Error', description: 'Failed to load profile', variant: 'destructive' });
+};
 
 export interface Profile {
   id: string;
@@ -118,11 +129,9 @@ export const useProfile = (userId?: string) => {
       }
     } catch (err: any) {
       setError(err.message);
-      toast({
-        title: 'Error',
-        description: 'Failed to load profile',
-        variant: 'destructive'
-      });
+      if (shouldShowErrorToast(err)) {
+        profileErrorToastOnce(targetUserId || 'unknown');
+      }
     } finally {
       setLoading(false);
     }

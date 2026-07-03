@@ -29,41 +29,52 @@ export const useUserReplies = (userId?: string) => {
     }
 
     try {
-      const { data, error } = await supabase
+      // Two-step fetch: comments (public.comments has no declared FK to posts,
+      // which is why the embedded join returned PGRST200). Fetch comments,
+      // then fetch the referenced posts + their author profile separately.
+      const { data: commentRows, error } = await supabase
         .from('comments')
-        .select(`
-          id,
-          content,
-          created_at,
-          post_id,
-          posts!inner (
-            id,
-            content,
-            user_id,
-            profiles (
-              display_name,
-              username,
-              avatar_url
-            )
-          )
-        `)
+        .select('id, content, created_at, post_id')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
 
-      const formattedReplies = (data || []).map((item: any) => ({
+      const postIds = Array.from(new Set((commentRows || []).map((c: any) => c.post_id).filter(Boolean)));
+      let postMap: Record<string, any> = {};
+      if (postIds.length) {
+        const { data: postRows } = await supabase
+          .from('posts')
+          .select('id, content, user_id')
+          .in('id', postIds);
+        const authorIds = Array.from(new Set((postRows || []).map((p: any) => p.user_id).filter(Boolean)));
+        let profileMap: Record<string, any> = {};
+        if (authorIds.length) {
+          const { data: profileRows } = await supabase
+            .from('profiles')
+            .select('id, display_name, username, avatar_url')
+            .in('id', authorIds);
+          profileMap = Object.fromEntries((profileRows || []).map((p: any) => [p.id, p]));
+        }
+        postMap = Object.fromEntries(
+          (postRows || []).map((p: any) => [p.id, { ...p, profiles: profileMap[p.user_id] }])
+        );
+      }
+
+      const formattedReplies = (commentRows || []).map((item: any) => ({
         id: item.id,
         content: item.content,
         created_at: item.created_at,
         post_id: item.post_id,
-        post: item.posts ? {
-          id: item.posts.id,
-          content: item.posts.content,
-          user_id: item.posts.user_id,
-          profiles: item.posts.profiles
-        } : undefined
+        post: postMap[item.post_id]
+          ? {
+              id: postMap[item.post_id].id,
+              content: postMap[item.post_id].content,
+              user_id: postMap[item.post_id].user_id,
+              profiles: postMap[item.post_id].profiles,
+            }
+          : undefined,
       }));
 
       setReplies(formattedReplies);
