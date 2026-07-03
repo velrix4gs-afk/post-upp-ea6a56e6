@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Allow select on groups" ON public.groups;

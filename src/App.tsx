@@ -15,6 +15,7 @@ import { initSyncEngine } from "@/lib/syncEngine";
 import { useAppearanceSync } from "@/hooks/useAppearanceSync";
 import LiquidGlassRoot from "@/components/LiquidGlassRoot";
 import PageTransition from "@/components/transitions/PageTransition";
+import { GlobalProfilePopupHost } from "@/components/GlobalProfilePopupHost";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -204,6 +205,7 @@ const App = () => (
           <LiquidGlassRoot />
           <BrowserRouter>
             <AuthenticatedFeatures />
+            <GlobalProfilePopupHost />
             <Suspense fallback={<PageLoader />}>
               <PageTransition>
                 <Routes>

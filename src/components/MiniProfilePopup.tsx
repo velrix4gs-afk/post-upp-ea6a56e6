@@ -96,7 +96,9 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
       }
 
       if (!chatId) throw new Error('Could not open conversation');
-      navigate(`/messages?chat=${chatId}`);
+      // Preserve breadcrumb: remember which popup was open so back-navigation
+      // can restore it on the origin page.
+      navigate(`/messages?chat=${chatId}`, { state: { overlayProfileId: userId } });
       onClose?.();
     } catch (error: any) {
       toast({
@@ -109,7 +111,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
   const handleViewProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/profile/${userId}`);
+    navigate(`/profile/${userId}`, { state: { overlayProfileId: userId } });
     onClose?.();
   };
 

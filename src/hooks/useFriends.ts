@@ -2,6 +2,20 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
+import { shouldShowErrorToast } from '@/lib/errorSuppression';
+
+// Module-level dedupe: swallow the same error toast if fired within 10s.
+const _lastToastAt: Record<string, number> = {};
+const toastOnce = (key: string, opts: Parameters<typeof toast>[0]) => {
+  const now = Date.now();
+  if (_lastToastAt[key] && now - _lastToastAt[key] < 10_000) return;
+  _lastToastAt[key] = now;
+  toast(opts);
+};
+const errorToast = (key: string, err: unknown, description: string) => {
+  if (!shouldShowErrorToast(err)) return;
+  toastOnce(`err:${key}`, { title: 'Error', description, variant: 'destructive' });
+};
 
 export interface Friendship {
   id: string;
@@ -113,11 +127,7 @@ export const useFriends = () => {
         description: 'Friend request sent'
       });
     } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message,
-        variant: 'destructive'
-      });
+      errorToast('sendFriendRequest', err, err?.message || 'Could not send friend request');
     }
   };
 
@@ -135,11 +145,7 @@ export const useFriends = () => {
         description: 'Friend request accepted'
       });
     } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message,
-        variant: 'destructive'
-      });
+      errorToast('acceptFriendRequest', err, err?.message || 'Could not accept friend request');
     }
   };
 
@@ -157,11 +163,7 @@ export const useFriends = () => {
         description: 'Friend request declined'
       });
     } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message,
-        variant: 'destructive'
-      });
+      errorToast('declineFriendRequest', err, err?.message || 'Could not decline friend request');
     }
   };
 
@@ -179,11 +181,7 @@ export const useFriends = () => {
         description: 'Friend removed'
       });
     } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message,
-        variant: 'destructive'
-      });
+      errorToast('removeFriend', err, err?.message || 'Could not remove friend');
     }
   };
 
