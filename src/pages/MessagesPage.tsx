@@ -95,6 +95,7 @@ const MessagesPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [isSendingVoice, setIsSendingVoice] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -131,6 +132,7 @@ const MessagesPage = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const voiceSendInFlightRef = useRef(false);
   const prevMessageIdsRef = useRef<Set<string>>(new Set());
   const newMessageIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
@@ -338,16 +340,30 @@ const MessagesPage = () => {
   };
 
   const handleVoiceSend = async (audioBlob: Blob) => {
-    if (!selectedChatId) return;
+    if (!selectedChatId || !user || voiceSendInFlightRef.current) return;
+
+    voiceSendInFlightRef.current = true;
+    setIsSendingVoice(true);
+
     try {
-      const fileName = `${user?.id}/${Date.now()}.webm`;
-      const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, audioBlob);
+      const isMp4Audio = audioBlob.type.includes('mp4');
+      const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${isMp4Audio ? 'm4a' : 'webm'}`;
+      const uploadContentType = isMp4Audio ? 'video/mp4' : 'video/webm';
+      const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, audioBlob, {
+        contentType: uploadContentType,
+        upsert: false,
+      });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('messages').getPublicUrl(fileName);
-      await sendMessage('🎤 Voice message', undefined, publicUrl, 'audio/webm');
+      const sent = await sendMessage('🎤 Voice message', undefined, publicUrl, isMp4Audio ? 'audio/mp4' : 'audio/webm');
+      if (!sent) throw new Error('Voice message insert failed');
       setIsRecordingVoice(false);
-    } catch {
+    } catch (error) {
+      console.error('[MessagesPage] Failed to send voice message:', error);
       toast({ title: 'Error', description: 'Failed to send voice message', variant: 'destructive' });
+    } finally {
+      voiceSendInFlightRef.current = false;
+      setIsSendingVoice(false);
     }
   };
 
@@ -838,6 +854,7 @@ const MessagesPage = () => {
             <VoiceRecorder
               onSend={(audioBlob, duration) => handleVoiceSend(audioBlob)}
               onCancel={() => setIsRecordingVoice(false)}
+              isSending={isSendingVoice}
             />
           ) : (
             <>

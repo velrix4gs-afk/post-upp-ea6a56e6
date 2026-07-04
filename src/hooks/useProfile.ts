@@ -91,7 +91,7 @@ export const useProfile = (userId?: string) => {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, username, display_name, bio, avatar_url, cover_url, location, website, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, online_status, status_message, created_at, updated_at'
+          'id, username, display_name, bio, avatar_url, cover_url, location, website, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, created_at, updated_at'
         )
         .eq('id', targetUserId)
         .single();

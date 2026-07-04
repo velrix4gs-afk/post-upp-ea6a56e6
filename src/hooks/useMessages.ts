@@ -442,8 +442,8 @@ export const useMessages = (chatId?: string) => {
     }
   };
 
-  const sendMessage = async (content: string, replyTo?: string, mediaUrl?: string, mediaType?: string) => {
-    if (!chatId || (!content.trim() && !mediaUrl) || !user) return;
+  const sendMessage = async (content: string, replyTo?: string, mediaUrl?: string, mediaType?: string): Promise<boolean> => {
+    if (!chatId || (!content.trim() && !mediaUrl) || !user) return false;
 
     // Generate temporary ID for optimistic update
     const tempId = `temp-${crypto.randomUUID()}`;
@@ -495,7 +495,7 @@ export const useMessages = (chatId?: string) => {
         description: 'Message will be sent when you\'re back online',
         duration: 2000,
       });
-      return;
+      return true;
     }
 
     localStorage.setItem(messageStatusKey, 'sending');
@@ -554,6 +554,7 @@ export const useMessages = (chatId?: string) => {
       setTimeout(() => {
         localStorage.removeItem(messageStatusKey);
       }, 3000);
+      return true;
     } catch (err: any) {
       console.error('Send message error:', err);
       
@@ -574,7 +575,7 @@ export const useMessages = (chatId?: string) => {
           description: 'Will send when connection is restored',
           duration: 2000,
         });
-        return;
+        return true;
       }
       
       // Update status to failed
@@ -597,6 +598,7 @@ export const useMessages = (chatId?: string) => {
       setTimeout(() => {
         localStorage.removeItem(messageStatusKey);
       }, 30000);
+      return false;
     }
   };
 
