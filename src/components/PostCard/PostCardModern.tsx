@@ -229,7 +229,10 @@ export const PostCardModern = ({
       target.closest('[role="button"]') ||
       target.closest('[role="menu"]') ||
       target.closest('[role="dialog"]') ||
-      target.closest('[data-radix-popper-content-wrapper]')
+      target.closest('[data-radix-popper-content-wrapper]') ||
+      target.closest('video') ||
+      target.closest('audio') ||
+      target.closest('[data-media]')
     ) {
       return;
     }
