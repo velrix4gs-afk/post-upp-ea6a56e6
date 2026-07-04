@@ -3,17 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
 import { CacheHelper } from '@/lib/asyncStorage';
-import { shouldShowErrorToast } from '@/lib/errorSuppression';
-
-// Module-level dedupe so multiple useProfile consumers don't stack the same
-// "Failed to load profile" toast on top of each other.
-const _lastProfileToastAt: Record<string, number> = {};
-const profileErrorToastOnce = (key: string) => {
-  const now = Date.now();
-  if (_lastProfileToastAt[key] && now - _lastProfileToastAt[key] < 15_000) return;
-  _lastProfileToastAt[key] = now;
-  toast({ title: 'Error', description: 'Failed to load profile', variant: 'destructive' });
-};
+import { reportSilently } from '@/lib/errorSuppression';
+import { useAuthReady } from './useAuthReady';
 
 export interface Profile {
   id: string;
@@ -41,6 +32,7 @@ export interface Profile {
 
 export const useProfile = (userId?: string) => {
   const { user } = useAuth();
+  const authReady = useAuthReady();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +49,7 @@ export const useProfile = (userId?: string) => {
   };
 
   useEffect(() => {
-    if (targetUserId) {
+    if (targetUserId && authReady) {
       loadProfileFromCache();
       fetchProfile();
 
@@ -87,9 +79,9 @@ export const useProfile = (userId?: string) => {
         supabase.removeChannel(channel);
       };
     }
-  }, [targetUserId]);
+  }, [targetUserId, authReady]);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (attempt = 0) => {
     try {
       setLoading(true);
       // NOTE: phone, birth_date, and gender are PII and are not selectable
@@ -104,7 +96,14 @@ export const useProfile = (userId?: string) => {
         .eq('id', targetUserId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // Row not yet created (handle_new_user race): retry once.
+        if (error.code === 'PGRST116' && attempt === 0) {
+          setTimeout(() => fetchProfile(1), 400);
+          return;
+        }
+        throw error;
+      }
       let merged: any = data;
 
       // Only the owner can fetch phone / birth_date / gender.
@@ -129,9 +128,9 @@ export const useProfile = (userId?: string) => {
       }
     } catch (err: any) {
       setError(err.message);
-      if (shouldShowErrorToast(err)) {
-        profileErrorToastOnce(targetUserId || 'unknown');
-      }
+      // Silent — profile load failures are covered by the global offline
+      // indicator; a repeating toast here just spams the user.
+      reportSilently('PROFILE_LOAD', err);
     } finally {
       setLoading(false);
     }

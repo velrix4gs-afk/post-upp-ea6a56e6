@@ -62,6 +62,8 @@ export const VideoViewer = ({
   return (
     <div 
       className={cn("relative w-full bg-black rounded-lg overflow-hidden group", className)}
+      data-media
+      onClick={(e) => e.stopPropagation()}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >

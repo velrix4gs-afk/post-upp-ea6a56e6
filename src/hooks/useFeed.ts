@@ -94,11 +94,8 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       if (error) throw error;
 
       let newPosts = (data || []) as Post[];
-
-      // For You tab: shuffle within the fetched page for a random discovery mix
-      if (feedTypeRef.current === 'for-you') {
-        newPosts = [...newPosts].sort(() => Math.random() - 0.5);
-      }
+      // Stable chronological order for all tabs — random shuffling made the
+      // feed jump around on every render and pagination.
       
       if (reset) {
         setPosts(newPosts);

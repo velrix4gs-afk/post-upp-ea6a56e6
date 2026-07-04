@@ -48,7 +48,12 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
+        : undefined;
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -60,12 +65,14 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
 
       mediaRecorder.onstop = () => {
         try {
-          const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+          const blob = new Blob(chunksRef.current, {
+            type: mediaRecorder.mimeType || 'audio/webm',
+          });
           setAudioBlob(blob);
           stream.getTracks().forEach(track => track.stop());
           if (shouldSendOnStopRef.current) {
             shouldSendOnStopRef.current = false;
-            if (blob.size > 0) {
+            if (blob.size > 0 || chunksRef.current.length > 0) {
               onSend(blob, durationOnStopRef.current || 1);
             } else {
               toast({
@@ -139,6 +146,8 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
       durationOnStopRef.current = duration;
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      // Flush final chunk before stopping so onstop sees a non-empty blob.
+      try { mediaRecorderRef.current.requestData(); } catch {}
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
