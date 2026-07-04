@@ -23,6 +23,7 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
   const rafRef = useRef<number | null>(null);
   const shouldSendOnStopRef = useRef(false);
   const durationOnStopRef = useRef(0);
+  const hasSentRef = useRef(false);
   const BAR_COUNT = 28;
   const [levels, setLevels] = useState<number[]>(() => Array(BAR_COUNT).fill(0.15));
 
@@ -73,7 +74,8 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
           stream.getTracks().forEach(track => track.stop());
           if (shouldSendOnStopRef.current) {
             shouldSendOnStopRef.current = false;
-            if ((blob.size > 0 || chunksRef.current.length > 0) && !isSending) {
+            if ((blob.size > 0 || chunksRef.current.length > 0) && !isSending && !hasSentRef.current) {
+              hasSentRef.current = true;
               onSend(blob, durationOnStopRef.current || 1);
             } else {
               toast({
@@ -163,6 +165,8 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
   const handleSend = () => {
     if (isSending) return;
     if (audioBlob) {
+      if (hasSentRef.current) return;
+      hasSentRef.current = true;
       onSend(audioBlob, duration);
       return;
     }
