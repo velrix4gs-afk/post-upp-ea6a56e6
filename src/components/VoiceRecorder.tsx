@@ -1,15 +1,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Mic, X, Send, Trash2 } from 'lucide-react';
+import { Mic, Send, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
 interface VoiceRecorderProps {
   onSend: (audioBlob: Blob, duration: number) => void;
   onCancel: () => void;
+  isSending?: boolean;
 }
 
-const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
+const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -72,7 +73,7 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
           stream.getTracks().forEach(track => track.stop());
           if (shouldSendOnStopRef.current) {
             shouldSendOnStopRef.current = false;
-            if (blob.size > 0 || chunksRef.current.length > 0) {
+            if ((blob.size > 0 || chunksRef.current.length > 0) && !isSending) {
               onSend(blob, durationOnStopRef.current || 1);
             } else {
               toast({
@@ -141,6 +142,7 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
   };
 
   const stopRecording = (thenSend = false) => {
+    if (isSending) return;
     if (thenSend) {
       shouldSendOnStopRef.current = true;
       durationOnStopRef.current = duration;
@@ -159,6 +161,7 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
   };
 
   const handleSend = () => {
+    if (isSending) return;
     if (audioBlob) {
       onSend(audioBlob, duration);
       return;
@@ -170,6 +173,7 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
   };
 
   const handleDelete = () => {
+    if (isSending) return;
     stopRecording(false);
     onCancel();
   };
@@ -186,6 +190,7 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
         size="icon"
         variant="ghost"
         onClick={handleDelete}
+        disabled={isSending}
         className="text-destructive hover:text-destructive"
       >
         <Trash2 className="h-5 w-5" />
@@ -225,11 +230,15 @@ const VoiceRecorder = ({ onSend, onCancel }: VoiceRecorderProps) => {
       <Button
         size="icon"
         onClick={handleSend}
-        disabled={!audioBlob && !isRecording}
+        disabled={isSending || (!audioBlob && !isRecording)}
         className="bg-primary hover:bg-primary/90"
         aria-label="Send voice message"
       >
-        <Send className="h-5 w-5" />
+        {isSending ? (
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        ) : (
+          <Send className="h-5 w-5" />
+        )}
       </Button>
     </div>
   );
