@@ -355,7 +355,8 @@ const MessagesPage = () => {
       });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('messages').getPublicUrl(fileName);
-      await sendMessage('🎤 Voice message', undefined, publicUrl, isMp4Audio ? 'audio/mp4' : 'audio/webm');
+      const sent = await sendMessage('🎤 Voice message', undefined, publicUrl, isMp4Audio ? 'audio/mp4' : 'audio/webm');
+      if (!sent) throw new Error('Voice message insert failed');
       setIsRecordingVoice(false);
     } catch (error) {
       console.error('[MessagesPage] Failed to send voice message:', error);
