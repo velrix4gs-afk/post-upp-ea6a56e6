@@ -1,75 +1,63 @@
-## Fixes
+# Fix pack: follow state, DM from profile, feed refresh, chat action popup
 
-### 1. Voice notes fail with error toast
+## CHANGE PLAN
 
-Root cause: `handleVoiceSend` uploads to storage bucket with `contentType: 'video/webm'` (workaround for allowed_mime_types), but then calls `sendMessage(..., 'audio/webm')`. The insert into `public.messages` succeeds, but the URL Supabase serves has header `Content-Type: video/webm`, so the receiving `<audio>` element refuses to load it → the whole flow appears broken. Also, `MediaRecorder.onstop` occasionally fires with `chunksRef.current.length === 0` on iOS Safari because `requestData()` returns asynchronously — the "Recording too short" toast then fires even for real recordings.
+### 1. Follow shows "Follow" again + APP_001 on re-follow
+**Files:** `src/hooks/useFollowers.ts`, `src/components/ProfileHeader.tsx`, `src/pages/SearchPage.tsx` (whichever reads follow state on search results)
 
-Fixes:
-- Widen the `messages` storage bucket `allowed_mime_types` (via `supabase--storage_update_bucket`) to include `audio/webm`, `audio/mp4`, `audio/mpeg`, `audio/ogg`.
-- In `MessagesPage.handleVoiceSend`, upload with the **actual** `audioBlob.type` (`audio/webm;codecs=opus` normalized to `audio/webm`) — no more masquerading as video.
-- In `VoiceRecorder.onstop`, await one microtask after `requestData()` before checking chunks, and only toast "Recording too short" when `duration < 1 && chunks empty`.
-- Remove destructive error toast on send-fail; log silently and keep recorder open so the user can retry.
+- Root cause: after `follow()` succeeds we don't refetch/refresh the `is_following` flag consistently, so the button stays on "Follow". A second click re-inserts into `followers` and hits the unique constraint → surfaces as APP_001.
+- Fix:
+  - In `useFollowers` `follow()`: use `.upsert({...}, { onConflict: 'follower_id,following_id', ignoreDuplicates: true })` instead of plain insert, so a duplicate is a no-op instead of an error.
+  - After success, optimistically set local `isFollowing = true` and invalidate/refetch the target profile's followers list so ProfileHeader + SearchPage both flip to "Following".
+  - Same treatment for `unfollow()` (delete with `.eq` — already idempotent, just make sure state flips).
+- Untouched: DB schema, RLS, notifications side-effects.
 
-### 2. Feed video won't play (play button visible, tap does nothing)
+### 2. Message button from another user's profile
+**Files:** `src/components/ProfileHeader.tsx` (or `ProfilePage.tsx` action bar)
 
-Root cause: in `PostCardModern.handleCardClick` the new guards call `.closest('video'|'audio'|'[data-media]')`, which correctly stop navigation — but the click on the **overlay play button** targets a `<div>` sibling of the `<video>`, not inside it. It's inside the `data-media` wrapper though, so navigation is prevented. However, the wrapper has `onClick={(e) => e.stopPropagation()}` at the div level, which fires **before** the child overlay's `onClick={togglePlay}` in the same bubble — but React uses synthetic events and stopPropagation only stops parent handlers, so togglePlay still runs. The real bug: `videoRef.current.play()` returns a Promise; when the video has `preload="metadata"` (default) on iOS and the source needs a cross-origin range request, the first `play()` throws "NotAllowedError" *silently* (no `.catch`). The play toggle silently fails.
+- Currently the Message button either isn't wired or opens the wrong route. Restore prior behavior: on click, call the existing `find_private_chat` RPC (per messaging-architecture memory) with `(auth.uid(), profileUserId)`; if it returns a chat id navigate to `/messages?chat=<id>`, else call the existing "create chat" path in `useChats` then navigate.
+- No new logic, no new RPC — reuse what `NewChatDialog` already does.
 
-Fix in `src/components/VideoViewer.tsx`:
-- Add `preload="auto"` and `crossOrigin="anonymous"` to the `<video>`.
-- Wrap `videoRef.current.play()` in `.then/.catch` and on catch, set `muted=true` then retry once (browser autoplay policy allows muted playback).
-- Keep the existing `data-media` and `stopPropagation` guards.
+### 3. Feed pull-to-refresh triggers full DB reload / flicker
+**Files:** `src/pages/Feed.tsx`, `src/components/PullToRefresh.tsx`, `src/hooks/useFeed.ts`
 
-### 3. Theme only applies on Profile / post textarea; rest of app is white
+- Root cause: scroll-up currently calls `refetch()` which clears the posts array and shows the skeleton for 1–2s. Realtime already keeps the feed fresh, so a manual reload is redundant.
+- Fix (smallest change):
+  - In `Feed.tsx` `onRefresh` handler: instead of `setPosts([])` + refetch, call a new `refreshSilently()` that fetches page 1 into a temp array and merges with existing state (dedupe by id), without toggling `loading`.
+  - Keep the pull-to-refresh spinner tied only to the PullToRefresh component's own state, not to `useFeed.loading`.
+  - Realtime `INSERT` subscription (RealtimeFeed) stays as-is — it already prepends new posts.
+- Untouched: pagination, realtime channels, post rendering.
 
-Root cause: `useTheme` default is `'system'`. In `index.html` the anti-flash script honors this and sets `light`/`dark` on `<html>`. Once inside the app, `useAppearanceSync` fetches `user_settings.theme_preference` and applies it — but it only mutates `<html>` classes, it never notifies `useTheme`'s state. So components that render before that async sync land on the `light` class. In addition, several page shells (Feed background wrapper, MessagesPage, various hero panels) use raw `bg-white`/`text-black`/hardcoded hex colors instead of `bg-background`/`text-foreground` semantic tokens, so they stay white even when `.dark` is on `<html>`.
+### 4. Chat long-press popup (Telegram/WhatsApp iOS style)
+**Files:** `src/components/messaging/ChatListItem.tsx`, new `src/components/messaging/ChatLongPressPopup.tsx`
 
-Fixes:
-- In `src/hooks/useAppearanceSync.ts`, after applying `theme_preference`, dispatch a `storage` event so `useTheme` re-reads, and set the class synchronously **before** first paint via the same anti-flash pattern.
-- Sweep the following files for hardcoded color utilities and replace with semantic tokens (`bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`): `Feed.tsx`, `Dashboard.tsx`, `SearchPage.tsx`, `NotificationCenter.tsx`, `SettingsPage.tsx` (only the shell wrappers, not per-component logic).
-- No schema, no new tables — this is purely presentation.
+Reference image shows: chat list item stays visible at top, rest of screen blurred/dimmed, floating rounded card of actions (Mark as unread, Pin, Mute/Unmute, Delete) anchored near the pressed row.
 
-### 4. iOS zoom-in when tapping a text field
+- Build a single centered popup (works Android + iOS) using existing Radix `Dialog`:
+  - Overlay: `backdrop-blur-xl bg-background/40`, tap-outside to dismiss (per popup-interaction memory).
+  - Content: rounded-2xl card, max-w-xs, centered; list of action rows with icon + label matching the reference (Mark as unread/read, Pin/Unpin, Mute/Unmute, Delete in destructive red).
+  - Wire actions to existing `useChats` methods (`togglePin`, `toggleMute`, `markUnread`, `deleteChat`) — no new backend.
+- Hook up in `ChatListItem` via existing `useLongPress` (500ms) + haptic. Right-click on desktop opens same popup.
+- Do NOT touch message-bubble long-press (`LongPressMenu.tsx`) — that's a separate surface.
 
-Root cause: iOS Safari zooms any input/textarea whose computed font-size is < 16px.
+## TECHNICAL DETAILS
 
-Fixes:
-- `src/components/ui/textarea.tsx` and `src/components/ui/input.tsx`: ensure the base class includes `text-base` (16px) on mobile via `text-base md:text-sm` so desktop stays compact and mobile stops zooming.
-- Same for `ChatInput.tsx` textarea and the message composer inputs.
-- Confirm `<meta name="viewport" content="... maximum-scale=5.0 ...">` in `index.html` is unchanged (already correct — do not set `user-scalable=no`, which harms accessibility).
+- `useFollowers.follow` upsert signature:
+  ```ts
+  supabase.from('followers').upsert(
+    { follower_id: user.id, following_id: targetId },
+    { onConflict: 'follower_id,following_id', ignoreDuplicates: true }
+  )
+  ```
+- Feed silent refresh: keep `posts` state, replace only entries whose `id` matches new page-1 rows, prepend truly new ones. No `setLoading(true)`.
+- Chat popup uses semantic tokens only (`bg-card`, `text-foreground`, `text-destructive`) — no hardcoded colors.
 
-### 5. Edge-to-edge (fullscreen) whole app on mobile
+## REGRESSION CHECK
+- Auth, routing, RLS: untouched.
+- Existing message long-press, chat settings sheet, notifications, likes, verification: untouched.
+- `useChats`, `useFeed` public APIs unchanged; only additive method / internal behavior.
+- No DB schema or edge function changes.
 
-Root cause: Most page wrappers add `container mx-auto px-4` and `Navigation` sits above them, leaving safe-area gutters unused. `viewport-fit=cover` is already set; what's missing is CSS use of `env(safe-area-inset-*)`.
-
-Fixes in `src/index.css`:
-- Add a utility layer that applies `padding-top: env(safe-area-inset-top)` to top nav / status bars and `padding-bottom: env(safe-area-inset-bottom)` to bottom nav / composer.
-- On mobile breakpoints (`@media (max-width: 767px)`), reset page containers (`main`, `.container`) to `padding-inline: 0` and let cards handle their own inner padding.
-- Add `min-height: 100dvh` to the outermost app shell to remove the white iOS URL-bar gap.
-- No component structure changes — only CSS.
-
-## Files touched
-
-- `src/pages/MessagesPage.tsx` — voice upload contentType
-- `src/components/VoiceRecorder.tsx` — chunk flush + silent fail
-- `src/components/VideoViewer.tsx` — play() error handling + preload
-- `src/hooks/useAppearanceSync.ts` — sync theme class before paint
-- `src/pages/Feed.tsx`, `Dashboard.tsx`, `SearchPage.tsx`, `NotificationCenter.tsx`, `SettingsPage.tsx` — swap hardcoded colors for semantic tokens (shells only)
-- `src/components/ui/textarea.tsx`, `src/components/ui/input.tsx`, `src/components/messaging/ChatInput.tsx` — `text-base md:text-sm`
-- `src/index.css` — safe-area utilities + `100dvh` shell
-- Storage: widen `messages` bucket allowed mime types to include `audio/*`
-
-## Not touched
-
-- Auth, routing, RLS, DB schema
-- Any hook logic beyond appearance sync
-- Notifications, likes, verification, premium, calls, breadcrumb popup restore
-- `BottomNavigation.tsx`, `PostCard.tsx`, `PostCardModern.tsx` (duplicates kept; both imported)
-- Existing theme tokens themselves — only ensuring they're actually applied
-
-## Regression review after implementation
-
-- Sign-in / sign-up still works (no auth changes)
-- Chat send text still works (only voice upload path modified)
-- Feed images still render (only video branch changed)
-- Existing theme toggles (Settings) still work — sync now flows both ways
-- Profile page (currently the one working page) remains unchanged
+## NOT TOUCHED
+- Voice notes, video player, themes, safe-area, iOS zoom (already handled last turn).
+- BottomNavigation, PostCard duplicates, comments UI (separate scope).
