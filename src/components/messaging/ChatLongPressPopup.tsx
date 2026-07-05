@@ -64,6 +64,7 @@ export const ChatLongPressPopup = ({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
+        hideCloseButton
         className={cn(
           'p-0 gap-0 border-0 bg-transparent shadow-none max-w-sm',
           'sm:max-w-sm'
