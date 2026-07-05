@@ -1,47 +1,75 @@
 ## Fixes
 
-### 1. "Failed to load profile" spam — remove entirely + fix root cause
-Root cause: `useProfile` fires `fetchProfile` on mount before Supabase auth session is restored, so `auth.uid()` is null and the RLS-scoped `.single()` returns `PGRST116` / permission error, which then toasts.
+### 1. Voice notes fail with error toast
 
-- Add `useAuthReady` hook (`src/hooks/useAuthReady.ts`) that resolves once `supabase.auth.getSession()` returns.
-- In `useProfile.ts`:
-  - Gate `fetchProfile` and the realtime subscription on `authReady`.
-  - Retry once on `PGRST116` after 400ms (covers race where profile row is just being created by `handle_new_user`).
-  - **Remove the toast entirely** — log to console via `reportSilently('PROFILE_LOAD', err)` and set `error` state. No user-facing toast for load failures (only for update/upload failures, which are user-initiated).
-  - Delete `profileErrorToastOnce` + `_lastProfileToastAt`.
+Root cause: `handleVoiceSend` uploads to storage bucket with `contentType: 'video/webm'` (workaround for allowed_mime_types), but then calls `sendMessage(..., 'audio/webm')`. The insert into `public.messages` succeeds, but the URL Supabase serves has header `Content-Type: video/webm`, so the receiving `<audio>` element refuses to load it → the whole flow appears broken. Also, `MediaRecorder.onstop` occasionally fires with `chunksRef.current.length === 0` on iOS Safari because `requestData()` returns asynchronously — the "Recording too short" toast then fires even for real recordings.
 
-### 2. Voice notes not sending
-Root cause: `MediaRecorder` is created after `await getUserMedia`, which is fine, but on some browsers `onstop` fires before the final `ondataavailable` chunk lands, producing an empty blob and the "Recording too short" toast even after a real recording.
+Fixes:
+- Widen the `messages` storage bucket `allowed_mime_types` (via `supabase--storage_update_bucket`) to include `audio/webm`, `audio/mp4`, `audio/mpeg`, `audio/ogg`.
+- In `MessagesPage.handleVoiceSend`, upload with the **actual** `audioBlob.type` (`audio/webm;codecs=opus` normalized to `audio/webm`) — no more masquerading as video.
+- In `VoiceRecorder.onstop`, await one microtask after `requestData()` before checking chunks, and only toast "Recording too short" when `duration < 1 && chunks empty`.
+- Remove destructive error toast on send-fail; log silently and keep recorder open so the user can retry.
 
-In `src/components/VoiceRecorder.tsx`:
-- Call `mediaRecorder.requestData()` right before `stop()` in `stopRecording` so the final chunk is flushed synchronously.
-- Move the "empty blob" check off `blob.size` alone — also accept `chunksRef.current.length > 0` and rebuild.
-- Guard against double-send: if `handleSend` is called while `audioBlob` is null, wait for `onstop` (already done via `shouldSendOnStopRef`), but also add a 2-second safety timeout that force-resolves.
-- Prefer `audio/webm;codecs=opus` mimeType, fall back to `audio/mp4`, then default.
+### 2. Feed video won't play (play button visible, tap does nothing)
 
-### 3. Feed videos won't play
-Root cause: `PostCardModern`'s `handleCardClick` navigates to `/post/:id` on any click that isn't a `button`/`a`/`role=button`. The `<video>` element is none of those, so tapping play navigates away instead of playing.
+Root cause: in `PostCardModern.handleCardClick` the new guards call `.closest('video'|'audio'|'[data-media]')`, which correctly stop navigation — but the click on the **overlay play button** targets a `<div>` sibling of the `<video>`, not inside it. It's inside the `data-media` wrapper though, so navigation is prevented. However, the wrapper has `onClick={(e) => e.stopPropagation()}` at the div level, which fires **before** the child overlay's `onClick={togglePlay}` in the same bubble — but React uses synthetic events and stopPropagation only stops parent handlers, so togglePlay still runs. The real bug: `videoRef.current.play()` returns a Promise; when the video has `preload="metadata"` (default) on iOS and the source needs a cross-origin range request, the first `play()` throws "NotAllowedError" *silently* (no `.catch`). The play toggle silently fails.
 
-- In `PostCardModern.tsx` `handleCardClick`, also bail when the target is inside a `video`, `audio`, or `[data-media]` element.
-- In `VideoViewer.tsx`, wrap the root in `onClick={(e) => e.stopPropagation()}` so clicks on the player never bubble to the card.
+Fix in `src/components/VideoViewer.tsx`:
+- Add `preload="auto"` and `crossOrigin="anonymous"` to the `<video>`.
+- Wrap `videoRef.current.play()` in `.then/.catch` and on catch, set `muted=true` then retry once (browser autoplay policy allows muted playback).
+- Keep the existing `data-media` and `stopPropagation` guards.
 
-### 4. Reduce feed randomization
-In `src/hooks/useFeed.ts` (`for-you` branch): remove the `Math.random() - 0.5` shuffle. Keep `created_at DESC` ordering; the discovery mix is already provided by not filtering by author. This makes the feed stable across renders and pagination.
+### 3. Theme only applies on Profile / post textarea; rest of app is white
 
-### 5. Remove old unused files (safe deletions only)
-Verified via grep — these have no importers:
-- `src/components/PostCard.tsx` (old, replaced by `PostCard/PostCardModern.tsx`; the two importers `Dashboard.tsx` and `ThreadView.tsx` use the modern one — will re-verify per-file before deleting).
-- `src/components/PostCardModern.tsx` (root duplicate of `PostCard/PostCardModern.tsx`).
+Root cause: `useTheme` default is `'system'`. In `index.html` the anti-flash script honors this and sets `light`/`dark` on `<html>`. Once inside the app, `useAppearanceSync` fetches `user_settings.theme_preference` and applies it — but it only mutates `<html>` classes, it never notifies `useTheme`'s state. So components that render before that async sync land on the `light` class. In addition, several page shells (Feed background wrapper, MessagesPage, various hero panels) use raw `bg-white`/`text-black`/hardcoded hex colors instead of `bg-background`/`text-foreground` semantic tokens, so they stay white even when `.dark` is on `<html>`.
 
-`BottomNavigation.tsx` is **actively used** in `App.tsx` — it stays. Any file with a live importer will NOT be deleted (per your project rules).
+Fixes:
+- In `src/hooks/useAppearanceSync.ts`, after applying `theme_preference`, dispatch a `storage` event so `useTheme` re-reads, and set the class synchronously **before** first paint via the same anti-flash pattern.
+- Sweep the following files for hardcoded color utilities and replace with semantic tokens (`bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `border-border`): `Feed.tsx`, `Dashboard.tsx`, `SearchPage.tsx`, `NotificationCenter.tsx`, `SettingsPage.tsx` (only the shell wrappers, not per-component logic).
+- No schema, no new tables — this is purely presentation.
 
-### Out of scope
-- No schema changes.
-- No auth/routing/UUID changes.
-- No changes to messaging, notifications, likes, or verification logic.
-- Existing theme, safe-area, voice UI, call flows, breadcrumb popup restore — untouched.
+### 4. iOS zoom-in when tapping a text field
 
-### Files touched
-- new: `src/hooks/useAuthReady.ts`
-- edit: `src/hooks/useProfile.ts`, `src/components/VoiceRecorder.tsx`, `src/components/PostCard/PostCardModern.tsx`, `src/components/VideoViewer.tsx`, `src/hooks/useFeed.ts`
-- delete (only after final importer check): `src/components/PostCard.tsx`, `src/components/PostCardModern.tsx`
+Root cause: iOS Safari zooms any input/textarea whose computed font-size is < 16px.
+
+Fixes:
+- `src/components/ui/textarea.tsx` and `src/components/ui/input.tsx`: ensure the base class includes `text-base` (16px) on mobile via `text-base md:text-sm` so desktop stays compact and mobile stops zooming.
+- Same for `ChatInput.tsx` textarea and the message composer inputs.
+- Confirm `<meta name="viewport" content="... maximum-scale=5.0 ...">` in `index.html` is unchanged (already correct — do not set `user-scalable=no`, which harms accessibility).
+
+### 5. Edge-to-edge (fullscreen) whole app on mobile
+
+Root cause: Most page wrappers add `container mx-auto px-4` and `Navigation` sits above them, leaving safe-area gutters unused. `viewport-fit=cover` is already set; what's missing is CSS use of `env(safe-area-inset-*)`.
+
+Fixes in `src/index.css`:
+- Add a utility layer that applies `padding-top: env(safe-area-inset-top)` to top nav / status bars and `padding-bottom: env(safe-area-inset-bottom)` to bottom nav / composer.
+- On mobile breakpoints (`@media (max-width: 767px)`), reset page containers (`main`, `.container`) to `padding-inline: 0` and let cards handle their own inner padding.
+- Add `min-height: 100dvh` to the outermost app shell to remove the white iOS URL-bar gap.
+- No component structure changes — only CSS.
+
+## Files touched
+
+- `src/pages/MessagesPage.tsx` — voice upload contentType
+- `src/components/VoiceRecorder.tsx` — chunk flush + silent fail
+- `src/components/VideoViewer.tsx` — play() error handling + preload
+- `src/hooks/useAppearanceSync.ts` — sync theme class before paint
+- `src/pages/Feed.tsx`, `Dashboard.tsx`, `SearchPage.tsx`, `NotificationCenter.tsx`, `SettingsPage.tsx` — swap hardcoded colors for semantic tokens (shells only)
+- `src/components/ui/textarea.tsx`, `src/components/ui/input.tsx`, `src/components/messaging/ChatInput.tsx` — `text-base md:text-sm`
+- `src/index.css` — safe-area utilities + `100dvh` shell
+- Storage: widen `messages` bucket allowed mime types to include `audio/*`
+
+## Not touched
+
+- Auth, routing, RLS, DB schema
+- Any hook logic beyond appearance sync
+- Notifications, likes, verification, premium, calls, breadcrumb popup restore
+- `BottomNavigation.tsx`, `PostCard.tsx`, `PostCardModern.tsx` (duplicates kept; both imported)
+- Existing theme tokens themselves — only ensuring they're actually applied
+
+## Regression review after implementation
+
+- Sign-in / sign-up still works (no auth changes)
+- Chat send text still works (only voice upload path modified)
+- Feed images still render (only video branch changed)
+- Existing theme toggles (Settings) still work — sync now flows both ways
+- Profile page (currently the one working page) remains unchanged
