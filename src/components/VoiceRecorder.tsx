@@ -78,11 +78,14 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
               hasSentRef.current = true;
               onSend(blob, durationOnStopRef.current || 1);
             } else {
-              toast({
-                title: 'Recording too short',
-                description: 'Hold to record a longer voice note.',
-                variant: 'destructive',
-              });
+              // Only warn on genuinely-empty recordings (no chunks AND no duration).
+              if (chunksRef.current.length === 0 && (durationOnStopRef.current || 0) < 1) {
+                toast({
+                  title: 'Recording too short',
+                  description: 'Hold to record a longer voice note.',
+                  variant: 'destructive',
+                });
+              }
             }
           }
         } catch (err) {

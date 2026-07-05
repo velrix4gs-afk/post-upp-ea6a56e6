@@ -2,6 +2,18 @@ import { useEffect } from 'react';
 import { useAuth } from './useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
+const applyThemeClass = (t: string) => {
+  const root = document.documentElement;
+  root.classList.remove('light', 'dark');
+  if (t === 'system') {
+    root.classList.add(
+      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    );
+  } else if (t === 'light' || t === 'dark') {
+    root.classList.add(t);
+  }
+};
+
 /**
  * App-level appearance synchronizer.
  * - Applies cached preferences (font size, layout, accent, theme) immediately on mount.
@@ -24,6 +36,9 @@ export const useAppearanceSync = () => {
     // fb26 skin is ALWAYS enabled (Facebook + Twitter blend + iOS 26 spring motion).
     root.setAttribute('data-skin', 'fb26');
     localStorage.setItem('app_skin', 'fb26');
+    // Re-apply cached theme class so it wins over any late overrides.
+    const cachedTheme = localStorage.getItem('theme') || 'system';
+    applyThemeClass(cachedTheme);
   }, []);
 
   // Sync from Supabase user_settings once authenticated
@@ -52,20 +67,23 @@ export const useAppearanceSync = () => {
           localStorage.setItem('app_accent_color', data.accent_color);
         }
         if (data.theme_preference) {
-          // Hand off to the existing theme hook through localStorage so the
-          // useTheme effect picks it up on next read.
+          // Persist + apply the canonical server-side theme. Dispatch a storage
+          // event so useTheme (and any other subscribers) re-read from localStorage
+          // and don't fight the class we just applied.
           const current = localStorage.getItem('theme');
           if (current !== data.theme_preference) {
             localStorage.setItem('theme', data.theme_preference);
-            const t = data.theme_preference;
-            root.classList.remove('light', 'dark');
-            if (t === 'system') {
-              root.classList.add(
-                window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+            applyThemeClass(data.theme_preference);
+            try {
+              window.dispatchEvent(
+                new StorageEvent('storage', {
+                  key: 'theme',
+                  newValue: data.theme_preference,
+                })
               );
-            } else if (t === 'light' || t === 'dark') {
-              root.classList.add(t);
-            }
+            } catch {}
+          } else {
+            applyThemeClass(data.theme_preference);
           }
         }
       } catch (err) {
