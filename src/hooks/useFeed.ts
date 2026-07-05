@@ -130,6 +130,56 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
     fetchFeed(1, true);
   };
 
+  // Silent refresh — fetches latest page 1 and merges (dedupe by id) without
+  // toggling the loading skeleton, so pull-to-refresh doesn't clear the feed.
+  const refreshSilently = useCallback(async () => {
+    if (!user) return;
+    try {
+      const limit = 10;
+      let query = supabase
+        .from('posts')
+        .select(`
+          id, user_id, content, media_url, media_type, privacy,
+          reactions_count, comments_count, shares_count,
+          created_at, updated_at, page_id,
+          profiles:user_id ( username, display_name, avatar_url, is_verified ),
+          page:pages ( name, username, avatar_url, is_verified )
+        `)
+        .eq('privacy', 'public')
+        .order('created_at', { ascending: false })
+        .range(0, limit - 1);
+
+      if (feedTypeRef.current === 'following') {
+        const { data: followingData } = await supabase
+          .from('followers').select('following_id').eq('follower_id', user.id);
+        const followingIds = followingData?.map(f => f.following_id) || [];
+        const { data: followedPages } = await supabase
+          .from('page_followers' as any).select('page_id').eq('user_id', user.id);
+        const followedPageIds = ((followedPages || []) as any[]).map((f: any) => f.page_id);
+        if (followingIds.length === 0 && followedPageIds.length === 0) return;
+        const filters: string[] = [];
+        if (followingIds.length > 0) filters.push(`user_id.in.(${followingIds.join(',')})`);
+        if (followedPageIds.length > 0) filters.push(`page_id.in.(${followedPageIds.join(',')})`);
+        query = query.or(filters.join(','));
+      }
+
+      const { data, error } = await query;
+      if (error) return;
+      const fresh = (data || []) as Post[];
+      setPosts(prev => {
+        const map = new Map(prev.map(p => [p.id, p]));
+        for (const p of fresh) map.set(p.id, p);
+        const merged = Array.from(map.values()).sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        CacheHelper.saveFeed(merged);
+        return merged;
+      });
+    } catch {
+      /* silent */
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       // Load cached feed first for instant display
@@ -213,6 +263,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
     loading,
     hasMore,
     loadMore,
-    refresh
+    refresh,
+    refreshSilently
   };
 };

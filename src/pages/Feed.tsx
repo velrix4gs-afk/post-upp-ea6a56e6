@@ -26,7 +26,8 @@ const Feed = () => {
     loading,
     hasMore,
     loadMore,
-    refresh
+    refresh,
+    refreshSilently
   } = useFeed(activeTab === 'trending' ? 'for-you' : activeTab);
   const {
     ref: loadMoreRef,
@@ -39,7 +40,7 @@ const Feed = () => {
     pullDistance
   } = usePullToRefresh({
     onRefresh: async () => {
-      await refresh();
+      await refreshSilently();
     }
   });
   const handleNewPost = () => {};
