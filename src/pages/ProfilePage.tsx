@@ -112,15 +112,28 @@ const ProfilePage = () => {
       });
       let chatId: string | undefined = existingId ?? undefined;
 
-      // 2) Otherwise create one. create_private_chat returns a row set
-      //    { chat_id, target_user } — must read data?.[0]?.chat_id.
+      // 2) Otherwise create one directly so `type='private'` is set
+      //    (the create_private_chat RPC omits it, which breaks the next
+      //    find_private_chat lookup).
       if (!chatId) {
-        const { data, error: rpcError } = await supabase.rpc('create_private_chat', {
-          _user1: user.id,
-          _user2: profileUserId
-        });
-        if (rpcError) throw rpcError;
-        chatId = Array.isArray(data) ? data?.[0]?.chat_id : (data as any)?.chat_id;
+        const { data: newChat, error: chatError } = await supabase
+          .from('chats')
+          .insert({
+            type: 'private',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .select()
+          .single();
+        if (chatError) throw chatError;
+        const { error: partsError } = await supabase
+          .from('chat_participants')
+          .insert([
+            { chat_id: newChat.id, user_id: user.id, role: 'member' },
+            { chat_id: newChat.id, user_id: profileUserId, role: 'member' },
+          ]);
+        if (partsError) throw partsError;
+        chatId = newChat.id;
       }
 
       if (!chatId) throw new Error('Could not open conversation');
