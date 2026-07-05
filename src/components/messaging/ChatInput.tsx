@@ -121,7 +121,7 @@ export const ChatInput = ({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            'flex-1 resize-none bg-transparent border-0 outline-none text-[15px] leading-[22px] py-1 px-1',
+            'flex-1 resize-none bg-transparent border-0 outline-none text-[16px] md:text-[15px] leading-[22px] py-1 px-1',
             'placeholder:text-muted-foreground/70 max-h-[110px]',
             'scrollbar-hide'
           )}

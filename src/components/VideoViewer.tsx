@@ -36,7 +36,18 @@ export const VideoViewer = ({
       if (isPlaying) {
         videoRef.current.pause();
       } else {
-        videoRef.current.play();
+        const v = videoRef.current;
+        const p = v.play();
+        if (p && typeof p.catch === 'function') {
+          p.catch(() => {
+            // iOS/Safari blocks unmuted playback in some contexts — retry muted.
+            try {
+              v.muted = true;
+              setIsMuted(true);
+              v.play().catch((err) => console.warn('[VideoViewer] play failed', err));
+            } catch {}
+          });
+        }
       }
       setIsPlaying(!isPlaying);
     }
@@ -74,6 +85,7 @@ export const VideoViewer = ({
         loop={loop}
         muted={isMuted}
         playsInline
+        preload="auto"
         onClick={togglePlay}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}

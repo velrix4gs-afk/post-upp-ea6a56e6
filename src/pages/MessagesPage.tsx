@@ -360,7 +360,8 @@ const MessagesPage = () => {
       setIsRecordingVoice(false);
     } catch (error) {
       console.error('[MessagesPage] Failed to send voice message:', error);
-      toast({ title: 'Error', description: 'Failed to send voice message', variant: 'destructive' });
+      // Keep the recorder open so the user can retry. Toast only on real, actionable failures.
+      toast({ title: 'Could not send', description: 'Tap send again to retry.', variant: 'destructive' });
     } finally {
       voiceSendInFlightRef.current = false;
       setIsSendingVoice(false);
