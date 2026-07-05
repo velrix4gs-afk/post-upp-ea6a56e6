@@ -38,6 +38,7 @@ import { ScrollToBottomFab } from '@/components/messaging/ScrollToBottomFab';
 import { PinnedMessageBanner } from '@/components/messaging/PinnedMessageBanner';
 import TypingIndicator from '@/components/TypingIndicator';
 import { ChatPreviewModal } from '@/components/messaging/ChatPreviewModal';
+import { ChatLongPressPopup } from '@/components/messaging/ChatLongPressPopup';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1116,16 +1117,18 @@ const MessagesPage = () => {
         const previewName = c.name || otherP?.profiles.display_name || 'Chat';
         const previewAvatar = c.avatar_url || otherP?.profiles.avatar_url;
         return (
-          <ChatPreviewModal
+          <ChatLongPressPopup
             open={!!previewChatId}
             onClose={() => setPreviewChatId(null)}
             chatId={previewChatId}
             name={previewName}
             avatarUrl={previewAvatar}
-            onOpenFull={() => {
-              setSelectedChatId(previewChatId);
-              setShowAIChat(false);
+            lastMessage={c.last_message}
+            unreadCount={c.unread_count || 0}
+            onMarkUnread={() => {
+              toast({ description: (c.unread_count || 0) > 0 ? 'Marked as read' : 'Marked as unread' });
             }}
+            onDelete={() => setDeleteTarget({ id: previewChatId, name: previewName })}
           />
         );
       })()}

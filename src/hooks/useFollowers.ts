@@ -43,7 +43,7 @@ export const useFollowers = (userId?: string) => {
       // Set up real-time subscription for followers
       // Subscribe to changes where user is the follower OR following
       const channel = supabase
-        .channel('followers-changes')
+        .channel(`followers-changes-${targetUserId}`)
         .on(
           'postgres_changes',
           {
@@ -175,7 +175,9 @@ export const useFollowers = (userId?: string) => {
         return;
       }
 
-      // Quiet success — realtime subscription will reconcile the row.
+      // Refetch immediately so all consumers flip to "Following" without
+      // waiting on realtime (which can be racy with duplicate channel names).
+      fetchFollowers();
       toast({ description: isPrivate ? 'Follow request sent' : 'Following' });
     } catch (err) {
       // Any unexpected throw — revert + soft toast, do NOT propagate.
@@ -206,6 +208,7 @@ export const useFollowers = (userId?: string) => {
         return;
       }
 
+      fetchFollowers();
       toast({ description: 'Unfollowed' });
     } catch (err) {
       console.error('[unfollow] unexpected error', err);
