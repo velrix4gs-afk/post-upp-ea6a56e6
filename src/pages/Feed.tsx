@@ -24,6 +24,7 @@ const Feed = () => {
   const {
     posts,
     loading,
+    loadingMore,
     hasMore,
     loadMore,
     refresh,
@@ -114,7 +115,7 @@ const Feed = () => {
           }} />)}
               
               {hasMore && <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
-                  {loading && <Skeleton className="h-10 w-10 rounded-full" />}
+                  {loadingMore && <Skeleton className="h-10 w-10 rounded-full" />}
                 </div>}
             </div>}
         </main>
