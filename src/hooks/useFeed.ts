@@ -10,16 +10,24 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const loadingMoreRef = useRef(false);
   const feedTypeRef = useRef(feedType);
   feedTypeRef.current = feedType;
 
   const fetchFeed = useCallback(async (pageNum: number = 1, reset: boolean = false) => {
     if (!user) return;
+    const isInitialPage = pageNum === 1 || reset;
 
     try {
-      setLoading(true);
+      if (isInitialPage) {
+        setLoading(true);
+      } else {
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      }
       const limit = 10;
       const offset = (pageNum - 1) * limit;
 
@@ -71,7 +79,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         const followedPageIds = ((followedPages || []) as any[]).map((f: any) => f.page_id);
 
         if (followingIds.length === 0 && followedPageIds.length === 0) {
-          setPosts([]);
+          if (isInitialPage) setPosts([]);
           setHasMore(false);
           return;
         }
@@ -97,13 +105,14 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       // Stable chronological order for all tabs — random shuffling made the
       // feed jump around on every render and pagination.
       
-      if (reset) {
+      if (isInitialPage) {
         setPosts(newPosts);
         // Save to cache on fresh fetch
         CacheHelper.saveFeed(newPosts);
       } else {
         setPosts(prev => {
-          const combined = [...prev, ...newPosts];
+          const existingIds = new Set(prev.map((post) => post.id));
+          const combined = [...prev, ...newPosts.filter((post) => !existingIds.has(post.id))];
           CacheHelper.saveFeed(combined);
           return combined;
         });
@@ -113,17 +122,23 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
     } catch (error) {
       console.error('Error fetching feed:', error);
     } finally {
-      setLoading(false);
+      if (isInitialPage) {
+        setLoading(false);
+      } else {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      }
     }
   }, [user]);
 
-  const loadMore = () => {
-    if (!loading && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
+  const loadMore = useCallback(() => {
+    if (loading || loadingMoreRef.current || !hasMore) return;
+    setPage(prevPage => {
+      const nextPage = prevPage + 1;
       fetchFeed(nextPage, false);
-    }
-  };
+      return nextPage;
+    });
+  }, [fetchFeed, hasMore, loading]);
 
   const refresh = () => {
     setPage(1);
@@ -261,6 +276,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
   return {
     posts,
     loading,
+    loadingMore,
     hasMore,
     loadMore,
     refresh,
