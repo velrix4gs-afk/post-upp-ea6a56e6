@@ -202,17 +202,24 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
 
   useEffect(() => {
     if (user) {
-      // Load cached feed first for instant display
-      CacheHelper.getFeed().then(cached => {
+      let cancelled = false;
+      // Load cached feed first for instant display, then refresh without
+      // replacing the visible feed with a full-page skeleton.
+      const bootFeed = async () => {
+        const cached = await CacheHelper.getFeed();
+        if (cancelled) return;
         if (cached && cached.length > 0) {
+          postsRef.current = cached;
           setPosts(cached);
           setLoading(false);
         }
-      });
 
-      setPage(1);
-      setHasMore(true);
-      fetchFeed(1, true);
+        setPage(1);
+        setHasMore(true);
+        fetchFeed(1, true);
+      };
+
+      bootFeed();
 
       // Real-time subscription for posts
       const channel = supabase
@@ -273,6 +280,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         .subscribe();
 
       return () => {
+        cancelled = true;
         supabase.removeChannel(channel);
       };
     }
