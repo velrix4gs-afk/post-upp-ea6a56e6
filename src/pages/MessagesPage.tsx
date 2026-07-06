@@ -347,16 +347,22 @@ const MessagesPage = () => {
     setIsSendingVoice(true);
 
     try {
-      const isMp4Audio = audioBlob.type.includes('mp4');
-      const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${isMp4Audio ? 'm4a' : 'webm'}`;
-      const uploadContentType = isMp4Audio ? 'video/mp4' : 'video/webm';
+      const audioMime = (audioBlob.type || 'audio/webm').split(';')[0] || 'audio/webm';
+      const extension = audioMime.includes('mp4')
+        ? 'm4a'
+        : audioMime.includes('mpeg')
+        ? 'mp3'
+        : audioMime.includes('ogg')
+        ? 'ogg'
+        : 'webm';
+      const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, audioBlob, {
-        contentType: uploadContentType,
+        contentType: audioMime,
         upsert: false,
       });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('messages').getPublicUrl(fileName);
-      const sent = await sendMessage('🎤 Voice message', undefined, publicUrl, isMp4Audio ? 'audio/mp4' : 'audio/webm');
+      const sent = await sendMessage('🎤 Voice message', undefined, publicUrl, audioMime);
       if (!sent) throw new Error('Voice message insert failed');
       setIsRecordingVoice(false);
     } catch (error) {
