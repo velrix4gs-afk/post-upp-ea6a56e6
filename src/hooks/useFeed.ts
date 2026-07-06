@@ -106,7 +106,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
 
       if (error) throw error;
 
-      let newPosts = (data || []) as Post[];
+      const newPosts = (data || []) as Post[];
       // Stable chronological order for all tabs — random shuffling made the
       // feed jump around on every render and pagination.
       
@@ -284,7 +284,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user?.id, feedType, fetchFeed]);
+  }, [user, feedType, fetchFeed]);
 
   return {
     posts,
