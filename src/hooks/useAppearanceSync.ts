@@ -33,9 +33,15 @@ export const useAppearanceSync = () => {
     root.setAttribute('data-font-size', fontSize);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-accent', accent);
-    // fb26 skin is ALWAYS enabled (Facebook + Twitter blend + iOS 26 spring motion).
-    root.setAttribute('data-skin', 'fb26');
-    localStorage.setItem('app_skin', 'fb26');
+    // Do not force a skin globally. Let the saved theme/color settings drive
+    // the whole app, and clear the previously-forced fb26 override.
+    const savedSkin = localStorage.getItem('app_skin');
+    if (savedSkin && savedSkin !== 'fb26') {
+      root.setAttribute('data-skin', savedSkin);
+    } else {
+      root.removeAttribute('data-skin');
+      if (savedSkin === 'fb26') localStorage.removeItem('app_skin');
+    }
     // Re-apply cached theme class so it wins over any late overrides.
     const cachedTheme = localStorage.getItem('theme') || 'system';
     applyThemeClass(cachedTheme);
