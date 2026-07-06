@@ -30,9 +30,11 @@ export const useAppearanceSync = () => {
     const fontSize = localStorage.getItem('app_font_size') || 'medium';
     const layout = localStorage.getItem('app_layout_mode') || 'spacious';
     const accent = localStorage.getItem('app_accent_color') || 'blue';
+    const colorTheme = localStorage.getItem('colorTheme') || 'fb-twitter';
     root.setAttribute('data-font-size', fontSize);
     root.setAttribute('data-layout', layout);
     root.setAttribute('data-accent', accent);
+    root.setAttribute('data-color-theme', colorTheme);
     // Do not force a skin globally. Let the saved theme/color settings drive
     // the whole app, and clear the previously-forced fb26 override.
     const savedSkin = localStorage.getItem('app_skin');
