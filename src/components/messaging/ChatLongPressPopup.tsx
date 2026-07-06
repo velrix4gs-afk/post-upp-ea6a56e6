@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCheck, Pin, PinOff, Bell, BellOff, Trash2, X, Image as ImageIcon, Video, Mic, FileIcon } from 'lucide-react';
@@ -32,7 +33,7 @@ interface PreviewMsg {
 }
 
 type RowProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   danger?: boolean;
   onClick: () => void;
