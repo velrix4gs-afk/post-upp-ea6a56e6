@@ -213,7 +213,7 @@ export const ChatLongPressPopup = ({
                           {label}
                         </span>
                       )}
-                      {label && !message.media_type?.startsWith('image') && (
+                      {label && !message.media_url && (
                         <span className="whitespace-pre-wrap break-words">{label}</span>
                       )}
                       {message.media_type?.startsWith('image') && message.content && (
