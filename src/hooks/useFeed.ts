@@ -14,8 +14,13 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const loadingMoreRef = useRef(false);
+  const postsRef = useRef<Post[]>([]);
   const feedTypeRef = useRef(feedType);
   feedTypeRef.current = feedType;
+
+  useEffect(() => {
+    postsRef.current = posts;
+  }, [posts]);
 
   const fetchFeed = useCallback(async (pageNum: number = 1, reset: boolean = false) => {
     if (!user) return;
@@ -23,7 +28,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
 
     try {
       if (isInitialPage) {
-        setLoading(true);
+        if (postsRef.current.length === 0) setLoading(true);
       } else {
         loadingMoreRef.current = true;
         setLoadingMore(true);
