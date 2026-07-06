@@ -35,6 +35,12 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!isSending) {
+      hasSentRef.current = false;
+    }
+  }, [isSending]);
+
   const cleanup = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
