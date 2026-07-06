@@ -216,7 +216,7 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
         )}>
           <Mic className={cn(
             "h-5 w-5",
-            isRecording ? "text-white" : "text-muted-foreground"
+            isRecording ? "text-destructive-foreground" : "text-muted-foreground"
           )} />
         </div>
 
