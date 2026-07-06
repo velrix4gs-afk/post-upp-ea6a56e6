@@ -27,7 +27,6 @@ const Feed = () => {
     loadingMore,
     hasMore,
     loadMore,
-    refresh,
     refreshSilently
   } = useFeed(activeTab === 'trending' ? 'for-you' : activeTab);
   const {
@@ -46,13 +45,13 @@ const Feed = () => {
   });
   const handleNewPost = () => {};
   useEffect(() => {
-    if (inView && !loading && hasMore) {
+    if (inView && !loading && !loadingMore && hasMore) {
       const timer = setTimeout(() => {
         loadMore();
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [inView, loading, hasMore]);
+  }, [inView, loading, loadingMore, hasMore, loadMore]);
   return <div ref={containerRef} className="min-h-screen bg-background touch-pan-y">
       <RealtimeFeed onNewPost={handleNewPost} />
       <PullToRefreshIndicator isPulling={isPulling} isRefreshing={isRefreshing} pullDistance={pullDistance} />
