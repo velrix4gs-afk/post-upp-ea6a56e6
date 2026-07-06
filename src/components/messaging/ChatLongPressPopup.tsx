@@ -84,7 +84,6 @@ export const ChatLongPressPopup = ({
   chatId,
   name,
   avatarUrl,
-  lastMessage: _lastMessage,
   statusText = 'last seen recently',
   unreadCount = 0,
   onMarkUnread,
