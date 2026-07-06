@@ -37,7 +37,6 @@ import { DateSeparator } from '@/components/messaging/DateSeparator';
 import { ScrollToBottomFab } from '@/components/messaging/ScrollToBottomFab';
 import { PinnedMessageBanner } from '@/components/messaging/PinnedMessageBanner';
 import TypingIndicator from '@/components/TypingIndicator';
-import { ChatPreviewModal } from '@/components/messaging/ChatPreviewModal';
 import { ChatLongPressPopup } from '@/components/messaging/ChatLongPressPopup';
 import {
   AlertDialog,
@@ -1130,6 +1129,7 @@ const MessagesPage = () => {
             name={previewName}
             avatarUrl={previewAvatar}
             lastMessage={c.last_message}
+            statusText={otherP && isUserOnline(otherP.user_id) ? 'online' : 'last seen recently'}
             unreadCount={c.unread_count || 0}
             onMarkUnread={() => {
               toast({ description: (c.unread_count || 0) > 0 ? 'Marked as read' : 'Marked as unread' });
