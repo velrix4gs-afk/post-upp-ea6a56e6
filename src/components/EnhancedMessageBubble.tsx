@@ -159,7 +159,7 @@ export const EnhancedMessageBubble = ({
         )}
       >
         {!isOwn && (
-          <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
+          <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
             <AvatarImage src={sender.avatar_url} alt={sender.display_name} />
             <AvatarFallback className="text-xs bg-muted">{sender.display_name[0]}</AvatarFallback>
           </Avatar>
@@ -168,7 +168,7 @@ export const EnhancedMessageBubble = ({
         <div className={cn(
           "flex flex-col min-w-0",
           isOwn ? "items-end" : "items-start",
-          "max-w-[75%]"
+          "max-w-[82%] sm:max-w-[76%]"
         )}>
           {!isOwn && (
             <span className="text-xs text-muted-foreground mb-1 px-3">
@@ -200,10 +200,10 @@ export const EnhancedMessageBubble = ({
                 className={cn(
                   isImageOnly
                     ? "p-0 bg-transparent shadow-none"
-                    : "rounded-2xl px-3 py-2 md:px-4 md:py-2",
+                    : "rounded-[18px] px-3.5 py-2 md:px-4 md:py-2.5 shadow-sm",
                   !isImageOnly && (isOwn
-                    ? !bubbleColor ? "bg-[#d3e3fd] text-[#1a1c1e] dark:bg-[#004a77] dark:text-[#d3e3fd] rounded-tr-sm" : "text-primary-foreground rounded-tr-sm"
-                    : "bg-gray-100 text-[#1a1c1e] dark:bg-[#303134] dark:text-[#e3e3e3] rounded-tl-sm")
+                    ? !bubbleColor ? "bg-primary text-primary-foreground rounded-br-md" : "text-primary-foreground rounded-br-md"
+                    : "bg-card text-card-foreground border border-border/50 rounded-bl-md")
                 )}
               >
                 {isForwarded && (
@@ -254,13 +254,13 @@ export const EnhancedMessageBubble = ({
                           src={mediaUrl}
                           alt="Message attachment"
                           className={cn(
-                            "max-w-[300px] w-full max-h-72 object-cover cursor-pointer hover:opacity-95 transition",
-                            isImageOnly ? "rounded-3xl" : "rounded-2xl"
+                            "w-[min(76vw,320px)] max-h-[340px] object-cover cursor-pointer hover:opacity-95 transition",
+                            isImageOnly ? "rounded-[18px]" : "rounded-2xl"
                           )}
                           onClick={() => setShowImageViewer(true)}
                         />
                         {isImageOnly && (
-                          <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-l from-black/65 to-black/10 text-white text-[11px] backdrop-blur-sm">
+                          <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/85 text-card-foreground text-[11px] backdrop-blur-sm">
                             <span>
                               {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
@@ -272,7 +272,7 @@ export const EnhancedMessageBubble = ({
                       <video 
                         controls 
                         src={mediaUrl} 
-                        className="rounded-lg max-w-full max-h-64"
+                        className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted"
                       />
                     ) : mediaType?.startsWith('audio') || mediaType === 'audio' ? (
                       <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} />
@@ -291,7 +291,7 @@ export const EnhancedMessageBubble = ({
                 )}
                 
                 {content && (
-                  <p className="text-sm break-words whitespace-pre-wrap leading-relaxed">
+                  <p className="text-[15px] break-words whitespace-pre-wrap leading-relaxed">
                     {content}
                     {isEdited && (
                       <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>
@@ -302,7 +302,7 @@ export const EnhancedMessageBubble = ({
                 {/* Timestamp and read receipt — hidden when image-only (overlaid on image instead) */}
                 {!isImageOnly && (
                   <div className="flex justify-end items-center gap-1 mt-1">
-                    <span className="text-[10px] opacity-60">
+                    <span className="text-[11px] opacity-70">
                       {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                     <ReadReceiptIndicator status={status} isOwn={isOwn} />
@@ -457,7 +457,7 @@ export const EnhancedMessageBubble = ({
             </div>
           </div>
 
-          <span className="text-xs text-muted-foreground mt-1 px-2 md:px-3">
+          <span className="sr-only text-xs text-muted-foreground mt-1 px-2 md:px-3">
             {formatDistanceToNow(new Date(timestamp), { addSuffix: true })}
           </span>
         </div>
