@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">post-upp</string>
+    <string name="title_activity_main">post-upp</string>
+    <string name="package_name">com.postupp.app</string>
+    <string name="custom_url_scheme">com.postupp.app</string>
+</resources>
