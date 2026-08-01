@@ -1,28 +1,39 @@
-# Issue Scratchpad with Categories
+# POST-UPP Fix & Feature Plan
 
-Turn the existing Agent Instructions page (`/instructions`) into a structured issue intake board with three fixed categories, each with its own text area, plus image attachments on the third category.
+Grouped into phases so nothing gets half-done and the workspace budget stays under control. Each phase is self-contained and verifiable; I'll stop after each phase for you to test.
 
-## Categories
+## Phase 1 — Broken things (highest priority)
 
-1. Exists but not working (bug)
-2. Needs to be added (new)
-3. Doesn't work at all (broken / down)
+1. Follow from search results errors with APP001 — trace the exact failing call from the search result card's follow action, then route it through the same follow path the profile page uses so it behaves identically everywhere (search, popup, profile, suggestions).
+2. Story camera capture — remove the camera option from the story creator for now, leaving gallery/file selection only.
+3. Multi-image posting — allow selecting and uploading several images in one post and in one chat message, with a thumbnail strip and per-image remove.
+4. Edit post with images — the edit flow gets the same media editor as create: view current images, remove them, add new ones.
+5. Voice notes and calls — end-to-end pass with a real signed-in session: record, upload, send, play back, and retry after a forced failure. Same for starting a voice call and a video call from a chat, with the two clearly separated in the mobile chat header (distinct call and video-call buttons).
+6. Back navigation — make the back button consistently return to the previous screen and restore what was open there (mini profile popup, sheet, tab, scroll position).
+7. Long-press on a username — upgrade the popup to a richer card matching the attached reference: large avatar, name with verified badge, handle, bio, Following/Followers/Posts counts, Follow button, and tab row.
 
-## What gets built
+## Phase 2 — Chat and feed polish
 
-- Three stacked cards, one per category, each with a title, short helper line, and a large auto-saving text area.
-- Category 3 also gets an image attachment area: pick from gallery/camera, thumbnail previews in a row, tap a thumbnail to view larger, small X to remove.
-- Everything auto-saves locally (same localStorage approach already used on the page), so nothing is lost on reload or app switch.
-- Header keeps Clear and Copy. Copy now produces one Markdown block with all three sections and a note listing attached image filenames.
-- Mobile-first spacing and safe-area padding, matching the app's existing card/theme tokens (no hardcoded colors).
+8. WhatsApp-style bubbles — retune text/image/video bubble sizing, media aspect handling, and inline timestamp/tick placement.
+9. Chat long-press preview — render the full recent conversation with date separators, not just the last snippet.
+10. Feed load-more — verify with instrumentation that scrolling appends posts only and never re-renders the whole feed.
+11. Theme consistency check — walk Feed, Messages, Profile, Settings after navigation and hard refresh and fix any surface that drops the selected theme.
+
+## Phase 3 — New features
+
+12. Post detail UI — rebuild the single-post view to match the attached reference layout.
+13. Popup-first navigation — convert the screens that make sense (profile, post detail, settings sub-pages) into sheet/dialog overlays instead of full page pushes.
+14. Interactive notifications — follow requests get Accept/Decline inline; tapping other notification types opens the relevant popup instead of a plain redirect.
+15. Stylized gallery picker — in-app grid of the device's recent images for story creation instead of the system file dialog (uses the browser/Capacitor media picker; a true system-album grid is only possible via the native layer, so on web it falls back to a styled multi-select).
+16. App-aware AI assistant — give the assistant a structured description of the app's screens, actions and routes so it can answer "how do I…" and navigate the user there.
+17. Post-onboarding tutorial — short coach-mark walkthrough after onboarding finishes, skippable, shown once.
 
 ## Technical notes
 
-- Single file change: `src/pages/InstructionsPage.tsx`. No new routes, no database, no schema changes.
-- State shape: `{ bug: string; missing: string; broken: string; brokenImages: string[] }` persisted under a new key `postup_issue_scratchpad_v1`; the old `postup_agent_instructions_md` value is migrated into the bug field on first load so nothing already typed is lost.
-- Images stored as base64 data URLs in localStorage, downscaled client-side to max 1280px and capped (max 4 images) to stay within localStorage limits; if a write fails, a single toast explains the limit.
-- Uses existing `Textarea`, `Card`, `Button`, and `useToast` components; no new dependencies.
+- No schema changes unless a phase genuinely needs one; I'll ask first if so.
+- Existing hooks and edge functions are reused — no new placeholder APIs.
+- Each phase ends with a verification pass in a real signed-in browser session (screenshots, console, network) and an honest report of what was tested vs only implemented.
 
-## Question handled by default
+## Confirm before I start
 
-Only category 3 gets the image field, as described. If you want images on all three, that is a one-line extension.
+Phase 1 is the bulk of the value. Approve and I'll do Phase 1 first, then check in.
