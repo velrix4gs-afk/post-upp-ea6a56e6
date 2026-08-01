@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { formatDistanceToNow } from "date-fns";
-import { 
-  MoreVertical, 
-  Edit2, 
-  Trash2, 
-  Reply, 
-  Copy, 
-  Star, 
-  Forward, 
+import {
+  MoreVertical,
+  Edit2,
+  Trash2,
+  Reply,
+  Copy,
+  Star,
+  Forward,
   CheckCheck,
-  FileIcon, 
+  FileIcon,
   ZoomIn,
   Pin,
   Download,
@@ -59,7 +59,11 @@ const getBubbleColorValue = (color: string): string => {
     red: '#ef4444',
     teal: '#14b8a6',
     yellow: '#eab308',
-    indigo: '#6366f1'
+    indigo: '#6366f1',
+    'whatsapp-sent': '#d9fdd3', // Light mode
+    'whatsapp-sent-dark': '#005c4b', // Dark mode
+    'whatsapp-received': '#ffffff', // Light mode
+    'whatsapp-received-dark': '#202c33', // Dark mode
   };
   return colorMap[color] || colorMap.default;
 };
@@ -149,7 +153,7 @@ export const EnhancedMessageBubble = ({
 
   return (
     <>
-       <div 
+      <div
         id={`message-${id}`}
         className={cn(
           "flex gap-2 group mb-2 relative scroll-mt-20 w-full",
@@ -164,11 +168,11 @@ export const EnhancedMessageBubble = ({
             <AvatarFallback className="text-xs bg-muted">{sender.display_name[0]}</AvatarFallback>
           </Avatar>
         )}
-        
+
         <div className={cn(
           "flex flex-col min-w-0",
           isOwn ? "items-end" : "items-start",
-          "max-w-[82%] sm:max-w-[76%]"
+          "max-w-[80%]"
         )}>
           {!isOwn && (
             <span className="text-xs text-muted-foreground mb-1 px-3">
@@ -183,132 +187,132 @@ export const EnhancedMessageBubble = ({
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                 </div>
               )}
-              
+
               {(() => {
                 const isImageOnly = !!mediaUrl &&
                   (mediaType?.startsWith('image') || mediaType === 'image') &&
                   !content && !replyTo && !isForwarded;
                 return (
-              <div
-                style={{
-                  backgroundColor: isImageOnly
-                    ? 'transparent'
-                    : isOwn && bubbleColor
-                    ? getBubbleColorValue(bubbleColor)
-                    : undefined,
-                }}
-                className={cn(
-                  isImageOnly
-                    ? "p-0 bg-transparent shadow-none"
-                    : "rounded-[18px] px-3.5 py-2 md:px-4 md:py-2.5 shadow-sm",
-                  !isImageOnly && (isOwn
-                    ? !bubbleColor ? "bg-primary text-primary-foreground rounded-br-md" : "text-primary-foreground rounded-br-md"
-                    : "bg-card text-card-foreground border border-border/50 rounded-bl-md")
-                )}
-              >
-                {isForwarded && (
-                  <div className="text-xs opacity-70 mb-1 flex items-center gap-1">
-                    <Forward className="h-3 w-3" />
-                    Forwarded
-                  </div>
-                )}
-
-                {/* Reply-to preview */}
-                {replyTo && (
-                  <div 
+                  <div
+                    style={{
+                      backgroundColor: isImageOnly
+                        ? 'transparent'
+                        : isOwn && bubbleColor
+                          ? getBubbleColorValue(bubbleColor)
+                          : undefined,
+                    }}
                     className={cn(
-                      "mb-2 p-2 rounded-lg border-l-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors",
-                      isOwn 
-                        ? "bg-black/10 dark:bg-white/10 border-black/30 dark:border-white/30"
-                        : "bg-muted/50 border-primary/50"
+                      isImageOnly
+                        ? "p-0 bg-transparent shadow-none"
+                        : "rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 shadow-sm",
+                      !isImageOnly && (isOwn
+                        ? "bg-[#7a0aebc0] dark:bg-[#005c4b] text-black dark:text-white rounded-br-[8px]"
+                        : "bg-[#ffffff] dark:bg-[#202c33] text-black dark:text-white border border-border/50 rounded-bl-[8px]")
                     )}
-                    onClick={() => onScrollToMessage?.(replyTo.id)}
                   >
-                    <div className="text-xs font-semibold mb-0.5 opacity-80">
-                      {replyTo.sender_name}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {replyTo.media_url && (
-                        <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
-                          {replyTo.media_type?.startsWith('image') ? (
-                            <img src={replyTo.media_url} alt="" className="w-full h-full object-cover" />
-                          ) : replyTo.media_type?.startsWith('video') ? (
-                            <div className="w-full h-full bg-muted flex items-center justify-center">
-                              <span className="text-xs">🎥</span>
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                      <div className="text-xs opacity-70 truncate flex-1">
-                        {replyTo.content || (replyTo.media_type?.startsWith('image') ? '📷 Photo' : replyTo.media_type?.startsWith('video') ? '🎥 Video' : '📎 Media')}
+                    {isForwarded && (
+                      <div className="text-xs opacity-70 mb-1 flex items-center gap-1">
+                        <Forward className="h-3 w-3" />
+                        Forwarded
                       </div>
-                    </div>
-                  </div>
-                )}
-                
-                {mediaUrl && (
-                  <div className={cn("relative group", isImageOnly ? "mb-0" : "mb-2")}>
-                    {mediaType?.startsWith('image') || mediaType === 'image' ? (
-                      <div className="relative inline-block">
-                        <img
-                          src={mediaUrl}
-                          alt="Message attachment"
-                          className={cn(
-                            "w-[min(76vw,320px)] max-h-[340px] object-cover cursor-pointer hover:opacity-95 transition",
-                            isImageOnly ? "rounded-[18px]" : "rounded-2xl"
+                    )}
+
+                    {/* Reply-to preview */}
+                    {replyTo && (
+                      <div
+                        className={cn(
+                          "mb-2 p-2 rounded-lg border-l-4 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors",
+                          isOwn
+                            ? "bg-black/10 dark:bg-white/10 border-black/30 dark:border-white/30"
+                            : "bg-muted/50 border-primary/50"
+                        )}
+                        onClick={() => onScrollToMessage?.(replyTo.id)}
+                      >
+                        <div className="text-xs font-semibold mb-0.5 opacity-80">
+                          {replyTo.sender_name}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {replyTo.media_url && (
+                            <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0">
+                              {replyTo.media_type?.startsWith('image') ? (
+                                <img src={replyTo.media_url} alt="" className="w-full h-full object-cover" />
+                              ) : replyTo.media_type?.startsWith('video') ? (
+                                <div className="w-full h-full bg-muted flex items-center justify-center">
+                                  <span className="text-xs">🎥</span>
+                                </div>
+                              ) : null}
+                            </div>
                           )}
-                          onClick={() => setShowImageViewer(true)}
-                        />
-                        {isImageOnly && (
-                          <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/85 text-card-foreground text-[11px] backdrop-blur-sm">
-                            <span>
-                              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                          <div className="text-xs opacity-70 truncate flex-1">
+                            {replyTo.content || (replyTo.media_type?.startsWith('image') ? '📷 Photo' : replyTo.media_type?.startsWith('video') ? '🎥 Video' : '📎 Media')}
                           </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {mediaUrl && (
+                      <div className={cn("relative group", isImageOnly ? "mb-0" : "mb-2")}>
+                        {mediaType?.startsWith('image') || mediaType === 'image' ? (
+                          <div className="relative inline-block">
+                            <img
+                              src={mediaUrl}
+                              alt="Message attachment"
+                              className={cn(
+                                "w-[min(76vw,320px)] max-h-[340px] object-cover cursor-pointer hover:opacity-95 transition",
+                                isImageOnly ? "rounded-[18px]" : "rounded-2xl"
+                              )}
+                              onClick={() => setShowImageViewer(true)}
+                            />
+                            {isImageOnly && (
+                              <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/85 text-card-foreground text-[11px] backdrop-blur-sm">
+                                <span>
+                                  {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                              </div>
+                            )}
+                          </div>
+                        ) : mediaType?.startsWith('video') || mediaType === 'video' ? (
+                          <video
+                            controls
+                            src={mediaUrl}
+                            className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted"
+                          />
+                        ) : mediaType?.startsWith('audio') || mediaType === 'audio' ? (
+                          <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} />
+                        ) : (
+                          <a
+                            href={mediaUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 p-2 rounded bg-muted/50 hover:bg-muted transition"
+                          >
+                            <FileIcon className="h-5 w-5" />
+                            <span className="text-sm truncate">{content || 'Document'}</span>
+                          </a>
                         )}
                       </div>
-                    ) : mediaType?.startsWith('video') || mediaType === 'video' ? (
-                      <video 
-                        controls 
-                        src={mediaUrl} 
-                        className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted"
-                      />
-                    ) : mediaType?.startsWith('audio') || mediaType === 'audio' ? (
-                      <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} />
-                    ) : (
-                      <a 
-                        href={mediaUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 rounded bg-muted/50 hover:bg-muted transition"
-                      >
-                        <FileIcon className="h-5 w-5" />
-                        <span className="text-sm truncate">{content || 'Document'}</span>
-                      </a>
                     )}
-                  </div>
-                )}
-                
-                {content && (
-                  <p className="text-[15px] break-words whitespace-pre-wrap leading-relaxed">
-                    {content}
-                    {isEdited && (
-                      <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>
-                    )}
-                  </p>
-                )}
 
-                {/* Timestamp and read receipt — hidden when image-only (overlaid on image instead) */}
-                {!isImageOnly && (
-                  <div className="flex justify-end items-center gap-1 mt-1">
-                    <span className="text-[11px] opacity-70">
-                      {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                    {content && (
+                      <p className="text-[15px] break-words whitespace-pre-wrap leading-relaxed">
+                        {content}
+                        {isEdited && (
+                          <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>
+                        )}
+                      </p>
+                    )}
+
+                    {/* Timestamp and read receipt — hidden when image-only (overlaid on image instead) */}
+                    {!isImageOnly && (
+                      <div className="flex justify-end items-center gap-1 mt-1">
+                        <span className="text-[11px] opacity-70">
+                          {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
                 );
               })()}
 
@@ -321,12 +325,12 @@ export const EnhancedMessageBubble = ({
                 />
               )}
             </div>
-            
+
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               {onReact && (
                 <ReactionPicker onReact={(reaction) => onReact(id, reaction)} />
               )}
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -344,7 +348,7 @@ export const EnhancedMessageBubble = ({
                       Reply
                     </DropdownMenuItem>
                   )}
-                  
+
                   <DropdownMenuItem onClick={() => navigator.clipboard.writeText(content)}>
                     <Copy className="h-4 w-4 mr-2" />
                     Copy Text
@@ -423,11 +427,11 @@ export const EnhancedMessageBubble = ({
                       </DropdownMenuItem>
                     </>
                   )}
-                  
+
                   {onDelete && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => {
                           setDeleteFor('me');
                           setShowDeleteDialog(true);
@@ -437,9 +441,9 @@ export const EnhancedMessageBubble = ({
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete for me
                       </DropdownMenuItem>
-                      
+
                       {isOwn && (
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           onClick={() => {
                             setDeleteFor('everyone');
                             setShowDeleteDialog(true);
@@ -469,7 +473,7 @@ export const EnhancedMessageBubble = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete message?</AlertDialogTitle>
             <AlertDialogDescription>
-              {deleteFor === 'everyone' 
+              {deleteFor === 'everyone'
                 ? 'This message will be deleted for everyone in this chat.'
                 : 'This message will be deleted for you only.'}
             </AlertDialogDescription>
