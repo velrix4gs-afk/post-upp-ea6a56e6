@@ -1,47 +1,28 @@
-We will focus only on the issues you listed now. Active status and read receipts will be left for later, as requested.
+# Issue Scratchpad with Categories
 
-## Plan
+Turn the existing Agent Instructions page (`/instructions`) into a structured issue intake board with three fixed categories, each with its own text area, plus image attachments on the third category.
 
-1. **Chat long-press preview: match the attached Telegram-style reference**
-   - Replace the current small actions-only popup with a larger centered preview overlay.
-   - Show the actual chat preview: header with avatar/name/status, multiple recent messages, dates, and the same blurred/dimmed background effect from the screenshot.
-   - Put the action menu below/near the preview with: Mark as read/unread, Pin/Unpin, Mute/Unmute, Delete.
-   - Keep tap-outside dismissal and safe close behavior.
-   - Reuse existing live chat messages from Supabase, not dummy data.
+## Categories
 
-2. **Feed scrolling should not reload the whole feed**
-   - Fix the feed hook so infinite scroll/loading-more does not set the same `loading` state used for the full-page skeleton.
-   - Keep existing posts visible while loading more posts at the bottom.
-   - Keep pull-to-refresh silent so it merges new posts without clearing the page.
-   - Guard against duplicate `loadMore()` calls while the bottom sentinel stays visible.
+1. Exists but not working (bug)
+2. Needs to be added (new)
+3. Doesn't work at all (broken / down)
 
-3. **Voice notes should send and retry correctly**
-   - Fix the retry lock in `VoiceRecorder`: after a failed send, tapping send again should actually retry instead of being blocked by the internal sent guard.
-   - Upload voice notes with the real audio MIME type (`audio/webm`, `audio/mp4`, etc.) instead of forcing `video/webm` / `video/mp4`.
-   - Keep the recorder open on failed upload/insert so the user can retry.
-   - Keep using the existing `messages` storage bucket and existing `sendMessage` function.
+## What gets built
 
-4. **Restore theme behavior across the whole app**
-   - Remove the forced `fb26` skin override that makes the app ignore the previous theme look.
-   - Let the saved theme/user settings apply globally through the existing theme system.
-   - Make feed and messages use semantic theme tokens so the page does not become plain white while only profile/post textarea looks themed.
+- Three stacked cards, one per category, each with a title, short helper line, and a large auto-saving text area.
+- Category 3 also gets an image attachment area: pick from gallery/camera, thumbnail previews in a row, tap a thumbnail to view larger, small X to remove.
+- Everything auto-saves locally (same localStorage approach already used on the page), so nothing is lost on reload or app switch.
+- Header keeps Clear and Copy. Copy now produces one Markdown block with all three sections and a note listing attached image filenames.
+- Mobile-first spacing and safe-area padding, matching the app's existing card/theme tokens (no hardcoded colors).
 
-5. **Make chat message bubbles closer to WhatsApp sizing/style**
-   - Adjust text, image, video, and voice message bubbles to be medium-sized: not tiny, not oversized.
-   - Use WhatsApp-like rounded bubbles, readable text sizing, compact timestamp/read-marker placement, and better media dimensions.
-   - Keep existing actions, replies, reactions, starring, delete, image viewer, and video controls intact.
+## Technical notes
 
-## Validation after implementation
+- Single file change: `src/pages/InstructionsPage.tsx`. No new routes, no database, no schema changes.
+- State shape: `{ bug: string; missing: string; broken: string; brokenImages: string[] }` persisted under a new key `postup_issue_scratchpad_v1`; the old `postup_agent_instructions_md` value is migrated into the bug field on first load so nothing already typed is lost.
+- Images stored as base64 data URLs in localStorage, downscaled client-side to max 1280px and capped (max 4 images) to stay within localStorage limits; if a write fails, a single toast explains the limit.
+- Uses existing `Textarea`, `Card`, `Button`, and `useToast` components; no new dependencies.
 
-- Open feed and scroll to bottom: existing posts should stay visible while more load.
-- Pull refresh: no full feed skeleton/blank reload.
-- Record and send a voice note: it should upload and insert as an audio message; failed send should allow retry.
-- Long-press a chat: preview should show the actual chat conversation, not just the last text.
-- Open a chat: text/image/video bubbles should visually match a WhatsApp-like size and layout.
-- Check theme on feed/messages/profile: saved theme should apply consistently.
+## Question handled by default
 
-## Not included in this pass
-
-- Active status repairs.
-- Read receipt marker repairs.
-- Database schema changes unless an existing storage MIME setting is proven to still block voice uploads.
+Only category 3 gets the image field, as described. If you want images on all three, that is a one-line extension.
