@@ -217,6 +217,7 @@ export const EnhancedMessageBubble = ({
                       </div>
                     )}
 
+
                     {/* Reply-to preview */}
                     {replyTo && (
                       <div
