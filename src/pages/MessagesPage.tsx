@@ -98,6 +98,7 @@ const MessagesPage = () => {
   const [isSendingVoice, setIsSendingVoice] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [queuedMedia, setQueuedMedia] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isVideo, setIsVideo] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
