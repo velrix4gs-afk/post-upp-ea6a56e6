@@ -9,6 +9,7 @@ export interface Post {
   user_id: string;
   content: string;
   media_url?: string;
+  media_urls?: string[] | null;
   media_type?: string;
   privacy: string;
   reactions_count: number;
