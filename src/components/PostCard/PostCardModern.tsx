@@ -61,6 +61,8 @@ export interface PostCardModernProps {
   };
 }
 
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes('/video/');
+
 // Utility to extract link preview from content
 const extractLinkPreview = (content: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
