@@ -354,9 +354,17 @@ const MessagesPage = () => {
         : audioMime.includes('ogg')
         ? 'ogg'
         : 'webm';
+      // The `messages` bucket only accepts image/* and video/* mime types, so audio
+      // is uploaded under an equivalent container mime type while the message row
+      // keeps the real audio mime so the UI renders a voice player.
+      const uploadMime = audioMime.includes('mp4') || audioMime.includes('mpeg')
+        ? 'video/mp4'
+        : audioMime.includes('quicktime')
+        ? 'video/quicktime'
+        : 'video/webm';
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, audioBlob, {
-        contentType: audioMime,
+        contentType: uploadMime,
         upsert: false,
       });
       if (uploadError) throw uploadError;
