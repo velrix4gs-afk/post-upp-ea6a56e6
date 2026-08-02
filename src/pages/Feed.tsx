@@ -95,6 +95,7 @@ const Feed = () => {
             id: post.id,
             content: post.content || '',
             media_url: post.media_url,
+            media_urls: (post as any).media_urls || undefined,
             created_at: post.created_at,
             reactions_count: post.reactions_count,
             comments_count: post.comments_count,
