@@ -345,9 +345,26 @@ export const PostCardModern = ({
               <DialogTitle>Edit Post</DialogTitle>
             </DialogHeader>
             <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
+            {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
+                {editMedia.map((url, i) => <div key={url + i} className="relative rounded-lg overflow-hidden bg-muted aspect-square">
+                    <img src={url} alt="Post media" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs"
+                      aria-label="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>)}
+              </div>}
+            <label className="inline-flex items-center gap-2 text-sm text-primary cursor-pointer">
+              <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleEditMediaUpload(e.target.files)} />
+              {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
+            </label>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button onClick={handleEdit} className="bg-primary">Save</Button>
+              <Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button>
             </div>
           </DialogContent>
         </Dialog>
