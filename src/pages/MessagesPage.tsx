@@ -891,6 +891,7 @@ const MessagesPage = () => {
                 size="icon"
                 onClick={() => {
                   setSelectedImage(null);
+                  setQueuedMedia([]);
                   setImagePreview(null);
                   setIsVideo(false);
                 }}
