@@ -346,14 +346,8 @@ const MessagesPage = () => {
     setIsSendingVoice(true);
 
     try {
-      const audioMime = (audioBlob.type || 'audio/webm').split(';')[0] || 'audio/webm';
-      const extension = audioMime.includes('mp4')
-        ? 'm4a'
-        : audioMime.includes('mpeg')
-        ? 'mp3'
-        : audioMime.includes('ogg')
-        ? 'ogg'
-        : 'webm';
+      const audioMime = 'audio/webm';
+      const extension = 'webm';
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, audioBlob, {
         contentType: audioMime,
@@ -720,15 +714,15 @@ const MessagesPage = () => {
             'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative',
             !chatSettings?.wallpaper_url && 'chat-wallpaper',
             chatSettings?.wallpaper_url && !isWallpaperUrl(chatSettings.wallpaper_url) &&
-              (WALLPAPER_PRESETS[chatSettings.wallpaper_url] || '')
+            (WALLPAPER_PRESETS[chatSettings.wallpaper_url] || '')
           )}
           style={
             chatSettings?.wallpaper_url && isWallpaperUrl(chatSettings.wallpaper_url)
               ? {
-                  backgroundImage: `url(${chatSettings.wallpaper_url})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }
+                backgroundImage: `url(${chatSettings.wallpaper_url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
               : undefined
           }
         >
@@ -750,17 +744,17 @@ const MessagesPage = () => {
                 const senderProfile = selectedChat.participants.find((p) => p.user_id === message.sender_id)?.profiles;
                 const replyToData = message.reply_to
                   ? (() => {
-                      const replyMsg = messages.find((m) => m.id === message.reply_to);
-                      if (!replyMsg) return undefined;
-                      const rsp = selectedChat.participants.find((p) => p.user_id === replyMsg.sender_id)?.profiles;
-                      return {
-                        id: replyMsg.id,
-                        content: replyMsg.content || '',
-                        sender_name: rsp?.display_name || 'Unknown',
-                        media_url: replyMsg.media_url,
-                        media_type: replyMsg.media_type,
-                      };
-                    })()
+                    const replyMsg = messages.find((m) => m.id === message.reply_to);
+                    if (!replyMsg) return undefined;
+                    const rsp = selectedChat.participants.find((p) => p.user_id === replyMsg.sender_id)?.profiles;
+                    return {
+                      id: replyMsg.id,
+                      content: replyMsg.content || '',
+                      sender_name: rsp?.display_name || 'Unknown',
+                      media_url: replyMsg.media_url,
+                      media_type: replyMsg.media_type,
+                    };
+                  })()
                   : undefined;
 
                 return (
