@@ -523,18 +523,37 @@ export const PostCardModern = ({
               </a>}
 
             {/* Media */}
-            {post.media_url && <>
-                {post.media_url.endsWith('.mp4') || post.media_url.endsWith('.webm') || post.media_url.includes('/video/') ? <div className="rounded-xl overflow-hidden mb-3">
-                    <VideoViewer videoUrl={post.media_url} />
+            {mediaItems.length === 1 && <>
+                {isVideoUrl(mediaItems[0]) ? <div className="rounded-xl overflow-hidden mb-3">
+                    <VideoViewer videoUrl={mediaItems[0]} />
                   </div> : <div className="rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();
-              setGalleryImages([post.media_url!]);
+              setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
             }}>
-                    <img src={post.media_url} alt="Post media" className="w-full h-auto object-contain" loading="lazy" />
+                    <img src={mediaItems[0]} alt="Post media" className="w-full h-auto object-contain" loading="lazy" />
                   </div>}
               </>}
+
+            {mediaItems.length > 1 && <div className="rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
+                <Carousel className="w-full">
+                  <CarouselContent>
+                    {mediaItems.map((url, i) => <CarouselItem key={url + i}>
+                        {isVideoUrl(url) ? <VideoViewer videoUrl={url} /> : <div className="bg-black cursor-pointer" onClick={() => {
+                    setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
+                    setGalleryStartIndex(i);
+                    setShowImageGallery(true);
+                  }}>
+                            <img src={url} alt={`Post media ${i + 1}`} className="w-full h-auto object-contain" loading="lazy" />
+                          </div>}
+                      </CarouselItem>)}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-2" />
+                  <CarouselNext className="right-2" />
+                </Carousel>
+                <div className="mt-1 text-center text-xs text-muted-foreground">{mediaItems.length} photos</div>
+              </div>}
 
             <PollCard postId={post.id} />
 
