@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   X, Type, Smile, Image as ImageIcon, Send, Loader2,
   Paintbrush, Crop, SlidersHorizontal, Sparkles, Users,
-  Video, ChevronDown, Camera,
+  Video, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,7 +45,6 @@ const CreateStoryPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Source
