@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import {
   X, Type, Smile, Image as ImageIcon, Send, Loader2,
   Paintbrush, Crop, SlidersHorizontal, Sparkles, Users,
-  Video, ChevronDown, Camera,
+  Video, ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -45,7 +45,6 @@ const CreateStoryPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
   // Source
@@ -335,7 +334,6 @@ const CreateStoryPage = () => {
     <div className="fixed inset-0 z-[70] bg-black flex flex-col text-white select-none">
       {/* Hidden inputs */}
       <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
-      <input ref={cameraInputRef} type="file" accept="image/*,video/*" capture="environment" onChange={onFile} className="hidden" />
 
       {/* Top bar (over canvas) */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 pt-3 pb-2"
@@ -571,12 +569,6 @@ const CreateStoryPage = () => {
               className="flex-1 h-11 rounded-full bg-white/10 text-white/90 flex items-center justify-center gap-2 text-sm font-medium active:scale-[0.98] transition-transform"
             >
               <ImageIcon className="h-4 w-4" /> Gallery
-            </button>
-            <button
-              onClick={() => cameraInputRef.current?.click()}
-              className="flex-1 h-11 rounded-full bg-white/10 text-white/90 flex items-center justify-center gap-2 text-sm font-medium active:scale-[0.98] transition-transform"
-            >
-              <Camera className="h-4 w-4" /> Camera
             </button>
             <button
               onClick={handleShare}

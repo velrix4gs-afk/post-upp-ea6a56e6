@@ -44,6 +44,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
           content,
           media_url,
           media_type,
+          media_urls,
           privacy,
           reactions_count,
           comments_count,
@@ -159,7 +160,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       let query = supabase
         .from('posts')
         .select(`
-          id, user_id, content, media_url, media_type, privacy,
+          id, user_id, content, media_url, media_type, media_urls, privacy,
           reactions_count, comments_count, shares_count,
           created_at, updated_at, page_id,
           profiles:user_id ( username, display_name, avatar_url, is_verified ),

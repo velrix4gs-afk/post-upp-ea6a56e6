@@ -34,11 +34,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { supabase } from "@/integrations/supabase/client";
 export interface PostCardModernProps {
   post: {
     id: string;
     content: string;
     media_url?: string;
+    media_urls?: string[] | null;
     created_at: string;
     reactions_count: number;
     comments_count: number;
@@ -58,6 +60,8 @@ export interface PostCardModernProps {
     page_is_verified?: boolean;
   };
 }
+
+const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes('/video/');
 
 // Utility to extract link preview from content
 const extractLinkPreview = (content: string) => {
@@ -133,6 +137,10 @@ export const PostCardModern = ({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
+  const mediaItems: string[] = (post.media_urls && post.media_urls.length > 0 ? post.media_urls : post.media_url ? [post.media_url] : []) as string[];
+  const initialMedia = mediaItems;
+  const [editMedia, setEditMedia] = useState<string[]>(initialMedia);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const [localReactionCount, setLocalReactionCount] = useState(post.reactions_count);
   const [localRepostCount, setLocalRepostCount] = useState(post.shares_count || 0);
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -187,14 +195,41 @@ export const PostCardModern = ({
     setLocalReactionCount(getTotalReactions());
   }, [reactionCounts]);
   const handleEdit = async () => {
-    if (!editContent.trim()) return;
+    if (!editContent.trim() && editMedia.length === 0) return;
     await updatePost(post.id, {
-      content: editContent
-    });
+      content: editContent,
+      media_url: editMedia[0] || null,
+      media_urls: editMedia.length > 0 ? editMedia : null,
+      media_type: editMedia.length > 1 ? 'multiple' : editMedia.length === 1 ? 'image' : null
+    } as any);
     setShowEditDialog(false);
     toast({
       title: "Post updated"
     });
+  };
+
+  const handleEditMediaUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !user) return;
+    setUploadingMedia(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from('posts').upload(path, file, {
+          contentType: file.type,
+          upsert: false
+        });
+        if (error) throw error;
+        const { data } = supabase.storage.from('posts').getPublicUrl(path);
+        uploaded.push(data.publicUrl);
+      }
+      setEditMedia(prev => [...prev, ...uploaded]);
+    } catch (e) {
+      toast({ title: 'Upload failed', variant: 'destructive' });
+    } finally {
+      setUploadingMedia(false);
+    }
   };
   const handleDelete = async () => {
     await deletePost(post.id);
@@ -313,9 +348,26 @@ export const PostCardModern = ({
               <DialogTitle>Edit Post</DialogTitle>
             </DialogHeader>
             <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
+            {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
+                {editMedia.map((url, i) => <div key={url + i} className="relative rounded-lg overflow-hidden bg-muted aspect-square">
+                    <img src={url} alt="Post media" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))}
+                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs"
+                      aria-label="Remove image"
+                    >
+                      ✕
+                    </button>
+                  </div>)}
+              </div>}
+            <label className="inline-flex items-center gap-2 text-sm text-primary cursor-pointer">
+              <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleEditMediaUpload(e.target.files)} />
+              {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
+            </label>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button onClick={handleEdit} className="bg-primary">Save</Button>
+              <Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -474,18 +526,37 @@ export const PostCardModern = ({
               </a>}
 
             {/* Media */}
-            {post.media_url && <>
-                {post.media_url.endsWith('.mp4') || post.media_url.endsWith('.webm') || post.media_url.includes('/video/') ? <div className="rounded-xl overflow-hidden mb-3">
-                    <VideoViewer videoUrl={post.media_url} />
+            {mediaItems.length === 1 && <>
+                {isVideoUrl(mediaItems[0]) ? <div className="rounded-xl overflow-hidden mb-3">
+                    <VideoViewer videoUrl={mediaItems[0]} />
                   </div> : <div className="rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();
-              setGalleryImages([post.media_url!]);
+              setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
             }}>
-                    <img src={post.media_url} alt="Post media" className="w-full h-auto object-contain" loading="lazy" />
+                    <img src={mediaItems[0]} alt="Post media" className="w-full h-auto object-contain" loading="lazy" />
                   </div>}
               </>}
+
+            {mediaItems.length > 1 && <div className="rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
+                <Carousel className="w-full">
+                  <CarouselContent>
+                    {mediaItems.map((url, i) => <CarouselItem key={url + i}>
+                        {isVideoUrl(url) ? <VideoViewer videoUrl={url} /> : <div className="bg-black cursor-pointer" onClick={() => {
+                    setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
+                    setGalleryStartIndex(i);
+                    setShowImageGallery(true);
+                  }}>
+                            <img src={url} alt={`Post media ${i + 1}`} className="w-full h-auto object-contain" loading="lazy" />
+                          </div>}
+                      </CarouselItem>)}
+                  </CarouselContent>
+                  <CarouselPrevious className="left-2" />
+                  <CarouselNext className="right-2" />
+                </Carousel>
+                <div className="mt-1 text-center text-xs text-muted-foreground">{mediaItems.length} photos</div>
+              </div>}
 
             <PollCard postId={post.id} />
 
