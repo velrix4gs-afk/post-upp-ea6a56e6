@@ -335,7 +335,6 @@ const CreateStoryPage = () => {
     <div className="fixed inset-0 z-[70] bg-black flex flex-col text-white select-none">
       {/* Hidden inputs */}
       <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
-      <input ref={cameraInputRef} type="file" accept="image/*,video/*" capture="environment" onChange={onFile} className="hidden" />
 
       {/* Top bar (over canvas) */}
       <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 pt-3 pb-2"
