@@ -881,7 +881,10 @@ const MessagesPage = () => {
                 <img src={imagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-lg" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">{isVideo ? '🎥 Video' : '📷 Image'} ready to send</p>
+                <p className="text-xs text-muted-foreground">
+                  {isVideo ? '🎥 Video' : '📷 Image'} ready to send
+                  {queuedMedia.length > 0 ? ` (+${queuedMedia.length} more)` : ''}
+                </p>
               </div>
               <Button
                 variant="ghost"
