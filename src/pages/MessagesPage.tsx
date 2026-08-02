@@ -303,11 +303,13 @@ const MessagesPage = () => {
     const currentText = messageText;
     const currentImage = selectedImage;
     const currentIsVideo = isVideo;
+    const currentQueued = queuedMedia;
     const currentReplyingTo = replyingTo;
     const currentEditingId = editingMessageId;
 
     setMessageText('');
     setSelectedImage(null);
+    setQueuedMedia([]);
     setImagePreview(null);
     setIsVideo(false);
     setReplyingTo(null);
@@ -335,11 +337,30 @@ const MessagesPage = () => {
         mediaUrl || undefined,
         mediaType || undefined
       );
+
+      // Send any additional selected media as follow-up messages
+      for (const extra of currentQueued) {
+        const extraExt = extra.name.split('.').pop();
+        const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
+        const { error: extraError } = await supabase.storage.from('messages').upload(extraName, extra, {
+          contentType: extra.type,
+        });
+        if (extraError) continue;
+        const { data: { publicUrl: extraUrl } } = supabase.storage.from('messages').getPublicUrl(extraName);
+        const extraIsVideo = extra.type.startsWith('video/');
+        await sendMessage(
+          extraIsVideo ? '🎥 Video' : '📷 Photo',
+          undefined,
+          extraUrl,
+          extra.type
+        );
+      }
     } catch {
       setMessageText(currentText);
       if (currentImage) {
         setSelectedImage(currentImage);
         setIsVideo(currentIsVideo);
+        setQueuedMedia(currentQueued);
       }
       if (currentReplyingTo) setReplyingTo(currentReplyingTo);
       toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
