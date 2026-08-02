@@ -39,6 +39,7 @@ export interface PostCardModernProps {
     id: string;
     content: string;
     media_url?: string;
+    media_urls?: string[] | null;
     created_at: string;
     reactions_count: number;
     comments_count: number;
