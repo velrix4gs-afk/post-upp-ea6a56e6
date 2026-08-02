@@ -192,14 +192,41 @@ export const PostCardModern = ({
     setLocalReactionCount(getTotalReactions());
   }, [reactionCounts]);
   const handleEdit = async () => {
-    if (!editContent.trim()) return;
+    if (!editContent.trim() && editMedia.length === 0) return;
     await updatePost(post.id, {
-      content: editContent
-    });
+      content: editContent,
+      media_url: editMedia[0] || null,
+      media_urls: editMedia.length > 0 ? editMedia : null,
+      media_type: editMedia.length > 1 ? 'multiple' : editMedia.length === 1 ? 'image' : null
+    } as any);
     setShowEditDialog(false);
     toast({
       title: "Post updated"
     });
+  };
+
+  const handleEditMediaUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !user) return;
+    setUploadingMedia(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of Array.from(files)) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from('posts').upload(path, file, {
+          contentType: file.type,
+          upsert: false
+        });
+        if (error) throw error;
+        const { data } = supabase.storage.from('posts').getPublicUrl(path);
+        uploaded.push(data.publicUrl);
+      }
+      setEditMedia(prev => [...prev, ...uploaded]);
+    } catch (e) {
+      toast({ title: 'Upload failed', variant: 'destructive' });
+    } finally {
+      setUploadingMedia(false);
+    }
   };
   const handleDelete = async () => {
     await deletePost(post.id);
