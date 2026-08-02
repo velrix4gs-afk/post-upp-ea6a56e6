@@ -573,12 +573,6 @@ const CreateStoryPage = () => {
               <ImageIcon className="h-4 w-4" /> Gallery
             </button>
             <button
-              onClick={() => cameraInputRef.current?.click()}
-              className="flex-1 h-11 rounded-full bg-white/10 text-white/90 flex items-center justify-center gap-2 text-sm font-medium active:scale-[0.98] transition-transform"
-            >
-              <Camera className="h-4 w-4" /> Camera
-            </button>
-            <button
               onClick={handleShare}
               disabled={uploading || (isText ? !storyText.trim() : true)}
               className="h-11 px-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-40 active:scale-[0.98] transition-transform"
