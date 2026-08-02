@@ -30,7 +30,7 @@ const SearchPage = () => {
   }, [searchQuery]);
 
   const isFollowing = (userId: string) => {
-    return following.some(f => f.following.id === userId);
+    return following.some((f: any) => f?.following?.id === userId || f?.following_id === userId);
   };
 
   const handleFollowToggle = async (userId: string, isPrivate: boolean) => {

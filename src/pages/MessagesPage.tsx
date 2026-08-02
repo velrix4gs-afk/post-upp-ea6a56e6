@@ -98,6 +98,7 @@ const MessagesPage = () => {
   const [isSendingVoice, setIsSendingVoice] = useState(false);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [queuedMedia, setQueuedMedia] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isVideo, setIsVideo] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -268,22 +269,33 @@ const MessagesPage = () => {
   };
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast({
-        title: 'File too large',
-        description: `${file.type.startsWith('video/') ? 'Videos' : 'Images'} must be less than ${maxSize / (1024 * 1024)}MB`,
-        variant: 'destructive',
-      });
-      return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const accepted: File[] = [];
+    for (const file of files) {
+      const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          title: 'File too large',
+          description: `${file.type.startsWith('video/') ? 'Videos' : 'Images'} must be less than ${maxSize / (1024 * 1024)}MB`,
+          variant: 'destructive',
+        });
+        continue;
+      }
+      accepted.push(file);
     }
-    setSelectedImage(file);
-    setIsVideo(file.type.startsWith('video/'));
+    if (accepted.length === 0) return;
+
+    const [first, ...rest] = accepted;
+    setSelectedImage(first);
+    setIsVideo(first.type.startsWith('video/'));
+    setQueuedMedia(rest);
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(first);
+    // allow re-selecting the same files later
+    event.target.value = '';
   };
 
   const handleSendMessage = async () => {
@@ -291,11 +303,13 @@ const MessagesPage = () => {
     const currentText = messageText;
     const currentImage = selectedImage;
     const currentIsVideo = isVideo;
+    const currentQueued = queuedMedia;
     const currentReplyingTo = replyingTo;
     const currentEditingId = editingMessageId;
 
     setMessageText('');
     setSelectedImage(null);
+    setQueuedMedia([]);
     setImagePreview(null);
     setIsVideo(false);
     setReplyingTo(null);
@@ -323,11 +337,30 @@ const MessagesPage = () => {
         mediaUrl || undefined,
         mediaType || undefined
       );
+
+      // Send any additional selected media as follow-up messages
+      for (const extra of currentQueued) {
+        const extraExt = extra.name.split('.').pop();
+        const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
+        const { error: extraError } = await supabase.storage.from('messages').upload(extraName, extra, {
+          contentType: extra.type,
+        });
+        if (extraError) continue;
+        const { data: { publicUrl: extraUrl } } = supabase.storage.from('messages').getPublicUrl(extraName);
+        const extraIsVideo = extra.type.startsWith('video/');
+        await sendMessage(
+          extraIsVideo ? '🎥 Video' : '📷 Photo',
+          undefined,
+          extraUrl,
+          extra.type
+        );
+      }
     } catch {
       setMessageText(currentText);
       if (currentImage) {
         setSelectedImage(currentImage);
         setIsVideo(currentIsVideo);
+        setQueuedMedia(currentQueued);
       }
       if (currentReplyingTo) setReplyingTo(currentReplyingTo);
       toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
@@ -346,11 +379,30 @@ const MessagesPage = () => {
     setIsSendingVoice(true);
 
     try {
+<<<<<<< HEAD
       const audioMime = 'audio/webm';
       const extension = 'webm';
+=======
+      const audioMime = (audioBlob.type || 'audio/webm').split(';')[0] || 'audio/webm';
+      const extension = audioMime.includes('mp4')
+        ? 'm4a'
+        : audioMime.includes('mpeg')
+        ? 'mp3'
+        : audioMime.includes('ogg')
+        ? 'ogg'
+        : 'webm';
+      // The `messages` bucket only accepts image/* and video/* mime types, so audio
+      // is uploaded under an equivalent container mime type while the message row
+      // keeps the real audio mime so the UI renders a voice player.
+      const uploadMime = audioMime.includes('mp4') || audioMime.includes('mpeg')
+        ? 'video/mp4'
+        : audioMime.includes('quicktime')
+        ? 'video/quicktime'
+        : 'video/webm';
+>>>>>>> 8986bd83686b64bacb90e085f8b1ad6db35a1eb1
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, audioBlob, {
-        contentType: audioMime,
+        contentType: uploadMime,
         upsert: false,
       });
       if (uploadError) throw uploadError;
@@ -834,13 +886,17 @@ const MessagesPage = () => {
                 <img src={imagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-lg" />
               )}
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">{isVideo ? '🎥 Video' : '📷 Image'} ready to send</p>
+                <p className="text-xs text-muted-foreground">
+                  {isVideo ? '🎥 Video' : '📷 Image'} ready to send
+                  {queuedMedia.length > 0 ? ` (+${queuedMedia.length} more)` : ''}
+                </p>
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => {
                   setSelectedImage(null);
+                  setQueuedMedia([]);
                   setImagePreview(null);
                   setIsVideo(false);
                 }}
@@ -859,7 +915,7 @@ const MessagesPage = () => {
             />
           ) : (
             <>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleImageSelect} />
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" multiple onChange={handleImageSelect} />
               <input
                 type="file"
                 ref={cameraInputRef}
