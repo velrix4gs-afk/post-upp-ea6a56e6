@@ -906,7 +906,7 @@ const MessagesPage = () => {
             />
           ) : (
             <>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" onChange={handleImageSelect} />
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" multiple onChange={handleImageSelect} />
               <input
                 type="file"
                 ref={cameraInputRef}
