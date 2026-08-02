@@ -268,22 +268,33 @@ const MessagesPage = () => {
   };
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      toast({
-        title: 'File too large',
-        description: `${file.type.startsWith('video/') ? 'Videos' : 'Images'} must be less than ${maxSize / (1024 * 1024)}MB`,
-        variant: 'destructive',
-      });
-      return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    const accepted: File[] = [];
+    for (const file of files) {
+      const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast({
+          title: 'File too large',
+          description: `${file.type.startsWith('video/') ? 'Videos' : 'Images'} must be less than ${maxSize / (1024 * 1024)}MB`,
+          variant: 'destructive',
+        });
+        continue;
+      }
+      accepted.push(file);
     }
-    setSelectedImage(file);
-    setIsVideo(file.type.startsWith('video/'));
+    if (accepted.length === 0) return;
+
+    const [first, ...rest] = accepted;
+    setSelectedImage(first);
+    setIsVideo(first.type.startsWith('video/'));
+    setQueuedMedia(rest);
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target?.result as string);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(first);
+    // allow re-selecting the same files later
+    event.target.value = '';
   };
 
   const handleSendMessage = async () => {
