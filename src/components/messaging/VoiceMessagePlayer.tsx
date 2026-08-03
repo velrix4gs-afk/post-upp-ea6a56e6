@@ -9,30 +9,88 @@ interface VoiceMessagePlayerProps {
   className?: string;
 }
 
+const BAR_COUNT = 40;
+const peaksCache = new Map<string, number[]>();
+
+/** Decode the actual audio blob and reduce it to normalized peak bars. */
+const buildPeaks = async (url: string): Promise<number[]> => {
+  const cached = peaksCache.get(url);
+  if (cached) return cached;
+
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  const Ctx: typeof AudioContext =
+    (window as any).AudioContext || (window as any).webkitAudioContext;
+  const ctx = new Ctx();
+  try {
+    const buffer = await ctx.decodeAudioData(arrayBuffer.slice(0));
+    const raw = buffer.getChannelData(0);
+    const blockSize = Math.floor(raw.length / BAR_COUNT) || 1;
+    const peaks: number[] = [];
+    for (let i = 0; i < BAR_COUNT; i++) {
+      let sum = 0;
+      for (let j = 0; j < blockSize; j++) {
+        sum += Math.abs(raw[i * blockSize + j] || 0);
+      }
+      peaks.push(sum / blockSize);
+    }
+    const max = Math.max(...peaks, 0.0001);
+    const normalized = peaks.map((p) => Math.max(0.12, Math.min(1, p / max)));
+    peaksCache.set(url, normalized);
+    return normalized;
+  } finally {
+    try { await ctx.close(); } catch { /* ignore */ }
+  }
+};
+
 export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessagePlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [peaks, setPeaks] = useState<number[]>(() => Array(BAR_COUNT).fill(0.25));
   const audioRef = useRef<HTMLAudioElement>(null);
+  const waveRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     const updateTime = () => setCurrentTime(audio.currentTime);
-    const updateDuration = () => setDuration(audio.duration);
-    const handleEnded = () => setIsPlaying(false);
+    const updateDuration = () => {
+      if (isFinite(audio.duration)) setDuration(audio.duration);
+    };
+    const handleEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
 
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
+    audio.addEventListener('durationchange', updateDuration);
     audio.addEventListener('ended', handleEnded);
 
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
+      audio.removeEventListener('durationchange', updateDuration);
       audio.removeEventListener('ended', handleEnded);
     };
   }, []);
+
+  // Build the real waveform from the recorded audio (WhatsApp style).
+  useEffect(() => {
+    let cancelled = false;
+    buildPeaks(audioUrl)
+      .then((p) => {
+        if (!cancelled) setPeaks(p);
+      })
+      .catch(() => {
+        /* keep the flat placeholder waveform */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioUrl]);
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
@@ -40,10 +98,20 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
 
     if (isPlaying) {
       audio.pause();
+      setIsPlaying(false);
     } else {
-      audio.play();
+      void audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
     }
-    setIsPlaying(!isPlaying);
+  };
+
+  const seekFromEvent = (clientX: number) => {
+    const audio = audioRef.current;
+    const el = waveRef.current;
+    if (!audio || !el || !duration) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    audio.currentTime = ratio * duration;
+    setCurrentTime(audio.currentTime);
   };
 
   const formatTime = (time: number) => {
@@ -53,35 +121,50 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progress = duration > 0 ? currentTime / duration : 0;
+  const playedBars = Math.round(progress * peaks.length);
 
   return (
-    <div className={cn("flex items-center gap-2 p-2 rounded-lg", className)}>
+    <div className={cn("flex items-center gap-2 p-1.5 rounded-lg min-w-[210px]", className)}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
       
       <Button
         size="icon"
         variant="ghost"
         onClick={togglePlayPause}
-        className="h-10 w-10 rounded-full flex-shrink-0"
+        className={cn(
+          "h-9 w-9 rounded-full flex-shrink-0",
+          isOwn ? "hover:bg-primary-foreground/10" : "hover:bg-foreground/10"
+        )}
+        aria-label={isPlaying ? 'Pause voice message' : 'Play voice message'}
       >
         {isPlaying ? (
-          <Pause className="h-5 w-5" />
+          <Pause className="h-5 w-5 fill-current" />
         ) : (
-          <Play className="h-5 w-5" />
+          <Play className="h-5 w-5 fill-current" />
         )}
       </Button>
 
       <div className="flex-1 min-w-0">
-        <div className="relative h-1 bg-muted rounded-full overflow-hidden">
-          <div
-            className="absolute top-0 left-0 h-full bg-primary transition-all"
-            style={{ width: `${progress}%` }}
-          />
+        <div
+          ref={waveRef}
+          onClick={(e) => seekFromEvent(e.clientX)}
+          className="flex items-center gap-[2px] h-8 cursor-pointer touch-manipulation"
+        >
+          {peaks.map((peak, i) => (
+            <div
+              key={i}
+              className={cn(
+                "flex-1 min-w-[2px] rounded-full transition-opacity",
+                i < playedBars ? "opacity-100" : "opacity-40",
+                isOwn ? "bg-current" : "bg-primary"
+              )}
+              style={{ height: `${Math.max(12, peak * 100)}%` }}
+            />
+          ))}
         </div>
-        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-          <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+        <div className="text-[11px] opacity-70 mt-0.5">
+          {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}
         </div>
       </div>
     </div>
