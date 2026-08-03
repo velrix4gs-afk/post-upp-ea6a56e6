@@ -94,6 +94,7 @@ export const usePosts = () => {
   const createPost = async (postData: {
     content?: string;
     media_url?: string;
+    media_urls?: string[];
     media_type?: string;
     privacy?: string;
   }) => {
@@ -101,7 +102,7 @@ export const usePosts = () => {
       throw new Error('You must be logged in to create a post');
     }
 
-    if (!postData.content && !postData.media_url) {
+    if (!postData.content && !postData.media_url && !(postData.media_urls?.length)) {
       throw new Error('Post must have either content or media');
     }
 
@@ -151,6 +152,9 @@ export const usePosts = () => {
   const updatePost = async (postId: string, postData: {
     content?: string;
     privacy?: string;
+    media_url?: string | null;
+    media_urls?: string[] | null;
+    media_type?: string | null;
   }) => {
     if (!session?.access_token) {
       throw new Error('You must be logged in to update a post');
