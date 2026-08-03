@@ -1,0 +1,3 @@
+CREATE POLICY "voice_notes_owner_insert" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'voice-notes' AND (storage.foldername(name))[1] = auth.uid()::text);
+CREATE POLICY "voice_notes_authenticated_read" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'voice-notes');
+CREATE POLICY "voice_notes_owner_delete" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'voice-notes' AND (storage.foldername(name))[1] = auth.uid()::text);
