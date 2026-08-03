@@ -332,7 +332,7 @@ const MessagesPage = () => {
         mediaType = currentIsVideo ? `video/${fileExt}` : `image/${fileExt}`;
       }
       await sendMessage(
-        currentText.trim() || (currentIsVideo ? '🎥 Video' : '📷 Photo'),
+        currentText.trim(),
         currentReplyingTo?.id,
         mediaUrl || undefined,
         mediaType || undefined
@@ -349,7 +349,7 @@ const MessagesPage = () => {
         const { data: { publicUrl: extraUrl } } = supabase.storage.from('messages').getPublicUrl(extraName);
         const extraIsVideo = extra.type.startsWith('video/');
         await sendMessage(
-          extraIsVideo ? '🎥 Video' : '📷 Photo',
+          '',
           undefined,
           extraUrl,
           extra.type
@@ -396,7 +396,7 @@ const MessagesPage = () => {
       });
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage.from('voice-notes').getPublicUrl(fileName);
-      const sent = await sendMessage('🎤 Voice message', undefined, publicUrl, audioMime);
+      const sent = await sendMessage('', undefined, publicUrl, audioMime);
       if (!sent) throw new Error('Voice message insert failed');
       setIsRecordingVoice(false);
     } catch (error) {
