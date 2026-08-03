@@ -18,13 +18,14 @@ const getCorsHeaders = (origin: string | null) => ({
 const createPostSchema = z.object({
   content: z.string().max(5000, 'Content must be less than 5000 characters').optional(),
   media_url: z.string().url('Invalid media URL').max(500).optional(),
-  media_type: z.enum(['image', 'video']).optional(),
+  media_urls: z.array(z.string().url('Invalid media URL').max(500)).max(10).optional(),
+  media_type: z.enum(['image', 'video', 'multiple']).optional(),
   location: z.string().max(200).optional(),
   tagged_users: z.array(z.string().uuid()).max(50, 'Maximum 50 users can be tagged').optional(),
   hashtags: z.array(z.string().max(50)).max(30, 'Maximum 30 hashtags').optional(),
   privacy: z.enum(['public', 'friends', 'private']).default('public'),
 }).refine(
-  (data) => data.content || data.media_url,
+  (data) => data.content || data.media_url || (data.media_urls && data.media_urls.length > 0),
   'Post must have either content or media'
 );
 
@@ -201,7 +202,8 @@ serve(async (req) => {
           .insert({
             user_id: user.id,
             content: validated.content,
-            media_url: validated.media_url,
+            media_url: validated.media_url ?? validated.media_urls?.[0],
+            media_urls: validated.media_urls,
             media_type: validated.media_type,
             privacy: validated.privacy
           })
@@ -247,13 +249,14 @@ serve(async (req) => {
 
     if (method === 'PUT') {
       if (!user) throw new Error('User not authenticated');
-      const { postId, content, media_url, media_type, privacy } = body;
+      const { postId, content, media_url, media_urls, media_type, privacy } = body;
 
       const { data: post, error } = await supabaseClient
         .from('posts')
         .update({
           content,
           media_url,
+          ...(media_urls !== undefined ? { media_urls } : {}),
           media_type,
           privacy
         })
