@@ -151,6 +151,9 @@ export const usePosts = () => {
   const updatePost = async (postId: string, postData: {
     content?: string;
     privacy?: string;
+    media_url?: string | null;
+    media_urls?: string[] | null;
+    media_type?: string | null;
   }) => {
     if (!session?.access_token) {
       throw new Error('You must be logged in to update a post');
