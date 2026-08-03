@@ -44,10 +44,10 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
   const cleanup = () => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
-    try { mediaRecorderRef.current?.state === 'recording' && mediaRecorderRef.current.stop(); } catch { }
+    try { mediaRecorderRef.current?.state === 'recording' && mediaRecorderRef.current.stop(); } catch {}
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
-    try { audioCtxRef.current?.close(); } catch { }
+    try { audioCtxRef.current?.close(); } catch {}
     audioCtxRef.current = null;
     analyserRef.current = null;
   };
@@ -58,6 +58,8 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
       streamRef.current = stream;
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+        ? 'audio/mp4'
         : undefined;
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
@@ -158,7 +160,7 @@ const VoiceRecorder = ({ onSend, onCancel, isSending = false }: VoiceRecorderPro
     }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       // Flush final chunk before stopping so onstop sees a non-empty blob.
-      try { mediaRecorderRef.current.requestData(); } catch { }
+      try { mediaRecorderRef.current.requestData(); } catch {}
       mediaRecorderRef.current.stop();
     }
     setIsRecording(false);
