@@ -73,6 +73,10 @@ const CreateStoryPage = () => {
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    acceptFile(f);
+  };
+
+  const acceptFile = (f: File) => {
     if (f.size > 50 * 1024 * 1024) {
       toast({ title: 'File too large', description: 'Max 50MB', variant: 'destructive' });
       return;
