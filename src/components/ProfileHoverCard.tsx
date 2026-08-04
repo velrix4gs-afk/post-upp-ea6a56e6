@@ -27,6 +27,8 @@ export const ProfileHoverCard = ({ userId, children, disabled }: ProfileHoverCar
     didLongPressOpen.current = false;
     longPressTimer.current = setTimeout(() => {
       didLongPressOpen.current = true;
+      // Subtle haptic tick so the peek feels native on mobile.
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate(12);
       setOpen(true);
     }, 500);
   }, []);
@@ -74,11 +76,12 @@ export const ProfileHoverCard = ({ userId, children, disabled }: ProfileHoverCar
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent 
-          className="p-0 border-none bg-transparent shadow-none max-w-fit w-auto flex items-center justify-center pointer-events-none"
+          className="p-0 border-none bg-transparent shadow-none max-w-fit w-auto flex items-center justify-center pointer-events-none duration-200 data-[state=open]:zoom-in-90"
+          overlayClassName="bg-background/40 backdrop-blur-md"
           hideCloseButton
           onInteractOutside={() => setOpen(false)}
         >
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto drop-shadow-2xl">
             <MiniProfilePopup userId={userId} onClose={() => setOpen(false)} />
           </div>
         </DialogContent>
