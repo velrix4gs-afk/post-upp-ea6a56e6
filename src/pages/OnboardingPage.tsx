@@ -115,6 +115,12 @@ const OnboardingPage = () => {
         .eq('id', user.id);
       if (error) throw error;
       toast({ title: 'Welcome to POST UP!', description: 'Your profile is ready.' });
+      // Queue the one-time app run-down that shows on the next screen.
+      try {
+        localStorage.setItem('postup_show_tour', '1');
+      } catch {
+        /* storage unavailable */
+      }
       navigate('/feed', { replace: true });
     } catch (err: any) {
       toast({ title: 'Could not save profile', description: err.message || 'Try again.', variant: 'destructive' });
