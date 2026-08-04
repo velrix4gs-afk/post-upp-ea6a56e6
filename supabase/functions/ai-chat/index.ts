@@ -23,6 +23,7 @@ const DEFAULT_SETTINGS: AISettings = {
 };
 
 async function getAISettings(): Promise<AISettings> {
+  // no-op marker
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
