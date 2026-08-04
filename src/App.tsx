@@ -16,6 +16,8 @@ import { useAppearanceSync } from "@/hooks/useAppearanceSync";
 import LiquidGlassRoot from "@/components/LiquidGlassRoot";
 import PageTransition from "@/components/transitions/PageTransition";
 import { GlobalProfilePopupHost } from "@/components/GlobalProfilePopupHost";
+import { NavHistoryRecorder } from "@/components/NavHistoryRecorder";
+import { AppTour } from "@/components/AppTour";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -205,7 +207,9 @@ const App = () => (
           <LiquidGlassRoot />
           <BrowserRouter>
             <AuthenticatedFeatures />
+            <NavHistoryRecorder />
             <GlobalProfilePopupHost />
+            <AppTour />
             <Suspense fallback={<PageLoader />}>
               <PageTransition>
                 <Routes>
