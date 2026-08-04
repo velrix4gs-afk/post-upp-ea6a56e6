@@ -602,6 +602,12 @@ const CreateStoryPage = () => {
           </div>
         )}
       </div>
+
+      <GalleryPickerSheet
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+        onSelect={acceptFile}
+      />
     </div>
   );
 };
