@@ -348,7 +348,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                         ? 'bg-primary/5 hover:bg-primary/10 border border-primary/20' 
                         : 'hover:bg-muted'
                     }`}
-                    onClick={() => !notification.is_read && markAsRead(notification.id)}
+                    onClick={() => openNotification(notification)}
                   >
                     <div className="flex-shrink-0 mt-0.5">
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 ${
@@ -392,17 +392,8 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                         </div>
                       </div>
 
-                      {/* Action buttons for friend requests */}
-                      {notification.type === 'friend_request' && notification.data?.friendship_id && (
-                        <div className="flex gap-2 mt-3">
-                          <Button size="sm" className="h-8 px-3 text-xs rounded-lg flex-1">
-                            Accept
-                          </Button>
-                          <Button variant="outline" size="sm" className="h-8 px-3 text-xs rounded-lg flex-1">
-                            Decline
-                          </Button>
-                        </div>
-                      )}
+                      {/* Inline actions: accept/decline/follow back */}
+                      <NotificationActions notification={notification} onDone={refetch} />
                     </div>
                   </div>
                 ))}
@@ -440,9 +431,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                             setExpandedGroup(group);
                             markGroupAsRead(group);
                           } else {
-                            if (!group.notifications[0].is_read) {
-                              markAsRead(group.notifications[0].id);
-                            }
+                            openNotification(group.notifications[0]);
                           }
                         }}
                       >
