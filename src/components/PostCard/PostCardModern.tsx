@@ -13,7 +13,6 @@ import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { formatDistanceToNow, format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { PollCard } from "../PollCard";
 import { CommentsSection } from "../CommentsSection";
 import { SharePostDialog } from "../SharePostDialog";
 import { ImageGalleryViewer } from "../ImageGalleryViewer";
@@ -557,8 +556,6 @@ export const PostCardModern = ({
                 </Carousel>
                 <div className="mt-1 text-center text-xs text-muted-foreground">{mediaItems.length} photos</div>
               </div>}
-
-            <PollCard postId={post.id} />
 
             {/* Engagement Stats */}
             {(localReactionCount > 0 || post.comments_count > 0 || localRepostCount > 0) && <div className="flex items-center justify-between py-2 border-b border-border text-xs text-muted-foreground">

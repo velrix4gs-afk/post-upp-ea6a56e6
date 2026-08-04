@@ -16,6 +16,7 @@ import { StoryDrawing } from '@/components/story/StoryDrawing';
 import { StoryAudienceSelector, StoryAudience } from '@/components/story/StoryAudienceSelector';
 import { StoryCropTool } from '@/components/story/StoryCropTool';
 import { StoryAdjustments, AdjustmentValues, defaultAdjustments, adjustmentsToCss } from '@/components/story/StoryAdjustments';
+import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
 import { cn } from '@/lib/utils';
 
 interface TextOverlayItem {
@@ -49,6 +50,7 @@ const CreateStoryPage = () => {
 
   // Source
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'text'>('text');
 
@@ -73,6 +75,10 @@ const CreateStoryPage = () => {
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
+    acceptFile(f);
+  };
+
+  const acceptFile = (f: File) => {
     if (f.size > 50 * 1024 * 1024) {
       toast({ title: 'File too large', description: 'Max 50MB', variant: 'destructive' });
       return;
@@ -565,7 +571,7 @@ const CreateStoryPage = () => {
               <Type className="h-4 w-4" /> Text
             </button>
             <button
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setGalleryOpen(true)}
               className="flex-1 h-11 rounded-full bg-white/10 text-white/90 flex items-center justify-center gap-2 text-sm font-medium active:scale-[0.98] transition-transform"
             >
               <ImageIcon className="h-4 w-4" /> Gallery
@@ -596,6 +602,12 @@ const CreateStoryPage = () => {
           </div>
         )}
       </div>
+
+      <GalleryPickerSheet
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+        onSelect={acceptFile}
+      />
     </div>
   );
 };

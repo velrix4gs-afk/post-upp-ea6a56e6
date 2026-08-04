@@ -22,6 +22,45 @@ const DEFAULT_SETTINGS: AISettings = {
   system_prompt_admin: 'You are Post Up Admin AI - an intelligent assistant for administrators. Summarize user feedback, identify patterns in complaints or suggestions, provide actionable insights, and help draft responses to user issues. Be concise, professional, and data-driven.'
 };
 
+/**
+ * Full map of the POST UP app so the assistant can actually help users
+ * navigate and get things done, instead of guessing.
+ */
+const APP_KNOWLEDGE = `
+## POST UP — app knowledge
+
+POST UP is a mobile-first social app (web + Android/iOS via Capacitor).
+
+### Screens and routes
+- /feed — main feed with two tabs: "For You" (discovery mix) and "Following" (only accounts the user follows). Stories sit on top; a fixed one-line post bar sits under them.
+- /explore — search and discovery of people, posts and hashtags.
+- /search — dedicated search page (people, posts, hashtags).
+- /reels — vertical short videos. /create/reel to make one.
+- /create/story — story editor: gallery picker, filters, crop, adjustments, text, stickers, drawing, audience selector. (Camera capture is intentionally not available.)
+- /messages — chats: text, photos, videos, voice notes, reactions, replies, wallpapers, pinning, muting. Voice and video calls start from the chat header.
+- /notifications is inside the bell panel — follows, likes, comments, mentions, friend and follow requests (requests can be accepted right in the panel).
+- /profile/:userId — a user profile: posts, replies, likes, media tabs, follow / message buttons.
+- /bookmarks — saved posts.
+- /friends — friends and requests.
+- /pages — creator/brand pages, /pages/create to make one.
+- /premium, /coins, /purchase-history — premium verification, coins and tipping.
+- /settings — appearance/theme, notifications, chat settings, AI settings, verification, account.
+- /post/:postId — full post detail with the comment thread.
+- /onboarding — username, display name, avatar and interests for new users.
+
+### Key behaviours to explain when asked
+- Long-press any name or avatar for a quick profile peek.
+- Posts support multiple images (swipeable carousel) and can be edited, including their images.
+- Voice notes: hold the mic in a chat; a waveform is generated for playback.
+- Themes and dark/light mode live in Settings → Appearance.
+- Back navigation returns to the previous screen and re-opens whatever popup was open there.
+
+### Navigation actions
+When taking the user somewhere is genuinely useful, append action links on their own line using EXACTLY this syntax:
+[[go:/messages|Open messages]]
+Rules: only use real routes from the list above, at most 3 per reply, and always keep a normal sentence explaining the step. Never invent routes or claim to have performed an action you cannot perform — you can only offer navigation links.
+`;
+
 async function getAISettings(): Promise<AISettings> {
   try {
     const supabase = createClient(
@@ -213,7 +252,9 @@ serve(async (req) => {
     const settings = await getAISettings();
     
     // Use appropriate system prompt based on SERVER-VALIDATED admin status
-    const systemPrompt = isAdmin ? settings.system_prompt_admin : settings.system_prompt_user;
+    const basePrompt = isAdmin ? settings.system_prompt_admin : settings.system_prompt_user;
+    // Always give the model the full app map + navigation-link protocol.
+    const systemPrompt = `${basePrompt}\n\n${APP_KNOWLEDGE}`;
 
     // For connection test, just return success
     if (testConnection) {

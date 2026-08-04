@@ -7,6 +7,17 @@ import { Send, Bot, Trash2, Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import { useAIChat, AIMessage } from '@/hooks/useAIChat';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+
+/** Parses `[[go:/route|Label]]` action links out of an assistant reply. */
+const parseNavActions = (content: string) => {
+  const actions: { path: string; label: string }[] = [];
+  const text = content.replace(/\[\[go:([^|\]]+)\|([^\]]+)\]\]/g, (_m, path, label) => {
+    actions.push({ path: String(path).trim(), label: String(label).trim() });
+    return '';
+  });
+  return { text: text.replace(/\n{3,}/g, '\n\n').trim(), actions };
+};
 
 interface AIAssistantChatProps {
   isAdmin?: boolean;
@@ -19,6 +30,7 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
   const { messages, isLoading, streamingContent, sendMessage, clearHistory } = useAIChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -42,7 +54,10 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
 
   const renderMessage = (message: AIMessage) => {
     const isUser = message.role === 'user';
-    
+    const { text, actions } = isUser
+      ? { text: message.content, actions: [] as { path: string; label: string }[] }
+      : parseNavActions(message.content);
+
     return (
       <div
         key={message.id}
@@ -67,7 +82,22 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
               : 'bg-muted rounded-bl-md'
           )}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">{text}</p>
+          {actions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {actions.map((action) => (
+                <Button
+                  key={`${action.path}-${action.label}`}
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 rounded-full text-xs"
+                  onClick={() => navigate(action.path)}
+                >
+                  {action.label}
+                </Button>
+              ))}
+            </div>
+          )}
           <span className={cn(
             'text-[10px] mt-1 block',
             isUser ? 'text-primary-foreground/70' : 'text-muted-foreground'
@@ -142,7 +172,9 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
               </AvatarFallback>
             </Avatar>
             <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2.5 bg-muted">
-              <p className="text-sm whitespace-pre-wrap break-words">{streamingContent}</p>
+              <p className="text-sm whitespace-pre-wrap break-words">
+                {parseNavActions(streamingContent).text}
+              </p>
               <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5" />
             </div>
           </div>
