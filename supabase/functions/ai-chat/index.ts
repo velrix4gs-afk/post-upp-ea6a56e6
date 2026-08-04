@@ -252,7 +252,9 @@ serve(async (req) => {
     const settings = await getAISettings();
     
     // Use appropriate system prompt based on SERVER-VALIDATED admin status
-    const systemPrompt = isAdmin ? settings.system_prompt_admin : settings.system_prompt_user;
+    const basePrompt = isAdmin ? settings.system_prompt_admin : settings.system_prompt_user;
+    // Always give the model the full app map + navigation-link protocol.
+    const systemPrompt = `${basePrompt}\n\n${APP_KNOWLEDGE}`;
 
     // For connection test, just return success
     if (testConnection) {
