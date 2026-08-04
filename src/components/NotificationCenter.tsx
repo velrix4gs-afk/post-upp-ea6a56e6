@@ -23,6 +23,7 @@ import {
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
+import { NotificationActions, getActorId } from '@/components/NotificationActions';
 
 interface NotificationGroup {
   id: string;
@@ -45,6 +46,29 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
   const navigate = useNavigate();
   const autoReadFiredRef = useRef(false);
+
+  // Tapping a notification takes the user to the thing it is about.
+  const openNotification = (notification: any) => {
+    if (!notification.is_read) markAsRead(notification.id);
+    const postId = notification.data?.post_id;
+    const actorId = getActorId(notification);
+    const chatId = notification.data?.chat_id;
+
+    if (notification.type === 'message' && chatId) {
+      onClose();
+      navigate(`/messages?chat=${chatId}`);
+      return;
+    }
+    if (postId) {
+      onClose();
+      navigate(`/post/${postId}`);
+      return;
+    }
+    if (actorId) {
+      onClose();
+      navigate(`/profile/${actorId}`);
+    }
+  };
 
   // Auto mark-as-read when the panel opens, so the badge clears instantly.
   useEffect(() => {
