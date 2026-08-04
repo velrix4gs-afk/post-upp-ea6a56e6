@@ -1,6 +1,7 @@
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Home } from 'lucide-react';
+import { useBreadcrumbNav } from '@/hooks/useBreadcrumbNav';
 
 interface BackNavigationProps {
   title?: string;
@@ -9,17 +10,11 @@ interface BackNavigationProps {
 
 export const BackNavigation = ({ title, showHome = true }: BackNavigationProps) => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { goBack } = useBreadcrumbNav();
 
-  const handleBack = () => {
-    // Check if we have history to go back to
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      // No history, go to feed
-      navigate('/feed');
-    }
-  };
+  // Breadcrumb back: returns to the exact previous screen and re-opens the
+  // overlay (profile popup, etc.) that was showing on it.
+  const handleBack = () => goBack();
 
   return (
     <div className="sticky top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
