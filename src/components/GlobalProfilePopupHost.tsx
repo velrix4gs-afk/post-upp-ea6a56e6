@@ -25,11 +25,12 @@ export const GlobalProfilePopupHost = () => {
   return (
     <Dialog open={!!openId} onOpenChange={(o) => !o && setOpenId(undefined)}>
       <DialogContent
-        className="p-0 border-none bg-transparent shadow-none max-w-fit w-auto flex items-center justify-center pointer-events-none"
+        className="p-0 border-none bg-transparent shadow-none max-w-fit w-auto flex items-center justify-center pointer-events-none duration-200 data-[state=open]:zoom-in-90"
+        overlayClassName="bg-background/40 backdrop-blur-md"
         hideCloseButton
         onInteractOutside={() => setOpenId(undefined)}
       >
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto drop-shadow-2xl">
           <MiniProfilePopup userId={openId} onClose={() => setOpenId(undefined)} />
         </div>
       </DialogContent>
