@@ -16,7 +16,7 @@ import {
   Clock,
   Heart
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -27,6 +27,9 @@ import { toast } from "@/hooks/use-toast";
 import { showCleanError } from "@/lib/errorHandler";
 import DraftsDialog from "./DraftsDialog";
 import { UserTagSelector } from "./UserTagSelector";
+import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
+import { MentionTextarea } from "@/components/composer/MentionTextarea";
+import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
 
 const FEELINGS = [
@@ -106,6 +109,17 @@ const CreatePost = () => {
   const removeImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const reorderImages = (from: number, to: number) => {
+    const move = <T,>(arr: T[]): T[] => {
+      const next = [...arr];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    };
+    setSelectedImages(prev => move(prev));
+    setPreviewImages(prev => move(prev));
   };
 
   const uploadPostMedia = async (files: File[]): Promise<string[]> => {
@@ -228,6 +242,7 @@ const CreatePost = () => {
       setScheduledDate(undefined);
       setUploadProgress(0);
       setIsExpanded(false);
+      clearGhostDraft();
     } catch (error: any) {
       showCleanError(error, toast, 'Failed to Create Post');
     } finally {
@@ -259,6 +274,7 @@ const CreatePost = () => {
     setTaggedUsers([]);
     setIsExpanded(false);
     setScheduledDate(undefined);
+    clearGhostDraft();
   };
 
   const handleLoadDraft = (draft: any) => {
@@ -284,42 +300,39 @@ const CreatePost = () => {
             </AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <Textarea
+            <MentionTextarea
               placeholder={`What's on your mind, ${profile?.display_name?.split(' ')[0] || 'there'}?`}
               value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
+              onValueChange={setPostContent}
               onFocus={() => setIsExpanded(true)}
               className="border-0 bg-muted/50 resize-none focus-visible:ring-primary min-h-[60px] max-h-[40vh] overflow-y-auto"
               rows={isExpanded ? 4 : 2}
             />
+            {showRestoredNotice && (
+              <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
+                <span className="text-xs text-muted-foreground">Picked up where you left off.</span>
+                <button
+                  type="button"
+                  onClick={() => { setPostContent(''); clearGhostDraft(); }}
+                  className="text-xs font-medium text-primary hover:underline"
+                >
+                  Discard
+                </button>
+                <button type="button" onClick={dismissNotice} className="text-xs text-muted-foreground hover:underline">
+                  Dismiss
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Images Preview */}
         {previewImages.length > 0 && (
-          <div className={`grid gap-2 mb-4 ${
-            previewImages.length === 1 ? 'grid-cols-1' :
-            previewImages.length === 2 ? 'grid-cols-2' :
-            previewImages.length === 3 ? 'grid-cols-3' :
-            'grid-cols-2'
-          }`}>
-            {previewImages.map((preview, index) => (
-              <div key={index} className="relative">
-                <img 
-                  src={preview} 
-                  alt={`Preview ${index + 1}`} 
-                  className="w-full h-32 object-cover rounded-lg"
-                />
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="absolute top-2 right-2 h-6 w-6 p-0"
-                  onClick={() => removeImage(index)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ))}
+          <div className="mb-4">
+            <ReorderableThumbs items={previewImages} onReorder={reorderImages} onRemove={removeImage} />
+            {previewImages.length > 1 && (
+              <p className="mt-1 text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>
+            )}
           </div>
         )}
 
