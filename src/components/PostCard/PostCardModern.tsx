@@ -139,6 +139,14 @@ export const PostCardModern = ({
   const mediaItems: string[] = (post.media_urls && post.media_urls.length > 0 ? post.media_urls : post.media_url ? [post.media_url] : []) as string[];
   const initialMedia = mediaItems;
   const [editMedia, setEditMedia] = useState<string[]>(initialMedia);
+  const { getItemProps: getEditThumbProps } = useThumbReorder((from, to) => {
+    setEditMedia(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  });
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [localReactionCount, setLocalReactionCount] = useState(post.reactions_count);
   const [localRepostCount, setLocalRepostCount] = useState(post.shares_count || 0);
