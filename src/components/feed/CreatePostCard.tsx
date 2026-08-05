@@ -328,11 +328,24 @@ const CreatePostCard = () => {
           </Avatar>
           
           <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-            <Textarea placeholder={`What's on your mind, ${profile?.display_name?.split(' ')[0] || 'there'}?`} value={postContent} onChange={e => {
-            if (e.target.value.length <= MAX_CHARS) {
-              setPostContent(e.target.value);
+            <MentionTextarea placeholder={`What's on your mind, ${profile?.display_name?.split(' ')[0] || 'there'}?`} value={postContent} onValueChange={value => {
+            if (value.length <= MAX_CHARS) {
+              setPostContent(value);
             }
           }} onFocus={() => setIsExpanded(true)} className="border-0 bg-muted/50 resize-none focus-visible:ring-primary min-h-[60px] max-h-[40vh] overflow-y-auto pr-[5px]" />
+
+            {showRestoredNotice && <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
+                <span className="text-xs text-muted-foreground">Picked up where you left off.</span>
+                <button type="button" onClick={() => {
+              setPostContent('');
+              clearGhostDraft();
+            }} className="text-xs font-medium text-primary hover:underline">
+                  Discard
+                </button>
+                <button type="button" onClick={dismissNotice} className="text-xs text-muted-foreground hover:underline">
+                  Dismiss
+                </button>
+              </div>}
             
             {/* Character counter */}
             {isExpanded && postContent.length > 0 && <div className="flex items-center justify-end mt-2 gap-2">
@@ -350,13 +363,11 @@ const CreatePostCard = () => {
         </div>
 
         {/* Image Previews - BELOW text area as thumbnails */}
-        {previewImages.length > 0 && <div className="flex gap-2 mt-3 flex-wrap">
-            {previewImages.map((preview, index) => <div key={index} className="relative group w-20 h-20 flex-shrink-0">
-                <img src={preview} alt={`Preview ${index + 1}`} className="w-20 h-20 object-cover rounded-lg border border-border" />
-                <Button variant="secondary" size="sm" className="absolute -top-2 -right-2 h-5 w-5 p-0 opacity-0 group-hover:opacity-100 transition-opacity bg-destructive hover:bg-destructive/90 rounded-full shadow-sm" onClick={() => removeImage(index)}>
-                  <X className="h-3 w-3 text-white" />
-                </Button>
-              </div>)}
+        {previewImages.length > 0 && <div className="px-2">
+            <ReorderableThumbs items={previewImages} onReorder={reorderImages} onRemove={removeImage} />
+            {previewImages.length > 1 && <p className="mt-1 text-[11px] text-muted-foreground">
+                Hold and drag a photo to change its order
+              </p>}
           </div>}
 
         {/* Upload Progress */}
