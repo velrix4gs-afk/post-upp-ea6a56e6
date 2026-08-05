@@ -27,11 +27,7 @@ export const ReorderableThumbs = ({
 
   const startDrag = (index: number) => {
     setDragIndex(index);
-    try {
-      haptic?.('light' as any);
-    } catch {
-      /* haptics optional */
-    }
+    haptic('light');
   };
 
   const endDrag = () => {
