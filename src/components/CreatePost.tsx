@@ -63,6 +63,25 @@ const CreatePost = () => {
   const [feeling, setFeeling] = useState<string>('');
   const [showFeelings, setShowFeelings] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const {
+    restoredText,
+    showRestoredNotice,
+    saveDraft: saveGhostDraft,
+    clearDraft: clearGhostDraft,
+    dismissNotice
+  } = useGhostDraft('create-post');
+
+  useEffect(() => {
+    if (restoredText && !postContent) {
+      setPostContent(restoredText);
+      setIsExpanded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoredText]);
+
+  useEffect(() => {
+    saveGhostDraft(postContent);
+  }, [postContent, saveGhostDraft]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
