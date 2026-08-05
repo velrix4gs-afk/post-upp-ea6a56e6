@@ -1,6 +1,7 @@
 import { toast as sonnerToast } from 'sonner';
 import { flushOfflineQueue, getQueueLength } from '@/lib/offlineQueue';
 import { shouldShowErrorToast } from '@/lib/errorSuppression';
+import { showConnectionLost, showConnectionRestored } from '@/lib/connectionToast';
 
 let isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 let initialized = false;
@@ -11,16 +12,14 @@ const NET_TOAST_ID = 'net-status';
 const showOffline = () => {
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
   sonnerToast.dismiss(NET_TOAST_ID);
-  sonnerToast('No internet', { id: NET_TOAST_ID, duration: 1000 });
+  // Sleek floating bottom toast with a single-tap Retry — never blocks the screen.
+  showConnectionLost();
 };
 
 const showBackOnline = (pending: number) => {
   if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
   sonnerToast.dismiss(NET_TOAST_ID);
-  sonnerToast.success(pending > 0 ? `Back online — syncing ${pending}` : 'Back online', {
-    id: NET_TOAST_ID,
-    duration: 1500,
-  });
+  showConnectionRestored(pending);
 };
 
 export const initNetworkMonitor = () => {
