@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Image, Video, Smile, MapPin, Users, X, Save, Clock, Globe, Lock, UserCheck } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -18,6 +18,9 @@ import { toast } from "@/hooks/use-toast";
 import { showCleanError } from "@/lib/errorHandler";
 import DraftsDialog from "../DraftsDialog";
 import { UserTagSelector } from "../UserTagSelector";
+import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
+import { MentionTextarea } from "@/components/composer/MentionTextarea";
+import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
 import { cn } from "@/lib/utils";
 const FEELINGS = [{
@@ -80,6 +83,27 @@ const CreatePostCard = () => {
   const [showFeelings, setShowFeelings] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public');
+  const {
+    restoredText,
+    showRestoredNotice,
+    saveDraft: saveGhostDraft,
+    clearDraft: clearGhostDraft,
+    dismissNotice
+  } = useGhostDraft('feed-composer');
+
+  // Ghost drafting: bring back whatever the user typed before they navigated away.
+  useEffect(() => {
+    if (restoredText && !postContent) {
+      setPostContent(restoredText);
+      setIsExpanded(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoredText]);
+
+  useEffect(() => {
+    saveGhostDraft(postContent);
+  }, [postContent, saveGhostDraft]);
+
   const charCount = postContent.length;
   const charPercentage = charCount / MAX_CHARS * 100;
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,6 +147,16 @@ const CreatePostCard = () => {
   const removeImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
+  };
+  const reorderImages = (from: number, to: number) => {
+    const move = <T,>(arr: T[]): T[] => {
+      const next = [...arr];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    };
+    setSelectedImages(prev => move(prev));
+    setPreviewImages(prev => move(prev));
   };
   const uploadPostMedia = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
