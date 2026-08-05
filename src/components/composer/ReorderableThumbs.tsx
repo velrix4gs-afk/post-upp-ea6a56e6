@@ -116,3 +116,74 @@ export const ReorderableThumbs = ({
 };
 
 export default ReorderableThumbs;
+
+/**
+ * Reusable press-and-hold reorder behaviour for custom thumbnail layouts
+ * (e.g. the full-screen composer grid). Spread the returned props on each item.
+ */
+export const useThumbReorder = (onReorder: (from: number, to: number) => void) => {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const indexFromPoint = (x: number, y: number): number | null => {
+    const el = document.elementFromPoint(x, y) as HTMLElement | null;
+    const holder = el?.closest('[data-thumb-index]') as HTMLElement | null;
+    if (!holder) return null;
+    const idx = Number(holder.dataset.thumbIndex);
+    return Number.isNaN(idx) ? null : idx;
+  };
+
+  const endDrag = () => {
+    if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
+      onReorder(dragIndex, overIndex);
+    }
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
+  const getItemProps = (index: number) => ({
+    'data-thumb-index': index,
+    draggable: true,
+    onDragStart: () => {
+      setDragIndex(index);
+      haptic('light');
+    },
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      setOverIndex(index);
+    },
+    onDrop: (e: React.DragEvent) => {
+      e.preventDefault();
+      setOverIndex(index);
+      endDrag();
+    },
+    onDragEnd: endDrag,
+    onTouchStart: () => {
+      holdTimer.current = setTimeout(() => {
+        setDragIndex(index);
+        haptic('light');
+      }, 220);
+    },
+    onTouchMove: (e: React.TouchEvent) => {
+      if (dragIndex === null) {
+        if (holdTimer.current) clearTimeout(holdTimer.current);
+        return;
+      }
+      const t = e.touches[0];
+      const idx = indexFromPoint(t.clientX, t.clientY);
+      if (idx !== null) setOverIndex(idx);
+    },
+    onTouchEnd: () => {
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      endDrag();
+    },
+    className: cn(
+      'transition-transform duration-150',
+      dragIndex === index && 'scale-105 shadow-xl z-10 opacity-90',
+      overIndex === index && dragIndex !== null && dragIndex !== index && 'ring-2 ring-primary rounded-xl'
+    ),
+  });
+
+  return { getItemProps, dragIndex };
+};
