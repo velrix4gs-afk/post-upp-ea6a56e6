@@ -8,7 +8,7 @@ import {
   X,
   Loader2
 } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -18,6 +18,10 @@ import { toast } from "@/hooks/use-toast";
 import { showCleanError } from "@/lib/errorHandler";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { useThumbReorder } from "@/components/composer/ReorderableThumbs";
+import { MentionTextarea } from "@/components/composer/MentionTextarea";
+import { useGhostDraft } from "@/hooks/useGhostDraft";
+import { cn } from "@/lib/utils";
 
 const FEELINGS = [
   { emoji: '😊', label: 'happy' },
@@ -50,6 +54,23 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
   const [showLocation, setShowLocation] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    restoredText,
+    showRestoredNotice,
+    saveDraft: saveGhostDraft,
+    clearDraft: clearGhostDraft,
+    dismissNotice
+  } = useGhostDraft('create-post-simple');
+
+  useEffect(() => {
+    if (restoredText && !postContent) setPostContent(restoredText);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restoredText]);
+
+  useEffect(() => {
+    saveGhostDraft(postContent);
+  }, [postContent, saveGhostDraft]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -92,6 +113,19 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
+
+  const reorderImages = (from: number, to: number) => {
+    const move = <T,>(arr: T[]): T[] => {
+      const next = [...arr];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    };
+    setSelectedImages(prev => move(prev));
+    setPreviewImages(prev => move(prev));
+  };
+
+  const { getItemProps } = useThumbReorder(reorderImages);
 
   const uploadPostMedia = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
@@ -172,7 +206,8 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
       setPreviewImages([]);
       setLocation('');
       setFeeling('');
-      
+      clearGhostDraft();
+
       onSuccess?.();
     } catch (error: any) {
       showCleanError(error, toast, 'Failed to Create Post');
@@ -191,13 +226,30 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
             {profile?.display_name?.split(' ').map(n => n[0]).join('') || 'U'}
           </AvatarFallback>
         </Avatar>
-        <Textarea
-          placeholder={`What's on your mind?`}
-          value={postContent}
-          onChange={(e) => setPostContent(e.target.value)}
-          className="flex-1 border-0 bg-transparent resize-none focus-visible:ring-0 text-base placeholder:text-muted-foreground/60 min-h-[100px]"
-          autoFocus
-        />
+        <div className="flex-1">
+          <MentionTextarea
+            placeholder={`What's on your mind?`}
+            value={postContent}
+            onValueChange={setPostContent}
+            className="w-full border-0 bg-transparent resize-none focus-visible:ring-0 text-base placeholder:text-muted-foreground/60 min-h-[100px]"
+            autoFocus
+          />
+          {showRestoredNotice && (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
+              <span className="text-xs text-muted-foreground">Picked up where you left off.</span>
+              <button
+                type="button"
+                onClick={() => { setPostContent(''); clearGhostDraft(); }}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Discard
+              </button>
+              <button type="button" onClick={dismissNotice} className="text-xs text-muted-foreground hover:underline">
+                Dismiss
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Feeling indicator */}
@@ -225,8 +277,10 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
             previewImages.length === 2 ? 'grid-cols-2' :
             'grid-cols-3'
           }`}>
-            {previewImages.map((preview, index) => (
-              <div key={index} className="relative aspect-square">
+            {previewImages.map((preview, index) => {
+              const { className: dragClass, ...dragProps } = getItemProps(index);
+              return (
+              <div key={index} {...dragProps} className={cn("relative aspect-square touch-none", dragClass)}>
                 {selectedImages[index]?.type.startsWith('video/') ? (
                   <video 
                     src={preview} 
@@ -239,6 +293,9 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
                     className="w-full h-full object-cover rounded-xl"
                   />
                 )}
+                <span className="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 text-[10px] text-white">
+                  {index + 1}
+                </span>
                 <Button
                   variant="secondary"
                   size="icon"
@@ -248,8 +305,11 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
                   <X className="h-3 w-3 text-white" />
                 </Button>
               </div>
-            ))}
+            );})}
           </div>
+          {previewImages.length > 1 && (
+            <p className="mt-2 text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>
+          )}
         </div>
       )}
 
