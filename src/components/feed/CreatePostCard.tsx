@@ -267,6 +267,7 @@ const CreatePostCard = () => {
       setScheduledDate(undefined);
       setUploadProgress(0);
       setIsExpanded(false);
+      clearGhostDraft();
     } catch (error: any) {
       showCleanError(error, toast, 'Failed to Create Post');
     } finally {
@@ -293,6 +294,7 @@ const CreatePostCard = () => {
     setTaggedUsers([]);
     setIsExpanded(false);
     setScheduledDate(undefined);
+    clearGhostDraft();
   };
   const handleLoadDraft = (draft: any) => {
     setPostContent(draft.content || '');
