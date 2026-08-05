@@ -348,8 +348,11 @@ export const PostCardModern = ({
             </DialogHeader>
             <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
             {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
-                {editMedia.map((url, i) => <div key={url + i} className="relative rounded-lg overflow-hidden bg-muted aspect-square">
+                {editMedia.map((url, i) => {
+                  const { className: dragClass, ...dragProps } = getEditThumbProps(i);
+                  return <div key={url + i} {...dragProps} className={cn("relative rounded-lg overflow-hidden bg-muted aspect-square touch-none", dragClass)}>
                     <img src={url} alt="Post media" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 text-[10px] text-foreground">{i + 1}</span>
                     <button
                       type="button"
                       onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))}
@@ -358,8 +361,10 @@ export const PostCardModern = ({
                     >
                       ✕
                     </button>
-                  </div>)}
+                  </div>;
+                })}
               </div>}
+            {editMedia.length > 1 && <p className="text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>}
             <label className="inline-flex items-center gap-2 text-sm text-primary cursor-pointer">
               <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleEditMediaUpload(e.target.files)} />
               {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
