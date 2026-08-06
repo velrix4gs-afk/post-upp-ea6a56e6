@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { ensurePrivateChat } from '@/lib/chatCreation';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
 
