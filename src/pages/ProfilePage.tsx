@@ -105,38 +105,7 @@ const ProfilePage = () => {
   const handleMessage = async () => {
     if (!profileUserId || !user) return;
     try {
-      // 1) Try to reuse an existing DM first.
-      const { data: existingId } = await supabase.rpc('find_private_chat', {
-        p_user_a: user.id,
-        p_user_b: profileUserId
-      });
-      let chatId: string | undefined = existingId ?? undefined;
-
-      // 2) Otherwise create one directly so `type='private'` is set
-      //    (the create_private_chat RPC omits it, which breaks the next
-      //    find_private_chat lookup).
-      if (!chatId) {
-        const { data: newChat, error: chatError } = await supabase
-          .from('chats')
-          .insert({
-            type: 'private',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-        if (chatError) throw chatError;
-        const { error: partsError } = await supabase
-          .from('chat_participants')
-          .insert([
-            { chat_id: newChat.id, user_id: user.id, role: 'member' },
-            { chat_id: newChat.id, user_id: profileUserId, role: 'member' },
-          ]);
-        if (partsError) throw partsError;
-        chatId = newChat.id;
-      }
-
-      if (!chatId) throw new Error('Could not open conversation');
+      const chatId = await ensurePrivateChat(user.id, profileUserId);
       navigate(`/messages?chat=${chatId}`);
     } catch (error: any) {
       console.error('Message error:', error);
