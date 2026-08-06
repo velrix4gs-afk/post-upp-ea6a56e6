@@ -30,7 +30,7 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, updateProfile, uploadAvatar, uploadCover } = useProfile();
-  const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
+  const { theme, setTheme, colorTheme, setColorTheme, contrast, setContrast } = useTheme();
   const { isAdmin } = useAdmin();
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
