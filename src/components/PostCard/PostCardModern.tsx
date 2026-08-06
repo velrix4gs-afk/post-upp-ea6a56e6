@@ -257,6 +257,7 @@ export const PostCardModern = ({
     }
   };
   const handleLikeWithAnimation = async () => {
+    haptic('light');
     setIsLikeAnimating(true);
     await handleReactionToggle('like');
     setTimeout(() => setIsLikeAnimating(false), 300);
