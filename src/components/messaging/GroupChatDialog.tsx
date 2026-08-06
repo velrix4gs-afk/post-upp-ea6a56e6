@@ -138,16 +138,13 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
 
       // The RPC creates the chat + participants atomically. Only apply the
       // extras (avatar / description) it doesn't handle.
-      if (avatarUrl || groupDescription.trim()) {
+      if (avatarUrl) {
         const { error: updateError } = await supabase
           .from('chats')
-          .update({
-            ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
-            ...(groupDescription.trim() ? { description: groupDescription.trim() } : {}),
-          })
+          .update({ avatar_url: avatarUrl })
           .eq('id', chatId);
         if (updateError) {
-          console.warn('[GroupChatDialog] Could not save group extras:', updateError);
+          console.warn('[GroupChatDialog] Could not save group avatar:', updateError);
         }
       }
 
