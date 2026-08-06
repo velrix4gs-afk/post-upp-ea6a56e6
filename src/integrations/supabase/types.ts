@@ -4935,6 +4935,34 @@ export type Database = {
       }
     }
     Functions: {
+      chat_messages_latest: {
+        Args: { p_chat_id: string }
+        Returns: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          media_public_path: string
+          media_url: string
+          sender_id: string
+        }[]
+      }
+      chat_messages_older_than: {
+        Args: {
+          p_chat_id: string
+          p_older_than_created_at: string
+          p_older_than_message_id: string
+        }
+        Returns: {
+          chat_id: string
+          content: string
+          created_at: string
+          id: string
+          media_public_path: string
+          media_url: string
+          sender_id: string
+        }[]
+      }
       check_and_increment_rate_limit: {
         Args: {
           p_action: string
