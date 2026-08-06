@@ -192,6 +192,7 @@ const CreatePostCard = () => {
     }
   };
   const handlePost = async () => {
+    haptic('heavy');
     if (!postContent.trim() && selectedImages.length === 0) {
       showCleanError({
         code: 'POST_005',
