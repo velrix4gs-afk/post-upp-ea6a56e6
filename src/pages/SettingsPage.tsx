@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useTheme } from '@/hooks/useTheme';
+import { haptic } from '@/lib/haptics';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { showCleanError } from '@/lib/errorHandler';
@@ -30,7 +31,7 @@ const SettingsPage = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { profile, updateProfile, uploadAvatar, uploadCover } = useProfile();
-  const { theme, setTheme, colorTheme, setColorTheme } = useTheme();
+  const { theme, setTheme, colorTheme, setColorTheme, contrast, setContrast } = useTheme();
   const { isAdmin } = useAdmin();
   
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -767,6 +768,46 @@ const SettingsPage = () => {
                         <SelectItem value="system"><Monitor className="h-4 w-4 mr-2 inline" />Auto</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="p-4 border rounded-lg space-y-4">
+                    <div>
+                      <Label className="text-base mb-2 block">Color Theme</Label>
+                      <p className="text-sm text-muted-foreground mb-4">Choose your preferred color scheme</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border rounded-lg space-y-3">
+                    <div>
+                      <Label className="text-base mb-1 block">Contrast</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Extra dark modes for accessibility and nighttime reading
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { id: 'normal', label: 'Standard', hint: 'Default dark' },
+                        { id: 'amoled', label: 'AMOLED', hint: 'True black' },
+                        { id: 'dim', label: 'OLED Dim', hint: 'Soft night' },
+                      ] as const).map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            haptic('light');
+                            setContrast(opt.id);
+                          }}
+                          className={`p-3 rounded-lg border-2 text-left transition-all press-elastic ${
+                            contrast === opt.id
+                              ? 'border-primary ring-2 ring-primary/20'
+                              : 'border-border hover:border-primary/50'
+                          }`}
+                        >
+                          <span className="block text-sm font-medium">{opt.label}</span>
+                          <span className="block text-xs text-muted-foreground">{opt.hint}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="p-4 border rounded-lg space-y-4">
