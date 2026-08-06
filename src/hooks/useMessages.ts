@@ -840,48 +840,12 @@ export const useMessages = (chatId?: string) => {
     }
 
     try {
-      // Check if chat already exists
-      const { data: existingChatId } = await supabase
-        .rpc('find_private_chat', {
-          p_user_a: user.id,
-          p_user_b: participantUuid
-        });
-
-      if (existingChatId) {
-        console.log('[CHAT] Existing chat found:', existingChatId);
-        return existingChatId;
-      }
-
-      // Create new chat
-      const { data: newChat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          type: 'private',
-          created_by: user.id,
-          creator_id: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select()
-        .single();
-
-      if (chatError) throw chatError;
-
-      const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert([
-          { chat_id: newChat.id, user_id: user.id, role: 'member' },
-          { chat_id: newChat.id, user_id: participantUuid, role: 'member' }
-        ]);
-
-      if (participantsError) throw participantsError;
-
-      console.log('[CHAT] Created successfully:', newChat.id);
+      const chatId = await ensurePrivateChat(user.id, participantUuid);
       await fetchChats();
-      return newChat.id;
+      return chatId;
     } catch (err: any) {
       console.error('[CHAT] Error:', err);
-      return null;
+      throw err;
     }
   };
 
