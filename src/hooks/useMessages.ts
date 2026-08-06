@@ -857,6 +857,8 @@ export const useMessages = (chatId?: string) => {
         .from('chats')
         .insert({
           type: 'private',
+          created_by: user.id,
+          creator_id: user.id,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
