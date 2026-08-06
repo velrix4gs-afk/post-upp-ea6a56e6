@@ -431,7 +431,11 @@ const MessagesPage = () => {
       }
     } catch (error: any) {
       console.error('[MessagesPage] Create new chat error:', error);
-      throw error;
+      toast({
+        title: 'Could not start chat',
+        description: error?.message || 'Please try again',
+        variant: 'destructive',
+      });
     }
   };
 
