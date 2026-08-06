@@ -115,7 +115,7 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
         name: groupName.trim()
       });
 
-      const { data: chatId, error: createError } = await supabase.rpc(
+      const { data: rpcChatId, error: createError } = await supabase.rpc(
         'create_group_chat_with_participants',
         {
           chat_name: groupName.trim(),
@@ -128,68 +128,26 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
         throw createError;
       }
 
+      const chatId = (Array.isArray(rpcChatId) ? rpcChatId[0] : rpcChatId) as string | null;
+
       if (!chatId) {
         throw new Error('Failed to create group - no ID returned');
       }
 
       console.log('[GroupChatDialog] Group created successfully:', chatId);
-      console.log('[GroupChatDialog] Creating chat...');
-      const { data: newChat, error: chatError } = await supabase
-        .from('chats')
-        .insert({
-          name: groupName,
-          type: 'group',
-          avatar_url: avatarUrl,
-          created_by: user.id,
-        })
-        .select()
-        .single();
 
-      if (chatError || !newChat) {
-        console.error('[GroupChatDialog] Chat creation error:', chatError);
-        throw new Error(`Failed to create group chat: ${chatError?.message || 'No chat ID returned'}`);
-      }
-
-      console.log('[GroupChatDialog] Chat created:', newChat.id);
-
-      // Add creator first as admin - this is critical!
-      const creatorParticipant = {
-        chat_id: newChat.id,
-        user_id: user.id,
-        role: 'admin'
-      };
-
-      const { error: creatorError } = await supabase
-        .from('chat_participants')
-        .insert([creatorParticipant]);
-
-      if (creatorError) {
-        console.error('[GroupChatDialog] Failed to add creator:', creatorError);
-        // Rollback: delete the chat
-        await supabase.from('chats').delete().eq('id', newChat.id);
-        throw new Error(`Failed to add you as admin: ${creatorError.message}`);
-      }
-
-      // Now add other members
-      if (selectedMembers.length > 0) {
-        const otherParticipants = selectedMembers.map(memberId => ({
-          chat_id: newChat.id,
-          user_id: memberId,
-          role: 'member'
-        }));
-
-        const { error: participantsError } = await supabase
-          .from('chat_participants')
-          .insert(otherParticipants);
-
-        if (participantsError) {
-          console.error('[GroupChatDialog] Failed to add members:', participantsError);
-          // Don't rollback - creator is already added, just warn
-          toast({
-            title: 'Warning',
-            description: 'Group created but some members could not be added',
-            variant: 'destructive'
-          });
+      // The RPC creates the chat + participants atomically. Only apply the
+      // extras (avatar / description) it doesn't handle.
+      if (avatarUrl || groupDescription.trim()) {
+        const { error: updateError } = await supabase
+          .from('chats')
+          .update({
+            ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
+            ...(groupDescription.trim() ? { description: groupDescription.trim() } : {}),
+          })
+          .eq('id', chatId);
+        if (updateError) {
+          console.warn('[GroupChatDialog] Could not save group extras:', updateError);
         }
       }
 
@@ -198,7 +156,7 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
         title: 'Group created successfully!',
         description: `${groupName} was created with ${selectedMembers.length} members`
       });
-      onGroupCreated(newChat.id);
+      onGroupCreated(chatId);
       onOpenChange(false);
       
       // Reset form
