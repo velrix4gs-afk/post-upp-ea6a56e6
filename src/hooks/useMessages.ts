@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 import { toast } from './use-toast';
 import { AsyncStorage, CacheHelper } from '@/lib/asyncStorage';
 import { enqueueOfflineAction } from '@/lib/offlineQueue';
+import { ensurePrivateChat } from '@/lib/chatCreation';
 
 // In-memory profile cache to avoid repeated fetches during real-time updates
 const profileCache = new Map<string, { username: string; display_name: string; avatar_url?: string; fetchedAt: number }>();
