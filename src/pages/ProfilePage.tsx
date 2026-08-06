@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { ensurePrivateChat } from '@/lib/chatCreation';
 import Navigation from '@/components/Navigation';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { PostCardModern } from '@/components/PostCard/PostCardModern';
