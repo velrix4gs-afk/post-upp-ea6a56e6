@@ -3,7 +3,7 @@
  * Wraps navigator.vibrate so callers don't have to feature-detect every time.
  * Silently no-ops on unsupported devices (desktop, iOS Safari).
  */
-export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error';
+export type HapticType = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'like' | 'publishPost';
 
 const PATTERNS: Record<HapticType, number | number[]> = {
   light: 10,
@@ -12,6 +12,8 @@ const PATTERNS: Record<HapticType, number | number[]> = {
   success: [10, 40, 10],
   warning: [20, 60, 20],
   error: [30, 50, 30, 50, 30],
+  like: 10,
+  publishPost: [50, 100, 50],
 };
 
 export const haptic = (type: HapticType = 'light'): void => {
