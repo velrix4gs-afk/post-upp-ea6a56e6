@@ -1,3 +1,4 @@
+import { haptic } from '@/lib/haptics';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -257,6 +258,7 @@ export const PostCardModern = ({
     }
   };
   const handleLikeWithAnimation = async () => {
+    haptic('light');
     setIsLikeAnimating(true);
     await handleReactionToggle('like');
     setTimeout(() => setIsLikeAnimating(false), 300);
@@ -385,7 +387,7 @@ export const PostCardModern = ({
           </DialogContent>
         </Dialog>
 
-        <Card data-feed-card className={cn("post-card fb-feed-card bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
+        <Card data-feed-card className={cn("post-card fb-feed-card post-card-float press-elastic bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
           {/* Pinned indicator */}
           {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
               <Pin className="h-3 w-3" />

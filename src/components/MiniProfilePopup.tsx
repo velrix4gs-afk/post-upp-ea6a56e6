@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FollowersDialog } from "@/components/FollowersDialog";
+import { ensurePrivateChat } from "@/lib/chatCreation";
 
 interface MiniProfilePopupProps {
   userId: string;
@@ -79,23 +80,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
     }
     
     try {
-      // Reuse existing DM first.
-      const { data: existingId } = await supabase.rpc('find_private_chat', {
-        p_user_a: user.id,
-        p_user_b: userId
-      });
-      let chatId: string | undefined = existingId ?? undefined;
-
-      if (!chatId) {
-        const { data, error } = await supabase.rpc('create_private_chat', {
-          _user1: user.id,
-          _user2: userId
-        });
-        if (error) throw error;
-        chatId = Array.isArray(data) ? data?.[0]?.chat_id : (data as any)?.chat_id;
-      }
-
-      if (!chatId) throw new Error('Could not open conversation');
+      const chatId = await ensurePrivateChat(user.id, userId);
       // Preserve breadcrumb: remember which popup was open so back-navigation
       // can restore it on the origin page.
       navigate(`/messages?chat=${chatId}`, { state: { overlayProfileId: userId } });
@@ -103,7 +88,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
     } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to start conversation',
+        description: error?.message || 'Failed to start conversation',
         variant: 'destructive'
       });
     }

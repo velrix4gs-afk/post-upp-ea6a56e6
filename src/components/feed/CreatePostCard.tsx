@@ -1,3 +1,4 @@
+import { haptic } from '@/lib/haptics';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -192,6 +193,7 @@ const CreatePostCard = () => {
     }
   };
   const handlePost = async () => {
+    haptic('heavy');
     if (!postContent.trim() && selectedImages.length === 0) {
       showCleanError({
         code: 'POST_005',

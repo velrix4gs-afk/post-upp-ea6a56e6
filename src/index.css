@@ -506,6 +506,75 @@ All colors MUST be HSL.
   }
 }
 
+/* ── Accessible contrast modes ─────────────────────────────────────────────
+   data-contrast="amoled"  → true black canvas, high-contrast text (OLED save)
+   data-contrast="dim"     → soft desaturated grays for nighttime reading   */
+.dark[data-contrast='amoled'],
+html.dark[data-contrast='amoled'] {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 0%;
+  --card-foreground: 0 0% 100%;
+  --popover: 0 0% 3%;
+  --popover-foreground: 0 0% 100%;
+  --secondary: 0 0% 8%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 0 0% 8%;
+  --muted-foreground: 0 0% 78%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+  --sidebar-background: 0 0% 0%;
+  --sidebar-accent: 0 0% 8%;
+  --sidebar-border: 0 0% 18%;
+  --gradient-card: linear-gradient(145deg, hsl(0 0% 0%) 0%, hsl(0 0% 3%) 100%);
+}
+
+.dark[data-contrast='dim'],
+html.dark[data-contrast='dim'] {
+  --background: 220 12% 13%;
+  --foreground: 220 12% 88%;
+  --card: 220 12% 16%;
+  --card-foreground: 220 12% 88%;
+  --popover: 220 12% 18%;
+  --popover-foreground: 220 12% 88%;
+  --secondary: 220 12% 22%;
+  --secondary-foreground: 220 12% 85%;
+  --muted: 220 12% 22%;
+  --muted-foreground: 220 10% 68%;
+  --border: 220 12% 26%;
+  --input: 220 12% 26%;
+  --sidebar-background: 220 12% 16%;
+  --sidebar-accent: 220 12% 22%;
+  --sidebar-border: 220 12% 26%;
+  --gradient-card: linear-gradient(145deg, hsl(220 12% 16%) 0%, hsl(220 12% 19%) 100%);
+}
+
+/* Floating post cards: no hard strokes, wide ambient shadow instead. */
+.post-card-float {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+}
+.dark .post-card-float {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+}
+
+/* Elastic press: spring-like compression under the thumb. */
+.press-elastic {
+  transition: transform 180ms cubic-bezier(0.16, 1.2, 0.3, 1);
+  will-change: transform;
+}
+.press-elastic:active {
+  transform: scale(0.97);
+}
+
+/* Typing bubble dots */
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.typing-dot {
+  animation: typing-dot 1.2s infinite ease-in-out;
+}
+
 /* Verified Badge System - Animated Pulse Design */
 :root {
   --verify-color: 206 81% 52%;
