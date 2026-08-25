@@ -26,8 +26,7 @@ CREATE POLICY "users_can_view_their_chats"
 CREATE POLICY "users_can_create_chats"
   ON public.chats
   FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
-
+  WITH CHECK (created_by = auth.uid());
 CREATE POLICY "users_can_update_their_chats"
   ON public.chats
   FOR UPDATE
