@@ -1,4 +1,3 @@
--- Fix RLS policies for profiles table
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile"
 ON profiles
@@ -57,25 +56,30 @@ AS $$
 DECLARE
   new_chat_id uuid;
   participant_id uuid;
+  current_user_id uuid := auth.uid();
 BEGIN
+  IF current_user_id IS NULL THEN
+    RAISE EXCEPTION 'Authenticated user ID is NULL. Cannot create chat without a valid creator.';
+  END IF;
+
   -- Create the group chat
   INSERT INTO chats (name, type, created_by, creator_id)
-  VALUES (chat_name, 'group', auth.uid(), auth.uid())
+  VALUES (chat_name, 'group', current_user_id, current_user_id)
   RETURNING id INTO new_chat_id;
-  
+
   -- Add creator as admin first
   INSERT INTO chat_participants (chat_id, user_id, role)
-  VALUES (new_chat_id, auth.uid(), 'admin');
-  
+  VALUES (new_chat_id, current_user_id, 'admin');
+
   -- Add other participants
   FOREACH participant_id IN ARRAY participant_ids
   LOOP
-    IF participant_id != auth.uid() THEN
+    IF participant_id != current_user_id THEN
       INSERT INTO chat_participants (chat_id, user_id, role)
       VALUES (new_chat_id, participant_id, 'member');
     END IF;
   END LOOP;
-  
+
   RETURN new_chat_id;
 END;
-$$;
+$$;```
