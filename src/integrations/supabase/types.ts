@@ -5001,6 +5001,7 @@ export type Database = {
           target_user: string
         }[]
       }
+      ensure_private_chat: { Args: { p_other_user: string }; Returns: string }
       extract_hashtags: { Args: { post_content: string }; Returns: string[] }
       find_private_chat: {
         Args: { p_user_a: string; p_user_b: string }
