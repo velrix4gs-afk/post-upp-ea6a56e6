@@ -21,48 +21,20 @@ export const ensurePrivateChat = async (
     throw new Error('Cannot start a chat with yourself');
   }
 
-  // 1) Reuse an existing DM when there is one.
-  const { data: existingId } = await supabase.rpc('find_private_chat', {
-    p_user_a: userId,
-    p_user_b: otherUserId,
+  // Find-or-create happens server side in one transaction (SECURITY DEFINER),
+  // so a failure can never leave a half-created chat behind.
+  const { data, error } = await supabase.rpc('ensure_private_chat', {
+    p_other_user: otherUserId,
   });
-  if (existingId) return existingId as unknown as string;
 
-  // 2) Create the chat with explicit ownership so RLS SELECT succeeds.
-  const now = new Date().toISOString();
-  const { data: newChat, error: chatError } = await supabase
-    .from('chats')
-    .insert({
-      type: 'private',
-      created_by: userId,
-      creator_id: userId,
-      created_at: now,
-      updated_at: now,
-    })
-    .select('id')
-    .single();
-
-  if (chatError || !newChat) {
-    throw new Error(chatError?.message || 'Could not create conversation');
+  if (error) {
+    throw new Error(error.message || 'Could not create conversation');
   }
 
-  // 3) Add both participants. Insert self first so participant-scoped
-  //    policies see us as a member for the second row.
-  const { error: selfError } = await supabase
-    .from('chat_participants')
-    .insert({ chat_id: newChat.id, user_id: userId, role: 'admin' });
-  if (selfError) {
-    await supabase.from('chats').delete().eq('id', newChat.id);
-    throw new Error(selfError.message);
+  const chatId = (Array.isArray(data) ? data[0] : data) as string | null;
+  if (!chatId) {
+    throw new Error('Could not create conversation');
   }
 
-  const { error: otherError } = await supabase
-    .from('chat_participants')
-    .insert({ chat_id: newChat.id, user_id: otherUserId, role: 'member' });
-  if (otherError) {
-    await supabase.from('chats').delete().eq('id', newChat.id);
-    throw new Error(otherError.message);
-  }
-
-  return newChat.id as string;
+  return chatId;
 };

@@ -166,7 +166,9 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
       console.error('[GroupChatDialog] Error creating group:', error);
       toast({
         title: 'Failed to create group',
-        description: error.message || 'Please check console for details and try again',
+        description:
+          [error?.message, error?.details, error?.hint].filter(Boolean).join(' — ') ||
+          'Please try again',
         variant: 'destructive',
       });
     } finally {
