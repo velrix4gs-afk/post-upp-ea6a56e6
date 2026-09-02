@@ -51,7 +51,7 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
   const [editedContent, setEditedContent] = useState(post.content || '');
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState('');
-  
+
   const hasLiked = post.reactions?.some(r => r.reaction_type === 'like') || false;
   const bookmarked = isBookmarked(post.id);
   const isOwnPost = user?.id === post.user_id;
@@ -76,7 +76,7 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
 
   const handleShare = async () => {
     const shareUrl = `${window.location.origin}/post/${post.id}`;
-    
+
     if (navigator.share) {
       try {
         await navigator.share({
@@ -99,7 +99,7 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
 
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
-    
+
     try {
       const { error } = await supabase
         .from('post_comments')
@@ -132,7 +132,7 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
     <>
       <Card className="p-4">
         <div className="flex items-start gap-3 mb-3">
-          <Avatar 
+          <Avatar
             className="cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => navigate(`/profile/${post.user_id}`)}
           >
@@ -145,10 +145,10 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
                 onClick={() => navigate(`/profile/${post.user_id}`)}
                 className="font-semibold hover:underline text-left"
               >
-              {post.profiles.display_name}
-            </button>
-            {post.profiles.is_verified && <VerificationBadge />}
-            <span className="text-muted-foreground text-sm">
+                {post.profiles.display_name}
+              </button>
+              {post.profiles.is_verified && <VerificationBadge />}
+              <span className="text-muted-foreground text-sm">
                 @{post.profiles.username}
               </span>
               <span className="text-muted-foreground text-sm">
@@ -171,7 +171,7 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
                   <Edit className="h-4 w-4 mr-2" />
                   Edit post
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => setShowDeleteDialog(true)}
                   className="text-destructive"
                 >
@@ -189,47 +189,47 @@ const PostCardModern = ({ post }: PostCardModernProps) => {
 
         {post.media_url && (
           <div className="mb-3 rounded-lg overflow-hidden">
-            <img 
-              src={post.media_url} 
-              alt="Post media" 
+            <img
+              src={post.media_url}
+              alt="Post media"
               className="w-full max-h-96 object-cover"
             />
           </div>
         )}
 
         <div className="flex items-center gap-1 border-t pt-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
+          <Button
+            variant="ghost"
+            size="sm"
             className={`gap-2 ${hasLiked ? 'text-red-500' : ''}`}
             onClick={() => toggleReaction(post.id, 'like')}
           >
             <Heart className={`h-4 w-4 ${hasLiked ? 'fill-current' : ''}`} />
             {post.reactions_count}
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
+
+          <Button
+            variant="ghost"
+            size="sm"
             className="gap-2"
             onClick={() => setShowComments(!showComments)}
           >
             <MessageCircle className="h-4 w-4" />
             {post.comments_count}
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
+
+          <Button
+            variant="ghost"
+            size="sm"
             className="gap-2"
             onClick={handleShare}
           >
             <Share2 className="h-4 w-4" />
           </Button>
-          
-          <Button 
-            variant="ghost" 
-            size="sm" 
+
+          <Button
+            variant="ghost"
+            size="sm"
             className="gap-2 ml-auto"
             onClick={() => toggleBookmark(post.id)}
           >
