@@ -179,8 +179,11 @@ const ProfilePage = () => {
         </div>
       </div>;
   }
-  const formatJoinDate = (dateString: string) => {
-    return format(new Date(dateString), 'MMMM yyyy');
+  const formatJoinDate = (dateString?: string | null) => {
+    if (!dateString) return '';
+    const parsed = new Date(dateString);
+    if (isNaN(parsed.getTime())) return '';
+    return format(parsed, 'MMMM yyyy');
   };
   return <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navigation />
