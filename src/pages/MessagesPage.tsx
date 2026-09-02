@@ -96,6 +96,8 @@ const MessagesPage = () => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isSendingVoice, setIsSendingVoice] = useState(false);
+  // Shows a delivery-progress bubble while large media / voice / video uploads.
+  const [pendingUpload, setPendingUpload] = useState<{ mediaType: string; progress: number } | null>(null);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [queuedMedia, setQueuedMedia] = useState<File[]>([]);
