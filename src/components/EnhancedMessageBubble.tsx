@@ -98,6 +98,8 @@ interface EnhancedMessageBubbleProps {
   isForwarded?: boolean;
   isStarred?: boolean;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+  /** 0-100 while a large media/voice/video upload is still in flight. */
+  uploadProgress?: number;
   reactions?: MessageReaction[];
   bubbleColor?: string;
   replyTo?: ReplyToMessage;
