@@ -12,6 +12,7 @@ import { VoiceCall } from '@/components/VoiceCall';
 import { ChatSettingsDialog } from '@/components/messaging/ChatSettingsDialog';
 import { EnhancedMessageBubble } from '@/components/EnhancedMessageBubble';
 import VoiceRecorder from '@/components/VoiceRecorder';
+import { uploadWithProgress } from '@/lib/uploadWithProgress';
 import { NewChatDialog } from '@/components/NewChatDialog';
 import { GroupChatDialog } from '@/components/messaging/GroupChatDialog';
 import { StarredMessagesDialog } from '@/components/messaging/StarredMessagesDialog';
