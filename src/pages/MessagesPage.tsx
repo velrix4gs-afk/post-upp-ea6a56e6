@@ -856,6 +856,26 @@ const MessagesPage = () => {
                 );
               })
             )}
+            {pendingUpload && (
+              <div className="mb-2 flex justify-end px-2">
+                <div className="relative overflow-hidden rounded-2xl rounded-br-[8px] bg-[#0a2cf1f0] dark:bg-[#005c4b] text-white px-3.5 py-2 shadow-sm min-w-[160px]">
+                  <p className="text-[13px] opacity-90">
+                    {pendingUpload.mediaType.startsWith('audio')
+                      ? 'Sending voice note…'
+                      : pendingUpload.mediaType.startsWith('video')
+                      ? 'Sending video…'
+                      : 'Sending photo…'}
+                  </p>
+                  <span className="text-[11px] opacity-80">{Math.round(pendingUpload.progress)}%</span>
+                  <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">
+                    <div
+                      className="h-full bg-white/90 transition-[width] duration-200 ease-out"
+                      style={{ width: `${Math.max(4, pendingUpload.progress)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
