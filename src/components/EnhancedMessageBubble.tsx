@@ -128,6 +128,7 @@ export const EnhancedMessageBubble = ({
   isForwarded = false,
   isStarred = false,
   status = 'sent',
+  uploadProgress,
   reactions: _reactions = [],
   bubbleColor,
   replyTo,
