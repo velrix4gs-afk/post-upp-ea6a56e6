@@ -12,6 +12,7 @@ import { VoiceCall } from '@/components/VoiceCall';
 import { ChatSettingsDialog } from '@/components/messaging/ChatSettingsDialog';
 import { EnhancedMessageBubble } from '@/components/EnhancedMessageBubble';
 import VoiceRecorder from '@/components/VoiceRecorder';
+import { uploadWithProgress } from '@/lib/uploadWithProgress';
 import { NewChatDialog } from '@/components/NewChatDialog';
 import { GroupChatDialog } from '@/components/messaging/GroupChatDialog';
 import { StarredMessagesDialog } from '@/components/messaging/StarredMessagesDialog';
@@ -96,6 +97,8 @@ const MessagesPage = () => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isSendingVoice, setIsSendingVoice] = useState(false);
+  // Shows a delivery-progress bubble while large media / voice / video uploads.
+  const [pendingUpload, setPendingUpload] = useState<{ mediaType: string; progress: number } | null>(null);
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [queuedMedia, setQueuedMedia] = useState<File[]>([]);
@@ -325,11 +328,16 @@ const MessagesPage = () => {
       if (currentImage) {
         const fileExt = currentImage.name.split('.').pop();
         const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, currentImage);
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('messages').getPublicUrl(fileName);
-        mediaUrl = publicUrl;
         mediaType = currentIsVideo ? `video/${fileExt}` : `image/${fileExt}`;
+        setPendingUpload({ mediaType, progress: 0 });
+        mediaUrl = await uploadWithProgress({
+          bucket: 'messages',
+          path: fileName,
+          file: currentImage,
+          contentType: currentImage.type || undefined,
+          onProgress: (progress) => setPendingUpload({ mediaType: mediaType!, progress }),
+        });
+        setPendingUpload(null);
       }
       await sendMessage(
         currentText.trim(),
@@ -342,19 +350,23 @@ const MessagesPage = () => {
       for (const extra of currentQueued) {
         const extraExt = extra.name.split('.').pop();
         const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
-        const { error: extraError } = await supabase.storage.from('messages').upload(extraName, extra, {
-          contentType: extra.type,
-        });
-        if (extraError) continue;
-        const { data: { publicUrl: extraUrl } } = supabase.storage.from('messages').getPublicUrl(extraName);
-        const extraIsVideo = extra.type.startsWith('video/');
-        await sendMessage(
-          '',
-          undefined,
-          extraUrl,
-          extra.type
-        );
+        try {
+          setPendingUpload({ mediaType: extra.type, progress: 0 });
+          const extraUrl = await uploadWithProgress({
+            bucket: 'messages',
+            path: extraName,
+            file: extra,
+            contentType: extra.type,
+            onProgress: (progress) => setPendingUpload({ mediaType: extra.type, progress }),
+          });
+          await sendMessage('', undefined, extraUrl, extra.type);
+        } catch {
+          continue;
+        } finally {
+          setPendingUpload(null);
+        }
       }
+
     } catch {
       setMessageText(currentText);
       if (currentImage) {
@@ -363,6 +375,7 @@ const MessagesPage = () => {
         setQueuedMedia(currentQueued);
       }
       if (currentReplyingTo) setReplyingTo(currentReplyingTo);
+      setPendingUpload(null);
       toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
     }
   };
@@ -390,12 +403,14 @@ const MessagesPage = () => {
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       // The `messages` bucket rejects audio mime types, so voice notes live in the
       // dedicated `voice-notes` bucket which accepts the real audio mime.
-      const { error: uploadError } = await supabase.storage.from('voice-notes').upload(fileName, audioBlob, {
+      setPendingUpload({ mediaType: audioMime, progress: 0 });
+      const publicUrl = await uploadWithProgress({
+        bucket: 'voice-notes',
+        path: fileName,
+        file: audioBlob,
         contentType: audioMime,
-        upsert: false,
+        onProgress: (progress) => setPendingUpload({ mediaType: audioMime, progress }),
       });
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('voice-notes').getPublicUrl(fileName);
       const sent = await sendMessage('', undefined, publicUrl, audioMime);
       if (!sent) throw new Error('Voice message insert failed');
       setIsRecordingVoice(false);
@@ -406,6 +421,7 @@ const MessagesPage = () => {
     } finally {
       voiceSendInFlightRef.current = false;
       setIsSendingVoice(false);
+      setPendingUpload(null);
     }
   };
 
@@ -841,6 +857,26 @@ const MessagesPage = () => {
                   </div>
                 );
               })
+            )}
+            {pendingUpload && (
+              <div className="mb-2 flex justify-end px-2">
+                <div className="relative overflow-hidden rounded-2xl rounded-br-[8px] bg-[#0a2cf1f0] dark:bg-[#005c4b] text-white px-3.5 py-2 shadow-sm min-w-[160px]">
+                  <p className="text-[13px] opacity-90">
+                    {pendingUpload.mediaType.startsWith('audio')
+                      ? 'Sending voice note…'
+                      : pendingUpload.mediaType.startsWith('video')
+                      ? 'Sending video…'
+                      : 'Sending photo…'}
+                  </p>
+                  <span className="text-[11px] opacity-80">{Math.round(pendingUpload.progress)}%</span>
+                  <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">
+                    <div
+                      className="h-full bg-white/90 transition-[width] duration-200 ease-out"
+                      style={{ width: `${Math.max(4, pendingUpload.progress)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
             )}
             <div ref={messagesEndRef} />
           </div>
