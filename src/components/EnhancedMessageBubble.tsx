@@ -211,8 +211,23 @@ export const EnhancedMessageBubble = ({
                       !isImageOnly && (isOwn
                         ? "bg-[#0a2cf1f0] dark:bg-[#005c4b] text-black dark:text-white rounded-br-[8px]"
                         : "bg-[#ffffff] dark:bg-[#202c33] text-black dark:text-white border border-border/50 rounded-bl-[8px]")
+                      typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}
                   >
+                    {/* Delivery progress for large media / voice / video */}
+                    {typeof uploadProgress === 'number' && uploadProgress < 100 && (
+                      <>
+                        <div className="absolute inset-x-0 bottom-0 h-[3px] bg-black/10 dark:bg-white/10">
+                          <div
+                            className="h-full bg-primary transition-[width] duration-200 ease-out"
+                            style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                          />
+                        </div>
+                        <div className="absolute top-1 right-1.5 text-[10px] font-medium px-1.5 py-[1px] rounded-full bg-black/35 text-white">
+                          {Math.round(uploadProgress)}%
+                        </div>
+                      </>
+                    )}
                     {isForwarded && (
                       <div className="text-xs opacity-70 mb-1 flex items-center gap-1">
                         <Forward className="h-3 w-3" />
