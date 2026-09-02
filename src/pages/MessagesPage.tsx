@@ -402,12 +402,14 @@ const MessagesPage = () => {
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       // The `messages` bucket rejects audio mime types, so voice notes live in the
       // dedicated `voice-notes` bucket which accepts the real audio mime.
-      const { error: uploadError } = await supabase.storage.from('voice-notes').upload(fileName, audioBlob, {
+      setPendingUpload({ mediaType: audioMime, progress: 0 });
+      const publicUrl = await uploadWithProgress({
+        bucket: 'voice-notes',
+        path: fileName,
+        file: audioBlob,
         contentType: audioMime,
-        upsert: false,
+        onProgress: (progress) => setPendingUpload({ mediaType: audioMime, progress }),
       });
-      if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from('voice-notes').getPublicUrl(fileName);
       const sent = await sendMessage('', undefined, publicUrl, audioMime);
       if (!sent) throw new Error('Voice message insert failed');
       setIsRecordingVoice(false);
