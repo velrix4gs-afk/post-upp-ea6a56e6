@@ -29,7 +29,7 @@ export const useSearch = () => {
       // Search users - only show discoverable profiles
       const { data: users, error: usersError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, username, display_name, bio, avatar_url, cover_url, is_verified, verification_type, is_private, is_profile_complete, created_at')
         .or(`display_name.ilike.${searchTerm},username.ilike.${searchTerm},bio.ilike.${searchTerm}`)
         .eq('is_profile_complete', true)
         .limit(10);
