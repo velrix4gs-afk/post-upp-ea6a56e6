@@ -325,11 +325,16 @@ const MessagesPage = () => {
       if (currentImage) {
         const fileExt = currentImage.name.split('.').pop();
         const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('messages').upload(fileName, currentImage);
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('messages').getPublicUrl(fileName);
-        mediaUrl = publicUrl;
         mediaType = currentIsVideo ? `video/${fileExt}` : `image/${fileExt}`;
+        setPendingUpload({ mediaType, progress: 0 });
+        mediaUrl = await uploadWithProgress({
+          bucket: 'messages',
+          path: fileName,
+          file: currentImage,
+          contentType: currentImage.type || undefined,
+          onProgress: (progress) => setPendingUpload({ mediaType: mediaType!, progress }),
+        });
+        setPendingUpload(null);
       }
       await sendMessage(
         currentText.trim(),
@@ -342,19 +347,23 @@ const MessagesPage = () => {
       for (const extra of currentQueued) {
         const extraExt = extra.name.split('.').pop();
         const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
-        const { error: extraError } = await supabase.storage.from('messages').upload(extraName, extra, {
-          contentType: extra.type,
-        });
-        if (extraError) continue;
-        const { data: { publicUrl: extraUrl } } = supabase.storage.from('messages').getPublicUrl(extraName);
-        const extraIsVideo = extra.type.startsWith('video/');
-        await sendMessage(
-          '',
-          undefined,
-          extraUrl,
-          extra.type
-        );
+        try {
+          setPendingUpload({ mediaType: extra.type, progress: 0 });
+          const extraUrl = await uploadWithProgress({
+            bucket: 'messages',
+            path: extraName,
+            file: extra,
+            contentType: extra.type,
+            onProgress: (progress) => setPendingUpload({ mediaType: extra.type, progress }),
+          });
+          await sendMessage('', undefined, extraUrl, extra.type);
+        } catch {
+          continue;
+        } finally {
+          setPendingUpload(null);
+        }
       }
+
     } catch {
       setMessageText(currentText);
       if (currentImage) {
