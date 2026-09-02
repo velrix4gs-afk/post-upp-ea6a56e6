@@ -375,6 +375,7 @@ const MessagesPage = () => {
         setQueuedMedia(currentQueued);
       }
       if (currentReplyingTo) setReplyingTo(currentReplyingTo);
+      setPendingUpload(null);
       toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
     }
   };
@@ -420,6 +421,7 @@ const MessagesPage = () => {
     } finally {
       voiceSendInFlightRef.current = false;
       setIsSendingVoice(false);
+      setPendingUpload(null);
     }
   };
 
