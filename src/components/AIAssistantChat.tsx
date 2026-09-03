@@ -9,15 +9,31 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 
+/** Routes the assistant is allowed to link to (must exist in App.tsx). */
+const STATIC_ROUTES = [
+  '/feed', '/explore', '/search', '/reels', '/messages', '/friends', '/bookmarks',
+  '/pages', '/premium', '/coins', '/purchases', '/settings', '/onboarding',
+  '/create/story', '/create/reel', '/create/page', '/verification', '/analytics',
+  '/starred-messages', '/chat-media', '/chat-settings', '/instructions', '/dashboard',
+];
+const DYNAMIC_ROUTES = [/^\/profile\/[^/]+$/, /^\/post\/[^/]+$/, /^\/hashtag\/[^/]+$/, /^\/page\/[^/]+$/, /^\/creator\/[^/]+$/];
+
+const isRealRoute = (path: string) => {
+  const clean = path.split('?')[0].replace(/\/+$/, '') || '/';
+  return STATIC_ROUTES.includes(clean) || DYNAMIC_ROUTES.some((r) => r.test(clean));
+};
+
 /** Parses `[[go:/route|Label]]` action links out of an assistant reply. */
 const parseNavActions = (content: string) => {
   const actions: { path: string; label: string }[] = [];
   const text = content.replace(/\[\[go:([^|\]]+)\|([^\]]+)\]\]/g, (_m, path, label) => {
-    actions.push({ path: String(path).trim(), label: String(label).trim() });
+    const p = String(path).trim();
+    if (isRealRoute(p)) actions.push({ path: p, label: String(label).trim() });
     return '';
   });
   return { text: text.replace(/\n{3,}/g, '\n\n').trim(), actions };
 };
+
 
 interface AIAssistantChatProps {
   isAdmin?: boolean;
