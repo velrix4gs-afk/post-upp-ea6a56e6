@@ -320,16 +320,33 @@ serve(async (req) => {
       const body = await req.json();
       const { friend_id } = body;
 
-      if (!friend_id) {
-        throw new Error('friend_id is required');
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (typeof friend_id !== 'string' || !uuidPattern.test(friend_id)) {
+        return new Response(JSON.stringify({
+          error: 'Invalid friend_id',
+          code: 'VALIDATION_ERROR',
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
 
-      const { error } = await supabaseClient
+      // Parameterized deletes only — never interpolate user input into filter strings.
+      const { error: errorA } = await supabaseClient
         .from('friendships')
         .delete()
-        .or(`and(requester_id.eq.${user.id},addressee_id.eq.${friend_id}),and(requester_id.eq.${friend_id},addressee_id.eq.${user.id})`);
+        .eq('requester_id', user.id)
+        .eq('addressee_id', friend_id);
 
-      if (error) throw error;
+      if (errorA) throw errorA;
+
+      const { error: errorB } = await supabaseClient
+        .from('friendships')
+        .delete()
+        .eq('requester_id', friend_id)
+        .eq('addressee_id', user.id);
+
+      if (errorB) throw errorB;
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

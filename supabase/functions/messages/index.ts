@@ -548,6 +548,32 @@ serve(async (req) => {
         });
       }
 
+      // Verify the caller is a participant of the message's chat
+      const { data: targetMessage } = await supabaseClient
+        .from('messages')
+        .select('id, chat_id')
+        .eq('id', parsed.data.messageId)
+        .maybeSingle();
+
+      if (!targetMessage) {
+        return new Response(JSON.stringify({ error: 'Message not found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: readParticipant } = await supabaseClient
+        .from('chat_participants')
+        .select('user_id')
+        .eq('chat_id', targetMessage.chat_id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!readParticipant) {
+        return new Response(JSON.stringify({ error: 'Not a participant of this chat' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const { error } = await supabaseClient
         .from('message_reads')
         .insert({ message_id: parsed.data.messageId, user_id: user.id });
