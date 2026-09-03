@@ -4067,7 +4067,7 @@ export type Database = {
           is_online?: boolean | null
           is_verified?: boolean | null
           last_seen?: string | null
-          password_hash: string
+          password_hash?: string
           phone?: string | null
           updated_at?: string | null
           username?: string | null
