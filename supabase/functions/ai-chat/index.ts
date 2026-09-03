@@ -38,15 +38,16 @@ POST UP is a mobile-first social app (web + Android/iOS via Capacitor).
 - /reels — vertical short videos. /create/reel to make one.
 - /create/story — story editor: gallery picker, filters, crop, adjustments, text, stickers, drawing, audience selector. (Camera capture is intentionally not available.)
 - /messages — chats: text, photos, videos, voice notes, reactions, replies, wallpapers, pinning, muting. Voice and video calls start from the chat header.
-- /notifications is inside the bell panel — follows, likes, comments, mentions, friend and follow requests (requests can be accepted right in the panel).
+- Notifications live inside the bell panel (no standalone route) — follows, likes, comments, mentions, friend and follow requests (requests can be accepted right in the panel).
 - /profile/:userId — a user profile: posts, replies, likes, media tabs, follow / message buttons.
 - /bookmarks — saved posts.
 - /friends — friends and requests.
-- /pages — creator/brand pages, /pages/create to make one.
-- /premium, /coins, /purchase-history — premium verification, coins and tipping.
+- /pages — creator/brand pages, /create/page to make one.
+- /premium, /coins, /purchases — premium verification, coins and tipping.
 - /settings — appearance/theme, notifications, chat settings, AI settings, verification, account.
 - /post/:postId — full post detail with the comment thread.
 - /onboarding — username, display name, avatar and interests for new users.
+- /hashtag/:tag — posts for a hashtag. /starred-messages, /chat-media, /chat-settings — chat extras. /verification — get verified. /analytics — your stats. /instructions — send feedback/issues.
 
 ### Key behaviours to explain when asked
 - Long-press any name or avatar for a quick profile peek.
