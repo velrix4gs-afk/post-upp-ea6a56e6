@@ -542,7 +542,7 @@ export const PostCardModern = ({
 
             {/* Media */}
             {mediaItems.length === 1 && <>
-                {isVideoUrl(mediaItems[0]) ? <div className="rounded-xl overflow-hidden mb-3">
+                {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3">
                     <VideoViewer videoUrl={mediaItems[0]} />
                   </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();

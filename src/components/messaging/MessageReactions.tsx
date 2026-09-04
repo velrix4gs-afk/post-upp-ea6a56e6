@@ -25,7 +25,7 @@ export const MessageReactions = ({ reactions, onReact, onUnreact }: MessageReact
           variant="ghost"
           size="sm"
           className={cn(
-            "h-6 px-2 text-xs rounded-full transition-all hover:scale-105",
+            "h-6 px-2 text-xs rounded-full transition-all hover:scale-105 reaction-float",
             reaction.hasReacted 
               ? "bg-primary/10 border border-primary/20" 
               : "bg-muted border border-transparent"
