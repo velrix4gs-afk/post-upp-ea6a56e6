@@ -122,7 +122,6 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
   };
 
   const progress = duration > 0 ? currentTime / duration : 0;
-  const playedBars = Math.round(progress * peaks.length);
 
   return (
     <div className={cn("flex items-center gap-2 p-1.5 rounded-lg min-w-[210px]", className)}>
@@ -151,17 +150,24 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
           onClick={(e) => seekFromEvent(e.clientX)}
           className="flex items-center gap-[2px] h-8 cursor-pointer touch-manipulation"
         >
-          {peaks.map((peak, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex-1 min-w-[2px] rounded-full transition-opacity",
-                i < playedBars ? "opacity-100" : "opacity-40",
-                isOwn ? "bg-current" : "bg-primary"
-              )}
-              style={{ height: `${Math.max(12, peak * 100)}%` }}
-            />
-          ))}
+          {peaks.map((peak, i) => {
+            // Continuous (pixel-by-pixel) fill instead of crude per-bar stepping
+            const fill = Math.max(0, Math.min(1, progress * peaks.length - i));
+            return (
+              <div
+                key={i}
+                className={cn(
+                  "flex-1 min-w-[2px] rounded-full",
+                  isOwn ? "bg-current" : "bg-primary"
+                )}
+                style={{
+                  height: `${Math.max(12, peak * 100)}%`,
+                  opacity: 0.4 + fill * 0.6,
+                  transition: 'opacity 90ms linear',
+                }}
+              />
+            );
+          })}
         </div>
         <div className="text-[11px] opacity-70 mt-0.5">
           {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}

@@ -14,7 +14,7 @@ export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
   ];
 
   return (
-    <div className="sticky top-0 bg-background/95 backdrop-blur-md supports-[backdrop-filter]:bg-background/80 z-30 border-b border-border">
+    <div className="sticky top-0 progressive-blur bg-background/95 supports-[backdrop-filter]:bg-background/70 z-30 border-b border-border/40">
       <div className="flex">
         {tabs.map((tab) => {
           const Icon = tab.icon;

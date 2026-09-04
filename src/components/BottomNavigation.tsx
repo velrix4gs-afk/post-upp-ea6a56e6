@@ -113,7 +113,7 @@ export const BottomNavigation = () => {
     <>
       <nav
         className={cn(
-          "md:hidden fixed left-0 right-0 mx-3 z-50 transition-all duration-300 ease-in-out rounded-2xl bg-background/80 backdrop-blur-lg border border-border/30",
+          "md:hidden fixed left-0 right-0 mx-3 z-50 transition-all duration-300 ease-in-out rounded-2xl overlay-glass surface-rim border border-border/30",
           isVisible 
             ? "opacity-100 translate-y-0" 
             : "opacity-0 translate-y-4 pointer-events-none"

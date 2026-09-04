@@ -3295,3 +3295,106 @@ html[data-skin="fb26"] .animate-message-send,
 html[data-skin="fb26"] .animate-message-receive {
   animation-timing-function: var(--fb-spring) !important;
 }
+/* ============================================================
+   POST-UPP UI/UX polish layer (theme fixes)
+   Purely presentational: tokens, radii, depth, motion.
+   ============================================================ */
+
+:root {
+  --radius-card: 24px;
+  --radius-nested: 16px;
+  --rim-light: rgba(255, 255, 255, 0.05);
+}
+
+/* 1. Nested continuous curve — media inherits a proportional radius */
+.post-card {
+  border-radius: var(--radius-card);
+}
+.post-card .post-media {
+  border-radius: var(--radius-nested);
+  overflow: hidden;
+}
+
+/* Continuous (squircle) corner smoothing where the engine supports it */
+@supports (corner-shape: squircle) {
+  .post-card,
+  .post-card .post-media {
+    corner-shape: squircle;
+  }
+}
+
+/* 2. Asymmetrical breathing room — edge-to-edge media on small screens */
+@media (max-width: 640px) {
+  .feed-stack {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .feed-stack > * {
+    margin-bottom: 20px;
+  }
+}
+
+/* 3. Subtle inner rim light instead of hard strokes */
+.surface-rim {
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 0 var(--rim-light);
+}
+.dark .surface-rim {
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+}
+
+/* 4. Overlay plane — heavy smoked glass for floating UI */
+.overlay-glass {
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  background: hsl(var(--popover) / 0.62);
+}
+
+/* 5. Progressive backdrop blur — 0px at the bottom edge, 24px at the top */
+.progressive-blur {
+  position: relative;
+  isolation: isolate;
+}
+.progressive-blur::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 55%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.6) 55%, rgba(0, 0, 0, 0) 100%);
+}
+
+/* 6. Squishy scroll boundary — elastic, momentum-based overscroll */
+.elastic-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+/* 7. Seamless skeleton → content settle */
+@keyframes content-settle {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.settle-in {
+  animation: content-settle 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* 8. Inline reactions float upward with a light spin */
+@keyframes reaction-float-up {
+  0% { opacity: 0; transform: translateY(10px) scale(0.6) rotate(-12deg); }
+  60% { opacity: 1; transform: translateY(-3px) scale(1.08) rotate(4deg); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+.reaction-float {
+  animation: reaction-float-up 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* 9. Soft, continuous voice waveform scrubbing gradient */
+.waveform-progress {
+  background-image: linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
+  transition: width 90ms linear;
+}
