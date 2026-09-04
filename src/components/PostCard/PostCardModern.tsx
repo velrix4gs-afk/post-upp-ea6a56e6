@@ -387,7 +387,7 @@ export const PostCardModern = ({
           </DialogContent>
         </Dialog>
 
-        <Card data-feed-card className={cn("post-card fb-feed-card post-card-float press-elastic bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
+        <Card data-feed-card className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
           {/* Pinned indicator */}
           {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
               <Pin className="h-3 w-3" />
@@ -544,7 +544,7 @@ export const PostCardModern = ({
             {mediaItems.length === 1 && <>
                 {isVideoUrl(mediaItems[0]) ? <div className="rounded-xl overflow-hidden mb-3">
                     <VideoViewer videoUrl={mediaItems[0]} />
-                  </div> : <div className="rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
+                  </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();
               setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
@@ -554,7 +554,7 @@ export const PostCardModern = ({
                   </div>}
               </>}
 
-            {mediaItems.length > 1 && <div className="rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
+            {mediaItems.length > 1 && <div className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
                 <Carousel className="w-full">
                   <CarouselContent>
                     {mediaItems.map((url, i) => <CarouselItem key={url + i}>

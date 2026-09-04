@@ -90,7 +90,7 @@ const Feed = () => {
               <Sparkles className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
               <p className="text-muted-foreground">Be the first to share something!</p>
-            </div> : <div className="space-y-4 p-4">
+            </div> : <div className="feed-stack elastic-scroll space-y-4 p-4">
               {posts.map(post => <PostCardModern key={post.id} post={{
             id: post.id,
             content: post.content || '',
