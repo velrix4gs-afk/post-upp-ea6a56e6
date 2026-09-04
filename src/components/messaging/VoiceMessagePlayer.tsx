@@ -122,7 +122,6 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
   };
 
   const progress = duration > 0 ? currentTime / duration : 0;
-  const playedBars = Math.round(progress * peaks.length);
 
   return (
     <div className={cn("flex items-center gap-2 p-1.5 rounded-lg min-w-[210px]", className)}>
