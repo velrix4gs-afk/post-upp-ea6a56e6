@@ -819,9 +819,11 @@ const MessagesPage = () => {
                   : undefined;
 
                 return (
-                  <div key={item.key} className={cn(item.isLastOfGroup ? 'mb-2' : 'mb-0.5')}>
+                  <div key={item.key}>
                     <EnhancedMessageBubble
                       isNew={newMessageIdsRef.current.has(message.id)}
+                      isFirstOfGroup={item.isFirstOfGroup}
+                      isLastOfGroup={item.isLastOfGroup}
                       id={message.id}
                       content={message.content || ''}
                       sender={{
