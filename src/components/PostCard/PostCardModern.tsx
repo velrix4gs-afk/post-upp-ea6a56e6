@@ -156,6 +156,14 @@ export const PostCardModern = ({
   const [showImageGallery, setShowImageGallery] = useState(false);
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
+  const [galleryOriginRect, setGalleryOriginRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+  const captureOriginRect = (target: HTMLElement | null) => {
+    const img = target?.querySelector('img') || target;
+    if (!img) return setGalleryOriginRect(null);
+    const r = img.getBoundingClientRect();
+    setGalleryOriginRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+  };
   const [showComments, setShowComments] = useState(false);
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
   const isOwner = user?.id === post.author_id;
@@ -546,6 +554,7 @@ export const PostCardModern = ({
                     <VideoViewer videoUrl={mediaItems[0]} />
                   </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();
+              captureOriginRect(e.currentTarget as HTMLElement);
               setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
@@ -558,7 +567,8 @@ export const PostCardModern = ({
                 <Carousel className="w-full">
                   <CarouselContent>
                     {mediaItems.map((url, i) => <CarouselItem key={url + i}>
-                        {isVideoUrl(url) ? <VideoViewer videoUrl={url} /> : <div className="bg-black cursor-pointer" onClick={() => {
+                        {isVideoUrl(url) ? <VideoViewer videoUrl={url} /> : <div className="bg-black cursor-pointer" onClick={e => {
+                    captureOriginRect(e.currentTarget as HTMLElement);
                     setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
                     setGalleryStartIndex(i);
                     setShowImageGallery(true);
@@ -706,7 +716,7 @@ export const PostCardModern = ({
 
         <SharePostDialog postId={post.id} open={showShareDialog} onOpenChange={setShowShareDialog} />
 
-        <ImageGalleryViewer images={galleryImages} initialIndex={galleryStartIndex} open={showImageGallery} onOpenChange={setShowImageGallery} />
+        <ImageGalleryViewer images={galleryImages} initialIndex={galleryStartIndex} open={showImageGallery} onOpenChange={setShowImageGallery} originRect={galleryOriginRect} />
 
         <ReportDialog open={showReportDialog} onOpenChange={setShowReportDialog} contentId={post.id} contentType="post" />
 
