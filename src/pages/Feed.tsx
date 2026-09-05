@@ -44,6 +44,7 @@ const Feed = () => {
       await refreshSilently();
     }
   });
+  useElasticOverscroll(containerRef);
   const handleNewPost = () => {};
   useEffect(() => {
     if (inView && !loading && !loadingMore && hasMore) {

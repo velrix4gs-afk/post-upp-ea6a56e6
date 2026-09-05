@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 import { Sparkles, Users, TrendingUp } from "lucide-react";
 
 interface FeedTabsProps {
@@ -7,6 +8,15 @@ interface FeedTabsProps {
 }
 
 export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
+  const [condensed, setCondensed] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setCondensed(window.scrollY > 90);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
   const tabs = [
     { id: 'for-you' as const, label: 'For You', icon: Sparkles },
     { id: 'following' as const, label: 'Following', icon: Users },
@@ -14,7 +24,13 @@ export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
   ];
 
   return (
-    <div className="sticky top-0 progressive-blur bg-background/95 supports-[backdrop-filter]:bg-background/70 z-30 border-b border-border/40">
+    <div
+      data-condensed={condensed}
+      className={cn(
+        "sticky top-0 header-morph progressive-blur bg-background/95 supports-[backdrop-filter]:bg-background/70 z-30 border-b border-border/40",
+        condensed && "border-b-0 w-fit"
+      )}
+    >
       <div className="flex">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -25,14 +41,15 @@ export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "flex-1 relative py-4 text-sm font-semibold transition-all duration-200",
+                "flex-1 relative text-sm font-semibold transition-all duration-200",
+                condensed ? "py-2 px-4" : "py-4",
                 "hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                 isActive ? "text-foreground" : "text-muted-foreground"
               )}
             >
               <div className="flex items-center justify-center gap-2">
                 <Icon className={cn("h-4 w-4", isActive && "text-primary")} />
-                <span>{tab.label}</span>
+                <span className={cn(condensed && !isActive && "hidden")}>{tab.label}</span>
               </div>
               
               {/* Active indicator */}
