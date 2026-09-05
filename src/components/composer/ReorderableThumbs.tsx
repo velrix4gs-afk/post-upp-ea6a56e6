@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
@@ -23,7 +23,26 @@ export const ReorderableThumbs = ({
 }: ReorderableThumbsProps) => {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  const [magnetPull, setMagnetPull] = useState<{ x: number; y: number } | null>(null);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trashRef = useRef<HTMLDivElement>(null);
+
+  /** Magnetised trash zone: within 30px the icon lunges toward the dragged item. */
+  const updateMagnet = (x: number, y: number) => {
+    const el = trashRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    const distance = Math.hypot(dx, dy) - r.width / 2;
+    if (distance <= 30) {
+      setMagnetPull({ x: dx * 0.35, y: dy * 0.35 });
+    } else {
+      setMagnetPull(null);
+    }
+  };
 
   const startDrag = (index: number) => {
     setDragIndex(index);
@@ -31,11 +50,15 @@ export const ReorderableThumbs = ({
   };
 
   const endDrag = () => {
-    if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
+    if (dragIndex !== null && magnetPull && onRemove) {
+      haptic('warning');
+      onRemove(dragIndex);
+    } else if (dragIndex !== null && overIndex !== null && dragIndex !== overIndex) {
       onReorder(dragIndex, overIndex);
     }
     setDragIndex(null);
     setOverIndex(null);
+    setMagnetPull(null);
   };
 
   const indexFromPoint = (x: number, y: number): number | null => {
@@ -58,6 +81,7 @@ export const ReorderableThumbs = ({
           onDragStart={() => startDrag(index)}
           onDragOver={(e) => {
             e.preventDefault();
+            updateMagnet(e.clientX, e.clientY);
             setOverIndex(index);
           }}
           onDrop={(e) => {
@@ -76,6 +100,7 @@ export const ReorderableThumbs = ({
             }
             e.preventDefault();
             const t = e.touches[0];
+            updateMagnet(t.clientX, t.clientY);
             const idx = indexFromPoint(t.clientX, t.clientY);
             if (idx !== null) setOverIndex(idx);
           }}
@@ -111,6 +136,33 @@ export const ReorderableThumbs = ({
           )}
         </div>
       ))}
+
+      {/* Magnetised delete target — appears while dragging */}
+      {onRemove && (
+        <div
+          ref={trashRef}
+          onDragOver={(e) => {
+            e.preventDefault();
+            updateMagnet(e.clientX, e.clientY);
+          }}
+          onDrop={(e) => {
+            e.preventDefault();
+            endDrag();
+          }}
+          data-magnetized={magnetPull ? 'true' : 'false'}
+          style={{
+            transform: magnetPull
+              ? `translate(${magnetPull.x}px, ${magnetPull.y}px) scale(1.25)`
+              : undefined,
+            opacity: dragIndex !== null ? 1 : 0,
+            pointerEvents: dragIndex !== null ? 'auto' : 'none',
+          }}
+          className="magnet-target w-20 h-20 flex-shrink-0 rounded-lg border border-dashed border-destructive/60 bg-destructive/10 flex items-center justify-center text-destructive"
+          aria-label="Drop to remove"
+        >
+          <Trash2 className="h-5 w-5" />
+        </div>
+      )}
     </div>
   );
 };
