@@ -14,6 +14,7 @@ import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { FeedTabs } from '@/components/feed/FeedTabs';
 import { FeedSidebar } from '@/components/feed/FeedSidebar';
 import CreatePostCard from '@/components/feed/CreatePostCard';
+import { useElasticOverscroll } from '@/hooks/useElasticOverscroll';
 import { PostCardModern } from '@/components/PostCard/PostCardModern';
 const Feed = () => {
   const {

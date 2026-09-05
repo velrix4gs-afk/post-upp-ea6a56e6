@@ -11,6 +11,7 @@ import { VideoCall } from '@/components/VideoCall';
 import { VoiceCall } from '@/components/VoiceCall';
 import { ChatSettingsDialog } from '@/components/messaging/ChatSettingsDialog';
 import { EnhancedMessageBubble } from '@/components/EnhancedMessageBubble';
+import { useThreadGestures } from '@/hooks/useThreadGestures';
 import VoiceRecorder from '@/components/VoiceRecorder';
 import { uploadWithProgress } from '@/lib/uploadWithProgress';
 import { NewChatDialog } from '@/components/NewChatDialog';
@@ -494,6 +495,8 @@ const MessagesPage = () => {
   const pinnedMessage = pinnedMessageId ? messages.find((m) => m.id === pinnedMessageId) : null;
 
   // Build message list with date separators & smart grouping
+  useThreadGestures(messagesContainerRef);
+
   const renderedMessages = useMemo(() => {
     const items: Array<
       | { type: 'date'; key: string; date: string }
