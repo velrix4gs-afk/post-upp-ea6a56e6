@@ -29,6 +29,8 @@ interface ImageGalleryViewerProps {
   postId?: string;
   onViewOriginal?: () => void;
   onReport?: () => void;
+  /** Bounding box of the thumbnail that was tapped — enables shared-element expansion. */
+  originRect?: { top: number; left: number; width: number; height: number } | null;
 }
 
 export const ImageGalleryViewer = ({
@@ -41,6 +43,7 @@ export const ImageGalleryViewer = ({
   postId,
   onViewOriginal,
   onReport,
+  originRect,
 }: ImageGalleryViewerProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
@@ -48,6 +51,61 @@ export const ImageGalleryViewer = ({
   const lastTapRef = useRef<number>(0);
   const pinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
   const swipeStartRef = useRef<number | null>(null);
+  const swipeDownStartRef = useRef<number | null>(null);
+  const [dragY, setDragY] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [atmosphere, setAtmosphere] = useState<string | null>(null);
+
+  // Shared-element expansion: start at the thumbnail box, settle into full screen.
+  useEffect(() => {
+    if (!open) {
+      setExpanded(false);
+      setClosing(false);
+      setDragY(0);
+      return;
+    }
+    if (!originRect) {
+      setExpanded(true);
+      return;
+    }
+    setExpanded(false);
+    const raf = requestAnimationFrame(() => setExpanded(true));
+    return () => cancelAnimationFrame(raf);
+  }, [open, originRect]);
+
+  const shrinkAndClose = () => {
+    if (originRect) {
+      setClosing(true);
+      setExpanded(false);
+      setTimeout(() => onOpenChange(false), 260);
+    } else {
+      onOpenChange(false);
+    }
+  };
+
+  // Sample the dominant colour of the current image for the ambient backdrop.
+  const sampleAtmosphere = (img: HTMLImageElement) => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 12;
+      canvas.height = 12;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, 12, 12);
+      const { data } = ctx.getImageData(0, 0, 12, 12);
+      let r = 0, g = 0, b = 0;
+      const pixels = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        r += data[i];
+        g += data[i + 1];
+        b += data[i + 2];
+      }
+      setAtmosphere(`rgb(${Math.round(r / pixels)}, ${Math.round(g / pixels)}, ${Math.round(b / pixels)})`);
+    } catch {
+      setAtmosphere(null);
+    }
+  };
 
   useEffect(() => {
     if (open) {
@@ -119,6 +177,7 @@ export const ImageGalleryViewer = ({
       pinchStartRef.current = { dist: Math.hypot(dx, dy), zoom };
     } else if (e.touches.length === 1) {
       swipeStartRef.current = e.touches[0].clientX;
+      swipeDownStartRef.current = e.touches[0].clientY;
       const now = Date.now();
       if (now - lastTapRef.current < 280) {
         handleDoubleTap();
@@ -134,11 +193,23 @@ export const ImageGalleryViewer = ({
       const dist = Math.hypot(dx, dy);
       const next = Math.min(4, Math.max(1, pinchStartRef.current.zoom * (dist / pinchStartRef.current.dist)));
       setZoom(next);
+    } else if (e.touches.length === 1 && zoom === 1 && swipeDownStartRef.current !== null) {
+      const dy = e.touches[0].clientY - swipeDownStartRef.current;
+      if (dy > 0) setDragY(dy);
     }
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
     pinchStartRef.current = null;
+    if (dragY > 120) {
+      swipeDownStartRef.current = null;
+      swipeStartRef.current = null;
+      setDragY(0);
+      shrinkAndClose();
+      return;
+    }
+    setDragY(0);
+    swipeDownStartRef.current = null;
     if (swipeStartRef.current !== null && zoom === 1 && images.length > 1) {
       const dx = (e.changedTouches[0]?.clientX ?? swipeStartRef.current) - swipeStartRef.current;
       if (Math.abs(dx) > 60) {
@@ -151,17 +222,24 @@ export const ImageGalleryViewer = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-none w-screen h-[100dvh] p-0 bg-black/85 backdrop-blur-lg border-0 rounded-none gap-0 sm:rounded-none"
+        className="max-w-none w-screen h-[100dvh] p-0 bg-black/70 backdrop-blur-[20px] border-0 rounded-none gap-0 sm:rounded-none"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <div className="relative w-full h-full overflow-hidden">
+          {/* Ambient atmosphere sampled from the photo itself */}
+          {atmosphere && (
+            <div
+              className="lightbox-atmosphere"
+              style={{ background: `radial-gradient(circle at 50% 45%, ${atmosphere} 0%, transparent 70%)` }}
+            />
+          )}
           {/* Floating top controls */}
           <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pt-[max(env(safe-area-inset-top,0px),12px)]">
             <Button
               variant="ghost"
               size="icon"
               className="h-10 w-10 text-white bg-black/30 backdrop-blur-md hover:bg-black/50 rounded-full"
-              onClick={() => onOpenChange(false)}
+              onClick={shrinkAndClose}
               aria-label="Close"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -232,12 +310,27 @@ export const ImageGalleryViewer = ({
               src={images[currentIndex]}
               alt={`Image ${currentIndex + 1}`}
               draggable={false}
+              crossOrigin="anonymous"
+              onLoad={(e) => sampleAtmosphere(e.currentTarget)}
               className="max-w-full max-h-full object-contain select-none"
-              style={{
-                transform: `translate3d(${translate.x}px, ${translate.y}px, 0) scale(${zoom})`,
-                transition: pinchStartRef.current ? 'none' : 'transform 280ms cubic-bezier(0.22, 1, 0.36, 1)',
-                willChange: 'transform',
-              }}
+              style={
+                originRect && (!expanded || closing)
+                  ? {
+                      position: 'fixed',
+                      top: originRect.top,
+                      left: originRect.left,
+                      width: originRect.width,
+                      height: originRect.height,
+                      objectFit: 'cover',
+                      borderRadius: 16,
+                      transition: 'all 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+                    }
+                  : {
+                      transform: `translate3d(${translate.x}px, ${translate.y + dragY}px, 0) scale(${zoom * (dragY > 0 ? Math.max(0.7, 1 - dragY / 700) : 1)})`,
+                      transition: pinchStartRef.current || dragY > 0 ? 'none' : 'all 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+                      willChange: 'transform',
+                    }
+              }
             />
           </div>
 
