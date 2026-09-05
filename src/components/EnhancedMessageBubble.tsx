@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -98,6 +98,9 @@ interface EnhancedMessageBubbleProps {
   isForwarded?: boolean;
   isStarred?: boolean;
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+  /** Bubble grouping: first/last message of a same-sender run. */
+  isFirstOfGroup?: boolean;
+  isLastOfGroup?: boolean;
   /** 0-100 while a large media/voice/video upload is still in flight. */
   uploadProgress?: number;
   reactions?: MessageReaction[];
@@ -128,6 +131,8 @@ export const EnhancedMessageBubble = ({
   isForwarded = false,
   isStarred = false,
   status = 'sent',
+  isFirstOfGroup = true,
+  isLastOfGroup = true,
   uploadProgress,
   reactions: _reactions = [],
   bubbleColor,
@@ -146,7 +151,50 @@ export const EnhancedMessageBubble = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFor, setDeleteFor] = useState<'me' | 'everyone'>('me');
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [swipeX, setSwipeX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const swipeFiredRef = useRef(false);
   const { reactions, loading: reactionsLoading } = useMessageReactions(id);
+
+  const SWIPE_TRIGGER = 64;
+
+  const onSwipeStart = (e: React.TouchEvent) => {
+    if (!onReply) return;
+    const t = e.touches[0];
+    swipeStartRef.current = { x: t.clientX, y: t.clientY };
+    swipeFiredRef.current = false;
+  };
+
+  const onSwipeMove = (e: React.TouchEvent) => {
+    const start = swipeStartRef.current;
+    if (!start || !onReply) return;
+    const t = e.touches[0];
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    if (dx <= 0) {
+      setSwipeX(0);
+      return;
+    }
+    setSwiping(true);
+    const damped = Math.min(88, dx * 0.6);
+    setSwipeX(damped);
+    if (damped >= SWIPE_TRIGGER && !swipeFiredRef.current) {
+      swipeFiredRef.current = true;
+      haptic('light');
+    }
+  };
+
+  const onSwipeEnd = () => {
+    if (swipeFiredRef.current) {
+      onReply?.();
+    }
+    swipeStartRef.current = null;
+    swipeFiredRef.current = false;
+    setSwiping(false);
+    setSwipeX(0);
+  };
 
   const handleDelete = () => {
     haptic('warning');
@@ -158,18 +206,44 @@ export const EnhancedMessageBubble = ({
     <>
       <div
         id={`message-${id}`}
+        onTouchStart={onSwipeStart}
+        onTouchMove={onSwipeMove}
+        onTouchEnd={onSwipeEnd}
+        onTouchCancel={onSwipeEnd}
+        style={swipeX ? { transform: `translateX(${swipeX}px)` } : undefined}
         className={cn(
-          "flex gap-2 group mb-2 relative scroll-mt-20 w-full",
+          "msg-row flex gap-2 group relative scroll-mt-20 w-full",
+          isLastOfGroup ? "mb-2" : "mb-0.5",
+          swiping && "msg-dragging",
           isOwn ? "flex-row-reverse" : "flex-row",
           isNew && isOwn && "animate-message-send",
           isNew && !isOwn && "animate-message-receive"
         )}
       >
+        {/* Swipe-to-reply affordance */}
+        {swipeX > 0 && (
+          <span
+            className="swipe-reply-hint absolute left-0 top-1/2 -translate-y-1/2 -ml-8 text-muted-foreground"
+            style={{ opacity: Math.min(1, swipeX / SWIPE_TRIGGER) }}
+          >
+            <Reply className="h-4 w-4" />
+          </span>
+        )}
+
+        {/* Slide-to-see-time peek */}
+        <span className="msg-peek-time">
+          {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+
         {!isOwn && (
-          <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
-            <AvatarImage src={sender.avatar_url} alt={sender.display_name} />
-            <AvatarFallback className="text-xs bg-muted">{sender.display_name[0]}</AvatarFallback>
-          </Avatar>
+          isFirstOfGroup ? (
+            <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
+              <AvatarImage src={sender.avatar_url} alt={sender.display_name} />
+              <AvatarFallback className="text-xs bg-muted">{sender.display_name[0]}</AvatarFallback>
+            </Avatar>
+          ) : (
+            <div className="h-8 w-8 flex-shrink-0" aria-hidden="true" />
+          )
         )}
 
         <div className={cn(
@@ -177,7 +251,7 @@ export const EnhancedMessageBubble = ({
           isOwn ? "items-end" : "items-start",
           "max-w-[80%]"
         )}>
-          {!isOwn && (
+          {!isOwn && isFirstOfGroup && (
             <span className="text-xs text-muted-foreground mb-1 px-3">
               {sender.display_name}
             </span>
@@ -209,8 +283,13 @@ export const EnhancedMessageBubble = ({
                         ? "p-0 bg-transparent shadow-none"
                         : "rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 shadow-sm",
                       !isImageOnly && (isOwn
-                        ? "bg-[#0a2cf1f0] dark:bg-[#005c4b] text-black dark:text-white rounded-br-[8px]"
-                        : "bg-[#ffffff] dark:bg-[#202c33] text-black dark:text-white border border-border/50 rounded-bl-[8px]"),
+                        ? "bg-[#0a2cf1f0] dark:bg-[#005c4b] text-black dark:text-white"
+                        : "bg-[#ffffff] dark:bg-[#202c33] text-black dark:text-white border border-border/50"),
+                      // Dynamic bubble grouping: tail only on the last bubble of a run
+                      !isImageOnly && isOwn && (isLastOfGroup ? "rounded-br-[8px]" : "rounded-br-md"),
+                      !isImageOnly && isOwn && !isFirstOfGroup && "rounded-tr-md",
+                      !isImageOnly && !isOwn && (isLastOfGroup ? "rounded-bl-[8px]" : "rounded-bl-md"),
+                      !isImageOnly && !isOwn && !isFirstOfGroup && "rounded-tl-md",
                       typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}
                   >
@@ -270,7 +349,7 @@ export const EnhancedMessageBubble = ({
                     )}
 
                     {mediaUrl && (
-                      <div className={cn("relative group", isImageOnly ? "mb-0" : "mb-2")}>
+                      <div className={cn("relative group", isNew && "media-drop", isImageOnly ? "mb-0" : "mb-2")}>
                         {mediaType?.startsWith('image') || mediaType === 'image' ? (
                           <div className="relative inline-block">
                             <img
