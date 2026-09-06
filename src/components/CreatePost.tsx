@@ -31,6 +31,7 @@ import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
 import { MentionTextarea } from "@/components/composer/MentionTextarea";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
+import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 
 const FEELINGS = [
   { emoji: '😊', label: 'happy' },
@@ -48,6 +49,7 @@ const FEELINGS = [
 const CreatePost = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
   const { createPost } = usePosts();
   const { saveDraft } = useDrafts();
   const { processHashtags } = useHashtags();
@@ -347,6 +349,15 @@ const CreatePost = () => {
             )}
           </div>
         </div>
+
+        <GalleryPickerSheet
+          open={showGallerySheet}
+          onOpenChange={setShowGallerySheet}
+          multiple
+          title="Add to your post"
+          onSelect={(file) => addMediaFiles([file])}
+          onSelectMany={(files) => addMediaFiles(files)}
+        />
 
         {/* Images Preview */}
         {previewImages.length > 0 && (
