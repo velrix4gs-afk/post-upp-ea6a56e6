@@ -84,7 +84,10 @@ const CreatePost = () => {
   }, [postContent, saveGhostDraft]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
+    addMediaFiles(Array.from(event.target.files || []));
+  };
+
+  const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
 
     // Validate max 10 images
@@ -359,22 +362,16 @@ const CreatePost = () => {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center space-x-2 flex-wrap">
             <div className="relative">
-              <input
-                type="file"
-                accept="image/*,video/*"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="image-upload"
-                multiple
-              />
-              <label htmlFor="image-upload">
-                <Button variant="ghost" size="sm" className="h-9 px-3 cursor-pointer" asChild>
-                  <span>
-                    <Image className="h-4 w-4 mr-2 text-success" />
-                    <span className="text-xs">Photo/Video {selectedImages.length > 0 && `(${selectedImages.length})`}</span>
-                  </span>
-                </Button>
-              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3"
+                onClick={() => setShowGallerySheet(true)}
+              >
+                <Image className="h-4 w-4 mr-2 text-success" />
+                <span className="text-xs">Photo/Video {selectedImages.length > 0 && `(${selectedImages.length})`}</span>
+              </Button>
             </div>
 
             <Popover open={showFeelings} onOpenChange={setShowFeelings}>

@@ -30,6 +30,7 @@ import { LocationShareDialog } from '@/components/messaging/LocationShareDialog'
 import { ContactShareDialog } from '@/components/messaging/ContactShareDialog';
 import { ChatMenu } from '@/components/ChatMenu';
 import { DisappearingMessagesDialog } from '@/components/messaging/DisappearingMessagesDialog';
+import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
 import { ChatAttachmentsSheet } from '@/components/messaging/ChatAttachmentsSheet';
 import { ScheduleMessageDialog } from '@/components/messaging/ScheduleMessageDialog';
 import { ChatListItem } from '@/components/messaging/ChatListItem';
@@ -126,6 +127,7 @@ const MessagesPage = () => {
   const [showChatSettings, setShowChatSettings] = useState(false);
   const [showDisappearingDialog, setShowDisappearingDialog] = useState(false);
   const [showAttachmentsSheet, setShowAttachmentsSheet] = useState(false);
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
 
   // Calls
@@ -273,7 +275,10 @@ const MessagesPage = () => {
   };
 
   const handleImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
+    acceptMediaFiles(Array.from(event.target.files || []));
+  };
+
+  const acceptMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
 
     const accepted: File[] = [];
@@ -1166,10 +1171,19 @@ const MessagesPage = () => {
         />
       )}
 
+      <GalleryPickerSheet
+        open={showGallerySheet}
+        onOpenChange={setShowGallerySheet}
+        multiple
+        title="Send from gallery"
+        onSelect={(file) => acceptMediaFiles([file])}
+        onSelectMany={(files) => acceptMediaFiles(files)}
+      />
+
       <ChatAttachmentsSheet
         open={showAttachmentsSheet}
         onOpenChange={setShowAttachmentsSheet}
-        onGalleryClick={() => fileInputRef.current?.click()}
+        onGalleryClick={() => setShowGallerySheet(true)}
         onCameraClick={() => cameraInputRef.current?.click()}
         onGifsClick={() => toast({ title: 'GIFs coming soon!' })}
         onStickersClick={() => toast({ title: 'Stickers coming soon!' })}
