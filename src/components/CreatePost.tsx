@@ -31,6 +31,7 @@ import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
 import { MentionTextarea } from "@/components/composer/MentionTextarea";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
+import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 
 const FEELINGS = [
   { emoji: '😊', label: 'happy' },
@@ -48,6 +49,7 @@ const FEELINGS = [
 const CreatePost = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
   const { createPost } = usePosts();
   const { saveDraft } = useDrafts();
   const { processHashtags } = useHashtags();
@@ -84,7 +86,10 @@ const CreatePost = () => {
   }, [postContent, saveGhostDraft]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
+    addMediaFiles(Array.from(event.target.files || []));
+  };
+
+  const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
 
     // Validate max 10 images
@@ -345,6 +350,15 @@ const CreatePost = () => {
           </div>
         </div>
 
+        <GalleryPickerSheet
+          open={showGallerySheet}
+          onOpenChange={setShowGallerySheet}
+          multiple
+          title="Add to your post"
+          onSelect={(file) => addMediaFiles([file])}
+          onSelectMany={(files) => addMediaFiles(files)}
+        />
+
         {/* Images Preview */}
         {previewImages.length > 0 && (
           <div className="mb-4">
@@ -359,22 +373,16 @@ const CreatePost = () => {
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center space-x-2 flex-wrap">
             <div className="relative">
-              <input
-                type="file"
-                accept="image/*,video/*"
-                onChange={handleImageUpload}
-                className="hidden"
-                id="image-upload"
-                multiple
-              />
-              <label htmlFor="image-upload">
-                <Button variant="ghost" size="sm" className="h-9 px-3 cursor-pointer" asChild>
-                  <span>
-                    <Image className="h-4 w-4 mr-2 text-success" />
-                    <span className="text-xs">Photo/Video {selectedImages.length > 0 && `(${selectedImages.length})`}</span>
-                  </span>
-                </Button>
-              </label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3"
+                onClick={() => setShowGallerySheet(true)}
+              >
+                <Image className="h-4 w-4 mr-2 text-success" />
+                <span className="text-xs">Photo/Video {selectedImages.length > 0 && `(${selectedImages.length})`}</span>
+              </Button>
             </div>
 
             <Popover open={showFeelings} onOpenChange={setShowFeelings}>
