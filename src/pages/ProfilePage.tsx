@@ -21,7 +21,7 @@ import { StoryHighlights } from '@/components/StoryHighlights';
 import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
-import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink } from 'lucide-react';
+import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { usePosts } from '@/hooks/usePosts';
@@ -32,6 +32,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import CreatePost from '@/components/CreatePost';
+import { canViewFullProfile } from '@/lib/profilePrivacy';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 const ProfilePage = () => {
   const {
@@ -185,6 +186,12 @@ const ProfilePage = () => {
     if (isNaN(parsed.getTime())) return '';
     return format(parsed, 'MMMM yyyy');
   };
+  const canViewFull = canViewFullProfile({
+    isOwnProfile,
+    isPrivate: profile.is_private,
+    isApprovedFollower: isFollowing,
+    canViewFull: profile.can_view_full,
+  });
   return <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navigation />
       
@@ -279,26 +286,26 @@ const ProfilePage = () => {
             <p className="text-muted-foreground">@{profile?.username}</p>
             
             {/* Bio */}
-            {profile?.bio ? <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">{profile.bio}</p> : isOwnProfile && <button onClick={() => setShowProfileEdit(true)} className="mt-3 text-sm text-muted-foreground hover:text-primary transition-colors">
+            {canViewFull && profile?.bio ? <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">{profile.bio}</p> : isOwnProfile && <button onClick={() => setShowProfileEdit(true)} className="mt-3 text-sm text-muted-foreground hover:text-primary transition-colors">
                 + Add a bio to tell people about yourself
               </button>}
           </div>
 
           {/* Social + Metadata */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-3">
-            {profile?.location && <div className="flex items-center gap-1">
+            {canViewFull && profile?.location && <div className="flex items-center gap-1">
                 <MapPin className="h-4 w-4" />
                 <span>{profile.location}</span>
               </div>}
-            {profile?.website && <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
+            {canViewFull && profile?.website && <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
                 <LinkIcon className="h-4 w-4" />
                 <span>{profile.website.replace(/^https?:\/\//, '')}</span>
                 <ExternalLink className="h-3 w-3" />
               </a>}
-            <div className="flex items-center gap-1">
+            {canViewFull && <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               <span>Joined {formatJoinDate(profile?.created_at || '')}</span>
-            </div>
+            </div>}
           </div>
 
           {/* Stats Row */}
@@ -323,25 +330,22 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Mutual Followers */}
-          <MutualFollowers profileUserId={profileUserId!} />
+          {canViewFull && <MutualFollowers profileUserId={profileUserId!} />}
 
-          {/* Coins Display for own profile */}
           {isOwnProfile && <div className="mt-3">
               <CoinsDisplay />
             </div>}
 
-          {/* Verification Banner */}
           {isOwnProfile && !currentUserProfile?.is_verified && <div className="mt-4">
               <VerificationBanner isViewerVerified={currentUserProfile?.is_verified} />
             </div>}
 
-          {/* Story Highlights */}
-          <div className="mt-4">
+          {canViewFull && <div className="mt-4">
             <StoryHighlights userId={profileUserId!} isOwnProfile={isOwnProfile} />
-          </div>
+          </div>}
         </div>
 
+        {canViewFull ? <>
         {/* Tabs Navigation - Sticky */}
         <ProfileTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} sticky={true} />
 
@@ -479,6 +483,15 @@ const ProfilePage = () => {
                 </div>}
             </div>}
         </div>
+        </> : <div className="px-4 py-10">
+          <Card className="p-8 text-center">
+            <Lock className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-1">This account is private</h3>
+            <p className="text-sm text-muted-foreground">
+              Follow to see posts and profile details. Phone, birth date and gender stay visible only to this person.
+            </p>
+          </Card>
+        </div>}
       </main>
 
       {/* Modals */}

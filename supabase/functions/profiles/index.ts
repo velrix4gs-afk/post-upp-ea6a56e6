@@ -97,57 +97,37 @@ const handler = async (req: Request): Promise<Response> => {
       }
       const userId = userIdParam || user.id;
 
-      // Privacy check: if the requested profile isn't the caller's own
-      // and is marked private, only accepted friends may see the full
-      // profile / notification-preference payload. Everyone else gets a
-      // minimal public shape mirroring the RLS logic on `public.profiles`.
-      if (userId !== user.id) {
-        const { data: target, error: targetErr } = await supabaseClient
-          .from('profiles')
-          .select('id, is_private')
-          .eq('id', userId)
-          .single();
+      const { data: card, error: cardError } = await supabaseClient.rpc('get_profile_card', {
+        p_id: userId,
+      });
+      const profile = Array.isArray(card) ? card[0] : card;
 
-        if (targetErr || !target) {
-          return new Response(
-            JSON.stringify({ error: 'Profile not found' }),
-            { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-          );
-        }
-
-        if (target.is_private) {
-          const { data: friendship } = await supabaseClient
-            .from('friendships')
-            .select('id')
-            .eq('status', 'accepted')
-            .or(
-              `and(requester_id.eq.${user.id},addressee_id.eq.${userId}),and(addressee_id.eq.${user.id},requester_id.eq.${userId})`
-            )
-            .maybeSingle();
-
-          if (!friendship) {
-            return new Response(
-              JSON.stringify({ error: 'This profile is private' }),
-              { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-            );
-          }
-        }
-      }
-
-      const { data: profile, error } = await supabaseClient
-        .from('profiles_view')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (error) {
+      if (cardError || !profile) {
         return new Response(
-          JSON.stringify({ error: 'Failed to fetch profile' }),
-          { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          JSON.stringify({ error: 'Profile not found' }),
+          { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
         );
       }
 
-      return new Response(JSON.stringify(profile), {
+      const payload: Record<string, unknown> = { ...profile };
+      delete payload.phone;
+      delete payload.birth_date;
+      delete payload.gender;
+
+      if (userId === user.id) {
+        const { data: own } = await supabaseClient
+          .from('profiles')
+          .select('phone, birth_date, gender')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (own) {
+          payload.phone = own.phone ?? null;
+          payload.birth_date = own.birth_date ?? null;
+          payload.gender = own.gender ?? null;
+        }
+      }
+
+      return new Response(JSON.stringify(payload), {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }

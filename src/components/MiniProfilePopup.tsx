@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { FollowersDialog } from "@/components/FollowersDialog";
 import { ensurePrivateChat } from "@/lib/chatCreation";
+import { canViewFullProfile } from "@/lib/profilePrivacy";
 
 interface MiniProfilePopupProps {
   userId: string;
@@ -143,6 +144,13 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
   if (!profile) return null;
 
+  const canViewFull = canViewFullProfile({
+    isOwnProfile,
+    isPrivate: profile.is_private,
+    isApprovedFollower: isFollowing,
+    canViewFull: profile.can_view_full,
+  });
+
   return (
     <>
       <Card 
@@ -198,17 +206,22 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               )}
             </h3>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
+            {!canViewFull && (
+              <p className="text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
+                <Lock className="h-3.5 w-3.5" />
+                This account is private
+              </p>
+            )}
           </div>
 
           {/* Bio */}
-          {profile.bio && (
+          {canViewFull && profile.bio && (
             <p className="text-sm text-center text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
               {profile.bio}
             </p>
           )}
 
-          {/* Location & Website */}
-          {(profile.location || profile.website) && (
+          {canViewFull && (profile.location || profile.website) && (
             <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-4 flex-wrap">
               {profile.location && (
                 <div className="flex items-center gap-1">

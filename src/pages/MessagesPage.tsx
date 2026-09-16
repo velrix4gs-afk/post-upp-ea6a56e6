@@ -304,7 +304,7 @@ const MessagesPage = () => {
     reader.onload = (e) => setImagePreview(e.target?.result as string);
     reader.readAsDataURL(first);
     // allow re-selecting the same files later
-    event.target.value = '';
+    (event.target as HTMLInputElement).value = '';
   };
 
   const handleSendMessage = async () => {

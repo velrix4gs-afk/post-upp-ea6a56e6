@@ -1,29 +1,40 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Loader2, ImagePlus, Check } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { Check, FolderOpen, ImagePlus, Images, Loader2, Play, Shield } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { haptic } from '@/lib/haptics';
 import { reportSilently } from '@/lib/errorSuppression';
+import {
+  canUseNativeGallery,
+  checkDeviceGalleryAccess,
+  deviceItemToFile,
+  filesToGalleryItems,
+  formatDuration,
+  listNativeDeviceMedia,
+  openDeviceGallerySettings,
+  pickDeviceFolder,
+  requestDeviceGalleryAccess,
+  revokeGalleryThumbs,
+  type DeviceGalleryItem,
+  type GalleryFilter,
+} from '@/lib/deviceGallery';
 
 interface GalleryPickerSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Called with the chosen media as a File, ready for upload. */
   onSelect: (file: File) => void;
-  /** Allow picking several items at once (feed posts, chat attachments). */
   multiple?: boolean;
-  /** Called with every chosen file when `multiple` is enabled. */
   onSelectMany?: (files: File[]) => void;
   title?: string;
 }
 
-const isVideo = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url);
+type AccessState = 'checking' | 'ready' | 'denied' | 'web';
 
 /**
- * Stylized gallery picker: shows the user's recent media in a grid and
- * falls back to the device picker, instead of jumping straight to the
- * raw system file browser.
+ * In-app camera-roll picker. On Android it reads the device library;
+ * on web it uses folder access or the system file picker, then shows
+ * the same stylish grid.
  */
 export const GalleryPickerSheet = ({
   open,
@@ -31,25 +42,36 @@ export const GalleryPickerSheet = ({
   onSelect,
   multiple = false,
   onSelectMany,
-  title = 'Choose media',
+  title = 'Gallery',
 }: GalleryPickerSheetProps) => {
-  const { user } = useAuth();
-  const [items, setItems] = useState<string[]>([]);
+  const [items, setItems] = useState<DeviceGalleryItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [busyUrl, setBusyUrl] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [filter, setFilter] = useState<GalleryFilter>('all');
+  const [access, setAccess] = useState<AccessState>('checking');
+  const [quantity, setQuantity] = useState(120);
   const inputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!open) setSelected([]);
+    folderInputRef.current?.setAttribute('webkitdirectory', '');
+    folderInputRef.current?.setAttribute('directory', '');
   }, [open]);
 
-  const urlToFile = useCallback(async (url: string) => {
-    const res = await fetch(url);
-    const blob = await res.blob();
-    const name = url.split('/').pop()?.split('?')[0] || 'media';
-    return new File([blob], name, { type: blob.type || 'image/jpeg' });
+  useEffect(() => {
+    if (!open) {
+      setSelected([]);
+      setFilter('all');
+      setQuantity(120);
+      setBusyId(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => revokeGalleryThumbs(items);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const emitFiles = useCallback(
@@ -61,135 +83,271 @@ export const GalleryPickerSheet = ({
     [onSelect, onSelectMany],
   );
 
-  const confirmSelection = useCallback(async () => {
-    if (selected.length === 0) return;
-    setConfirming(true);
+  const loadNative = useCallback(async (count: number, nextFilter: GalleryFilter) => {
+    setLoading(true);
     try {
-      const files = await Promise.all(selected.map((u) => urlToFile(u)));
-      emitFiles(files);
-      onOpenChange(false);
+      const next = await listNativeDeviceMedia(count, nextFilter);
+      setItems((prev) => {
+        revokeGalleryThumbs(prev);
+        return next;
+      });
+      setAccess('ready');
     } catch (err) {
-      reportSilently('GALLERY_003', err);
+      reportSilently('GALLERY_001', err);
+      setAccess('denied');
     } finally {
-      setConfirming(false);
+      setLoading(false);
     }
-  }, [selected, urlToFile, emitFiles, onOpenChange]);
+  }, []);
 
   useEffect(() => {
-    if (!open || !user?.id) return;
+    if (!open) return;
     let cancelled = false;
 
-    const load = async () => {
+    const boot = async () => {
+      if (!canUseNativeGallery()) {
+        setAccess('web');
+        return;
+      }
+      setAccess('checking');
       setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select('media_url, media_urls, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(40);
-        if (error) throw error;
-        const urls: string[] = [];
-        (data || []).forEach((row: any) => {
-          if (Array.isArray(row.media_urls)) urls.push(...row.media_urls.filter(Boolean));
-          else if (row.media_url) urls.push(row.media_url);
-        });
-        if (!cancelled) setItems(Array.from(new Set(urls)).slice(0, 30));
-      } catch (err) {
-        // Silent: the device picker below still works.
-        reportSilently('GALLERY_001', err);
-      } finally {
-        if (!cancelled) setLoading(false);
+      const already = await checkDeviceGalleryAccess();
+      const granted = already || (await requestDeviceGalleryAccess());
+      if (cancelled) return;
+      setAccess(granted ? 'ready' : 'denied');
+      if (!granted) {
+        setLoading(false);
+        setItems([]);
       }
     };
 
-    load();
+    boot();
     return () => {
       cancelled = true;
     };
-  }, [open, user?.id]);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || access !== 'ready') return;
+    loadNative(quantity, filter);
+  }, [open, access, quantity, filter, loadNative]);
+
+  const confirmIds = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return;
+      setConfirming(true);
+      try {
+        const chosen = items.filter((item) => ids.includes(item.id));
+        const files = await Promise.all(chosen.map((item) => deviceItemToFile(item)));
+        emitFiles(files);
+        onOpenChange(false);
+      } catch (err) {
+        reportSilently('GALLERY_003', err);
+      } finally {
+        setConfirming(false);
+        setBusyId(null);
+      }
+    },
+    [items, emitFiles, onOpenChange],
+  );
 
   const pickExisting = useCallback(
-    async (url: string) => {
+    async (item: DeviceGalleryItem) => {
+      haptic('light');
       if (multiple) {
         setSelected((prev) =>
-          prev.includes(url) ? prev.filter((u) => u !== url) : [...prev, url],
+          prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id],
         );
         return;
       }
-      setBusyUrl(url);
-      try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        const name = url.split('/').pop()?.split('?')[0] || 'media';
-        onSelect(new File([blob], name, { type: blob.type || 'image/jpeg' }));
-        onOpenChange(false);
-      } catch (err) {
-        reportSilently('GALLERY_002', err);
-      } finally {
-        setBusyUrl(null);
-      }
+      setBusyId(item.id);
+      await confirmIds([item.id]);
     },
-    [onSelect, onOpenChange, multiple],
+    [multiple, confirmIds],
   );
+
+  const ingestFiles = useCallback(
+    (fileList: File[]) => {
+      const next = filesToGalleryItems(fileList);
+      if (next.length === 0) return;
+      setItems((prev) => {
+        revokeGalleryThumbs(prev);
+        return next;
+      });
+      setAccess('web');
+      setSelected([]);
+    },
+    [],
+  );
+
+  const openFolder = useCallback(async () => {
+    try {
+      const next = await pickDeviceFolder();
+      setItems((prev) => {
+        revokeGalleryThumbs(prev);
+        return next;
+      });
+      setAccess('web');
+    } catch (err: any) {
+      if (err?.name === 'AbortError') return;
+      folderInputRef.current?.click();
+    }
+  }, []);
+
+  const visible = items.filter((item) => {
+    if (filter === 'photos') return item.kind === 'image';
+    if (filter === 'videos') return item.kind === 'video';
+    return true;
+  });
+
+  const showGrant = access === 'denied' || (access === 'web' && items.length === 0 && !loading);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[75vh] rounded-t-3xl p-0 flex flex-col"
+        className="h-[88vh] rounded-t-[28px] p-0 flex flex-col bg-background border-t overflow-hidden"
       >
-        <div className="px-4 pt-3 pb-2">
+        <div className="px-4 pt-3 pb-2 shrink-0">
           <div className="mx-auto h-1.5 w-10 rounded-full bg-muted-foreground/30 mb-3" />
-          <h2 className="text-base font-semibold">{title}</h2>
-          <p className="text-xs text-muted-foreground">Your recent uploads, or pick from your device.</p>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-3 pb-3">
-          {loading ? (
-            <div className="grid grid-cols-3 gap-1.5">
-              {Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="aspect-square rounded-xl bg-muted animate-pulse" />
-              ))}
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+              <p className="text-xs text-muted-foreground">
+                {canUseNativeGallery() ? 'Photos and videos on this device' : 'Photos and videos from this device'}
+              </p>
             </div>
-          ) : items.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center py-10">
-              <ImagePlus className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">No recent media yet.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-1.5">
-              {items.map((url) => (
+            <div className="flex rounded-full bg-muted p-0.5">
+              {(['all', 'photos', 'videos'] as GalleryFilter[]).map((key) => (
                 <button
-                  key={url}
-                  onClick={() => pickExisting(url)}
-                  className="relative aspect-square rounded-xl overflow-hidden bg-muted touch-manipulation active:scale-[0.97] transition-transform"
+                  key={key}
+                  type="button"
+                  onClick={() => setFilter(key)}
+                  className={cn(
+                    'px-3 h-7 rounded-full text-[11px] font-medium capitalize transition-colors',
+                    filter === key ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground',
+                  )}
                 >
-                  {isVideo(url) ? (
-                    <video src={url} className="h-full w-full object-cover" muted playsInline />
-                  ) : (
-                    <img src={url} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  )}
-                  {multiple && selected.includes(url) && (
-                    <span className="absolute inset-0 ring-2 ring-primary ring-inset rounded-xl bg-primary/15 flex items-start justify-end p-1">
-                      <span className="h-5 w-5 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[10px] font-semibold">
-                        {selected.indexOf(url) + 1}
-                      </span>
-                    </span>
-                  )}
-                  {busyUrl === url && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                      <Loader2 className="h-5 w-5 animate-spin text-white" />
-                    </div>
-                  )}
+                  {key}
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {(loading || access === 'checking') && items.length === 0 ? (
+            <div className="grid grid-cols-4 gap-0.5 px-0.5">
+              {Array.from({ length: 16 }).map((_, i) => (
+                <div key={i} className="aspect-square bg-muted animate-pulse" />
+              ))}
+            </div>
+          ) : showGrant ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-8 py-10">
+              <div className="h-16 w-16 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-4">
+                <Images className="h-8 w-8" />
+              </div>
+              <p className="text-base font-semibold mb-1">Show your camera roll</p>
+              <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+                {canUseNativeGallery()
+                  ? 'Allow photo and video access to pick from a stylish in-app gallery.'
+                  : 'Browsers cannot open the full camera roll automatically. Choose your Pictures folder, or browse files.'}
+              </p>
+              {canUseNativeGallery() ? (
+                <div className="flex flex-col gap-2 w-full max-w-xs">
+                  <Button className="rounded-xl h-11" onClick={() => requestDeviceGalleryAccess().then((ok) => ok && setAccess('ready'))}>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Allow access
+                  </Button>
+                  <Button variant="outline" className="rounded-xl h-11" onClick={() => openDeviceGallerySettings()}>
+                    Open settings
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2 w-full max-w-xs">
+                  <Button className="rounded-xl h-11" onClick={openFolder}>
+                    <FolderOpen className="h-4 w-4 mr-2" />
+                    Choose photos folder
+                  </Button>
+                  <Button variant="outline" className="rounded-xl h-11" onClick={() => inputRef.current?.click()}>
+                    <ImagePlus className="h-4 w-4 mr-2" />
+                    Browse files
+                  </Button>
+                </div>
+              )}
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center py-10 px-6">
+              <ImagePlus className="h-10 w-10 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No {filter === 'all' ? 'media' : filter} found.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-4 gap-0.5 px-0.5">
+                {visible.map((item) => {
+                  const isSel = selected.includes(item.id);
+                  const selIndex = selected.indexOf(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => pickExisting(item)}
+                      className="relative aspect-square overflow-hidden bg-muted touch-manipulation active:scale-[0.98] transition-transform"
+                    >
+                      {item.kind === 'video' && item.thumbUrl && !item.thumbUrl.startsWith('data:') ? (
+                        <video src={item.thumbUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                      ) : item.thumbUrl ? (
+                        <img src={item.thumbUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-muted" />
+                      )}
+                      {item.kind === 'video' && (
+                        <span className="absolute left-1 bottom-1 flex items-center gap-0.5 rounded-md bg-black/65 px-1 py-0.5 text-[10px] text-white">
+                          <Play className="h-2.5 w-2.5 fill-white" />
+                          {formatDuration(item.durationMs) || 'Video'}
+                        </span>
+                      )}
+                      {multiple && (
+                        <span
+                          className={cn(
+                            'absolute top-1 right-1 h-5 w-5 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold',
+                            isSel
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'border-white/90 bg-black/25',
+                          )}
+                        >
+                          {isSel ? selIndex + 1 : ''}
+                        </span>
+                      )}
+                      {isSel && <span className="absolute inset-0 ring-2 ring-primary ring-inset bg-primary/10" />}
+                      {busyId === item.id && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                          <Loader2 className="h-5 w-5 animate-spin text-white" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              {access === 'ready' && items.length >= quantity && quantity < 400 && (
+                <div className="p-3">
+                  <Button
+                    variant="ghost"
+                    className="w-full rounded-xl"
+                    disabled={loading}
+                    onClick={() => setQuantity((q) => Math.min(q + 80, 400))}
+                  >
+                    {loading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         <div
-          className="border-t p-3"
+          className="border-t p-3 bg-background shrink-0"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
         >
           <input
@@ -202,8 +360,19 @@ export const GalleryPickerSheet = ({
               const files = Array.from(e.target.files || []);
               e.target.value = '';
               if (files.length === 0) return;
-              emitFiles(multiple ? files : [files[0]]);
-              onOpenChange(false);
+              ingestFiles(files);
+            }}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              e.target.value = '';
+              if (files.length === 0) return;
+              ingestFiles(files);
             }}
           />
           <div className="flex gap-2">
@@ -213,15 +382,11 @@ export const GalleryPickerSheet = ({
               onClick={() => inputRef.current?.click()}
             >
               <ImagePlus className="h-4 w-4 mr-2" />
-              Browse device
+              {items.length > 0 ? 'Browse more' : 'Browse device'}
             </Button>
             {multiple && selected.length > 0 && (
-              <Button className="flex-1 rounded-xl h-11" onClick={confirmSelection} disabled={confirming}>
-                {confirming ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Check className="h-4 w-4 mr-2" />
-                )}
+              <Button className="flex-1 rounded-xl h-11" onClick={() => confirmIds(selected)} disabled={confirming}>
+                {confirming ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
                 Add {selected.length}
               </Button>
             )}

@@ -353,7 +353,7 @@ export const ProfileEditModal = ({ open, onOpenChange }: ProfileEditModalProps) 
                   {/* Birth Date & Gender */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="birth_date_modal" className="text-sm font-medium">Birth Date</Label>
+                      <Label htmlFor="birth_date_modal" className="text-sm font-medium">Birth Date (Private)</Label>
                       <Input
                         id="birth_date_modal"
                         type="date"
@@ -365,9 +365,10 @@ export const ProfileEditModal = ({ open, onOpenChange }: ProfileEditModalProps) 
                       {errors.birth_date && (
                         <p className="text-xs text-destructive">{errors.birth_date}</p>
                       )}
+                      <p className="text-xs text-muted-foreground">Only you can see this</p>
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Gender</Label>
+                      <Label className="text-sm font-medium">Gender (Private)</Label>
                       <Select
                         value={formData.gender}
                         onValueChange={(value) => setFormData({ ...formData, gender: value })}
@@ -420,7 +421,7 @@ export const ProfileEditModal = ({ open, onOpenChange }: ProfileEditModalProps) 
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="phone_modal" className="text-sm font-medium">Phone</Label>
+                      <Label htmlFor="phone_modal" className="text-sm font-medium">Phone (Private)</Label>
                       <Input
                         id="phone_modal"
                         type="tel"
@@ -470,7 +471,8 @@ export const ProfileEditModal = ({ open, onOpenChange }: ProfileEditModalProps) 
                     <h4 className="font-semibold text-sm mb-2">Privacy Tips</h4>
                     <ul className="text-xs text-muted-foreground space-y-1.5 list-disc list-inside">
                       <li>Private accounts require follower approval</li>
-                      <li>Your profile picture and username are always public</li>
+                      <li>Phone, birth date and gender are only visible to you</li>
+                      <li>Your profile picture and username stay public so people can follow you</li>
                       <li>Posts are only visible to approved followers</li>
                       <li>You can change this setting anytime</li>
                     </ul>

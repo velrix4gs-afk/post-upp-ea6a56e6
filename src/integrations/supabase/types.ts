@@ -5026,6 +5026,28 @@ export type Database = {
           unread_count: number
         }[]
       }
+      get_profile_card: {
+        Args: { p_id: string }
+        Returns: {
+          avatar_url: string | null
+          bio: string | null
+          can_view_full: boolean
+          cover_url: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string
+          is_private: boolean | null
+          is_verified: boolean | null
+          location: string | null
+          relationship_status: string | null
+          theme_color: string | null
+          updated_at: string | null
+          username: string | null
+          verification_type: string | null
+          verified_at: string | null
+          website: string | null
+        }[]
+      }
       get_my_sensitive_profile: {
         Args: never
         Returns: {

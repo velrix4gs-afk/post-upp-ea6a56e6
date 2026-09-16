@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Image, Video, Smile, MapPin, Users, X, Save, Clock, Globe, Lock, UserCheck } from "lucide-react";
 import { useState, useEffect } from "react";
+import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -84,6 +85,7 @@ const CreatePostCard = () => {
   const [showFeelings, setShowFeelings] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public');
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
   const {
     restoredText,
     showRestoredNotice,
@@ -107,8 +109,7 @@ const CreatePostCard = () => {
 
   const charCount = postContent.length;
   const charPercentage = charCount / MAX_CHARS * 100;
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
+  const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
     if (selectedImages.length + files.length > 10) {
       showCleanError({
@@ -388,18 +389,19 @@ const CreatePostCard = () => {
             <div className="flex items-center gap-1 flex-wrap">
               {/* Photo/Video */}
               <div className="relative">
-                <input type="file" accept="image/*,video/*" onChange={handleImageUpload} className="hidden" id="image-upload" multiple />
-                <label htmlFor="image-upload">
-                  <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 cursor-pointer rounded-lg hover:bg-success/10" asChild>
-                    <span>
-                      <Image className="h-5 w-5 text-success" />
-                      <span className="text-sm hidden sm:inline">Photo/Video</span>
-                      {selectedImages.length > 0 && <span className="text-xs bg-success/20 text-success px-1.5 rounded-full">
-                          {selectedImages.length}
-                        </span>}
-                    </span>
-                  </Button>
-                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 px-3 gap-2 cursor-pointer rounded-lg hover:bg-success/10"
+                  onClick={() => setShowGallerySheet(true)}
+                >
+                  <Image className="h-5 w-5 text-success" />
+                  <span className="text-sm hidden sm:inline">Photo/Video</span>
+                  {selectedImages.length > 0 && <span className="text-xs bg-success/20 text-success px-1.5 rounded-full">
+                      {selectedImages.length}
+                    </span>}
+                </Button>
               </div>
 
               {/* Feeling */}
@@ -501,6 +503,14 @@ const CreatePostCard = () => {
           </div>
         </div>
       </div>
+      <GalleryPickerSheet
+        open={showGallerySheet}
+        onOpenChange={setShowGallerySheet}
+        multiple
+        title="Add to your post"
+        onSelect={(file) => addMediaFiles([file])}
+        onSelectMany={(files) => addMediaFiles(files)}
+      />
     </Card>;
 };
 export default CreatePostCard;

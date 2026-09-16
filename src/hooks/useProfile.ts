@@ -5,6 +5,7 @@ import { toast } from './use-toast';
 import { CacheHelper } from '@/lib/asyncStorage';
 import { reportSilently } from '@/lib/errorSuppression';
 import { useAuthReady } from './useAuthReady';
+import { isProfileOwner, stripOwnerOnlyProfileFields } from '@/lib/profilePrivacy';
 
 export interface Profile {
   id: string;
@@ -28,6 +29,8 @@ export interface Profile {
   status_message?: string;
   created_at: string;
   updated_at: string;
+  /** False for private accounts when the viewer is not an approved follower. */
+  can_view_full?: boolean;
 }
 
 export const useProfile = (userId?: string) => {
@@ -65,12 +68,13 @@ export const useProfile = (userId?: string) => {
             filter: `id=eq.${targetUserId}`
           },
           (payload) => {
-            console.log('[PROFILE] Real-time update:', payload);
-            if (payload.new) {
-              setProfile(payload.new as Profile);
-              // Update cache
-              CacheHelper.saveProfile(targetUserId, payload.new as Profile);
-            }
+            if (!payload.new) return;
+            const incoming = payload.new as Profile;
+            const safe = isProfileOwner(user?.id, targetUserId)
+              ? incoming
+              : (stripOwnerOnlyProfileFields(incoming as unknown as Record<string, unknown>) as unknown as Profile);
+            setProfile((prev) => ({ ...(prev || {}), ...safe }));
+            CacheHelper.saveProfile(targetUserId, safe);
           }
         )
         .subscribe();
@@ -84,35 +88,42 @@ export const useProfile = (userId?: string) => {
   const fetchProfile = async (attempt = 0) => {
     try {
       setLoading(true);
-      // NOTE: phone, birth_date, and gender are PII and are not selectable
-      // via the public profiles policy. Fetch the safe column set for
-      // everyone and load the sensitive fields separately for the owner
-      // via RPC.
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(
-          'id, username, display_name, bio, avatar_url, cover_url, location, website, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, created_at, updated_at'
-        )
-        .eq('id', targetUserId)
-        .single();
+      // Public card never includes phone / birth_date / gender. The owner
+      // loads those separately via get_my_sensitive_profile.
+      let data: any = null;
+      const { data: card, error: cardError } = await supabase.rpc('get_profile_card', {
+        p_id: targetUserId,
+      });
+      const cardRow = Array.isArray(card) ? card[0] : card;
+      if (!cardError && cardRow) {
+        data = cardRow;
+      } else {
+        const { data: fallback, error } = await supabase
+          .from('profiles')
+          .select(
+            'id, username, display_name, bio, avatar_url, cover_url, location, website, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, created_at, updated_at'
+          )
+          .eq('id', targetUserId)
+          .single();
 
-      if (error) {
-        // Row not yet created (handle_new_user race): retry once.
-        if (error.code === 'PGRST116' && attempt === 0) {
-          setTimeout(() => fetchProfile(1), 400);
-          return;
+        if (error) {
+          if (error.code === 'PGRST116' && attempt === 0) {
+            setTimeout(() => fetchProfile(1), 400);
+            return;
+          }
+          throw error;
         }
-        throw error;
+        data = fallback;
       }
-      let merged: any = data;
 
-      // Only the owner can fetch phone / birth_date / gender.
-      if (user?.id && targetUserId === user.id) {
+      let merged: any = stripOwnerOnlyProfileFields({ ...(data || {}) });
+
+      if (isProfileOwner(user?.id, targetUserId)) {
         const { data: sensitive } = await supabase.rpc('get_my_sensitive_profile');
         const row = Array.isArray(sensitive) ? sensitive[0] : sensitive;
         if (row) {
           merged = {
-            ...(data as any),
+            ...merged,
             phone: (row as any).phone ?? undefined,
             birth_date: (row as any).birth_date ?? undefined,
             gender: (row as any).gender ?? undefined,
@@ -122,9 +133,11 @@ export const useProfile = (userId?: string) => {
 
       setProfile(merged);
 
-      // Cache profile
       if (targetUserId && merged) {
-        await CacheHelper.saveProfile(targetUserId, merged);
+        const toCache = isProfileOwner(user?.id, targetUserId)
+          ? merged
+          : stripOwnerOnlyProfileFields(merged);
+        await CacheHelper.saveProfile(targetUserId, toCache);
       }
     } catch (err: any) {
       setError(err.message);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { usePages, Page } from '@/hooks/usePages';
 import { useAuth } from '@/hooks/useAuth';
@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Settings, Send, ImageIcon, CheckCircle, Globe, Mail, X, ThumbsUp, FileText } from 'lucide-react';
 import { PostCardModern } from '@/components/PostCard/PostCardModern';
 import { toast } from '@/hooks/use-toast';
+import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
 
 const PageProfilePage = () => {
   const { username } = useParams<{ username: string }>();
@@ -27,7 +28,7 @@ const PageProfilePage = () => {
   const [posting, setPosting] = useState(false);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
 
   const isOwnerOrAdmin = page?.user_role === 'owner' || page?.user_role === 'admin' || page?.user_role === 'editor' || (user && page?.created_by === user.id);
 
@@ -61,9 +62,7 @@ const PageProfilePage = () => {
     }
   };
 
-  const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleMediaSelect = (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
       toast({ title: 'File too large', description: 'Max 10MB', variant: 'destructive' });
       return;
@@ -76,7 +75,6 @@ const PageProfilePage = () => {
     setMediaFile(null);
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMediaPreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleCreatePost = async () => {
@@ -244,17 +242,10 @@ const PageProfilePage = () => {
                     )}
 
                     <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleMediaSelect}
-                        className="hidden"
-                      />
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => setShowGallerySheet(true)}
                       >
                         <ImageIcon className="h-4 w-4 mr-2" />
                         Photo/Video
@@ -268,6 +259,12 @@ const PageProfilePage = () => {
                         {posting ? 'Posting...' : 'Post'}
                       </Button>
                     </div>
+                    <GalleryPickerSheet
+                      open={showGallerySheet}
+                      onOpenChange={setShowGallerySheet}
+                      title="Add to page post"
+                      onSelect={handleMediaSelect}
+                    />
                   </Card>
                 </div>
               )}

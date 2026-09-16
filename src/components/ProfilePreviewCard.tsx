@@ -5,6 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VerificationBadge } from "@/components/premium/VerificationBadge";
 import { UserPlus, UserCheck, Camera, Users } from "lucide-react";
 import { useProfile } from "@/hooks/useProfile";
+import { canViewFullProfile } from "@/lib/profilePrivacy";
 import { useFollowers } from "@/hooks/useFollowers";
 import { usePosts } from "@/hooks/usePosts";
 import { useAuth } from "@/hooks/useAuth";
@@ -57,6 +58,13 @@ export const ProfilePreviewCard = ({ userId, onClose }: ProfilePreviewCardProps)
   }
 
   if (!profile) return null;
+
+  const canViewFull = canViewFullProfile({
+    isOwnProfile,
+    isPrivate: profile.is_private,
+    isApprovedFollower: isFollowing,
+    canViewFull: profile.can_view_full,
+  });
 
   return (
     <Card 

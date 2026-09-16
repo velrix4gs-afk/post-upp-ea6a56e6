@@ -571,7 +571,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
               {/* Birth Date & Gender */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="birth_date" className="text-sm font-medium">Birth Date</Label>
+                  <Label htmlFor="birth_date" className="text-sm font-medium">Birth Date (Private)</Label>
                   <Input
                     id="birth_date"
                     type="date"
@@ -589,9 +589,10 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                       {errors.birth_date}
                     </p>
                   )}
+                  <p className="text-xs text-muted-foreground">Only you can see your birth date</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Gender</Label>
+                  <Label className="text-sm font-medium">Gender (Private)</Label>
                   <Select
                     value={formData.gender}
                     onValueChange={(value) => setFormData({ ...formData, gender: value })}
@@ -606,6 +607,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                       <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">Only you can see your gender</p>
                 </div>
               </div>
 
@@ -784,7 +786,11 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" />
-                    <span>Your profile picture and username are always public</span>
+                    <span>Phone, birth date and gender are only visible to you</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <Check className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" />
+                    <span>Your profile picture and username stay public so people can follow you</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <Check className="h-3 w-3 mt-0.5 text-primary flex-shrink-0" />

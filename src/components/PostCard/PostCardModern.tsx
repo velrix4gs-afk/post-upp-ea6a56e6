@@ -36,6 +36,7 @@ import { useThumbReorder } from '@/components/composer/ReorderableThumbs';
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
+import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 export interface PostCardModernProps {
   post: {
     id: string;
@@ -141,6 +142,7 @@ export const PostCardModern = ({
   const mediaItems: string[] = (post.media_urls && post.media_urls.length > 0 ? post.media_urls : post.media_url ? [post.media_url] : []) as string[];
   const initialMedia = mediaItems;
   const [editMedia, setEditMedia] = useState<string[]>(initialMedia);
+  const [showEditGallery, setShowEditGallery] = useState(false);
   const { getItemProps: getEditThumbProps } = useThumbReorder((from, to) => {
     setEditMedia(prev => {
       const next = [...prev];
@@ -225,12 +227,12 @@ export const PostCardModern = ({
     });
   };
 
-  const handleEditMediaUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0 || !user) return;
+  const handleEditMediaUpload = async (files: File[]) => {
+    if (!files.length || !user) return;
     setUploadingMedia(true);
     try {
       const uploaded: string[] = [];
-      for (const file of Array.from(files)) {
+      for (const file of files) {
         const ext = file.name.split('.').pop() || 'jpg';
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error } = await supabase.storage.from('posts').upload(path, file, {
@@ -384,10 +386,21 @@ export const PostCardModern = ({
                 })}
               </div>}
             {editMedia.length > 1 && <p className="text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>}
-            <label className="inline-flex items-center gap-2 text-sm text-primary cursor-pointer">
-              <input type="file" accept="image/*" multiple className="hidden" onChange={e => handleEditMediaUpload(e.target.files)} />
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 text-sm text-primary"
+              onClick={() => setShowEditGallery(true)}
+            >
               {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
-            </label>
+            </button>
+            <GalleryPickerSheet
+              open={showEditGallery}
+              onOpenChange={setShowEditGallery}
+              multiple
+              title="Add to your post"
+              onSelect={(file) => handleEditMediaUpload([file])}
+              onSelectMany={(files) => handleEditMediaUpload(files)}
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
               <Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button>

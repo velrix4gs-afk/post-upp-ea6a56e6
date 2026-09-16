@@ -8,7 +8,8 @@ import {
   X,
   Loader2
 } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
+import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -52,8 +53,7 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
   const [feeling, setFeeling] = useState<string>('');
   const [showFeelings, setShowFeelings] = useState(false);
   const [showLocation, setShowLocation] = useState(false);
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
 
   const {
     restoredText,
@@ -72,8 +72,7 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
     saveGhostDraft(postContent);
   }, [postContent, saveGhostDraft]);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
+  const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
 
     if (selectedImages.length + files.length > 10) {
@@ -318,19 +317,11 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             {/* Photo/Video */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              onChange={handleImageUpload}
-              className="hidden"
-              multiple
-            />
             <Button 
               variant="ghost" 
               size="icon"
               className="h-10 w-10 rounded-full text-success hover:bg-success/10"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => setShowGallerySheet(true)}
             >
               <Image className="h-5 w-5" />
             </Button>
@@ -405,6 +396,14 @@ const CreatePostSimple = ({ onSuccess }: CreatePostSimpleProps) => {
           </Button>
         </div>
       </div>
+      <GalleryPickerSheet
+        open={showGallerySheet}
+        onOpenChange={setShowGallerySheet}
+        multiple
+        title="Add to your post"
+        onSelect={(file) => addMediaFiles([file])}
+        onSelectMany={(files) => addMediaFiles(files)}
+      />
     </div>
   );
 };
