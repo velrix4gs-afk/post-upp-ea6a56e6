@@ -11,25 +11,52 @@ interface VideoViewerProps {
   className?: string;
 }
 
-export const VideoViewer = ({ 
-  videoUrl, 
-  autoPlay = false, 
-  muted = false, 
+export const VideoViewer = ({
+  videoUrl,
+  autoPlay = false,
+  muted = false,
   loop = false,
-  className 
+  className
 }: VideoViewerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(autoPlay);
   const [isMuted, setIsMuted] = useState(muted);
   const [showControls, setShowControls] = useState(true);
+  // Video only starts buffering once it's actually scrolled into view —
+  // fixes every video in the feed silently preloading at once (heat/lag).
+  const [isInView, setIsInView] = useState(false);
 
   useEffect(() => {
-    if (videoRef.current) {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+        } else {
+          setIsInView(false);
+          // Scrolled out of view — stop buffering/playing to free up memory & battery.
+          if (videoRef.current) {
+            videoRef.current.pause();
+          }
+        }
+      },
+      { rootMargin: '200px', threshold: 0.25 }
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (videoRef.current && isInView) {
       if (autoPlay) {
         videoRef.current.play().catch(() => setIsPlaying(false));
       }
     }
-  }, [autoPlay]);
+  }, [autoPlay, isInView]);
 
   const togglePlay = () => {
     if (videoRef.current) {
@@ -45,7 +72,7 @@ export const VideoViewer = ({
               v.muted = true;
               setIsMuted(true);
               v.play().catch((err) => console.warn('[VideoViewer] play failed', err));
-            } catch {}
+            } catch { }
           });
         }
       }
@@ -71,7 +98,8 @@ export const VideoViewer = ({
   };
 
   return (
-    <div 
+    <div
+      ref={containerRef}
       className={cn("relative w-full bg-black rounded-lg overflow-hidden group", className)}
       data-media
       onClick={(e) => e.stopPropagation()}
@@ -80,19 +108,30 @@ export const VideoViewer = ({
     >
       <video
         ref={videoRef}
-        src={videoUrl}
+        // Only give the browser a src once this video has actually scrolled
+        // into view — before that, nothing downloads at all.
+        src={isInView ? videoUrl : undefined}
         className="w-full h-full object-contain"
         loop={loop}
         muted={isMuted}
         playsInline
-        preload="auto"
+        // 'metadata' only grabs duration/dimensions/first-frame, not the
+        // whole file — full resolution/quality on play is unaffected.
+        preload={isInView ? 'metadata' : 'none'}
         onClick={togglePlay}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       />
-      
+      {!isInView && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+          <div className="w-16 h-16 bg-white/10 backdrop-blur-sm rounded-full flex items-center justify-center">
+            <Play className="h-8 w-8 text-white/60 ml-1" />
+          </div>
+        </div>
+      )}
+
       {/* Video Controls */}
-      <div 
+      <div
         className={cn(
           "absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity duration-300",
           showControls || !isPlaying ? "opacity-100" : "opacity-0"
@@ -117,7 +156,7 @@ export const VideoViewer = ({
             >
               {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
             </Button>
-            
+
             <Button
               variant="ghost"
               size="icon"
@@ -132,7 +171,7 @@ export const VideoViewer = ({
 
       {/* Play button overlay when paused */}
       {!isPlaying && (
-        <div 
+        <div
           className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer"
           onClick={togglePlay}
         >

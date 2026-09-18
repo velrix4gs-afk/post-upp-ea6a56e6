@@ -1,6 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
-export type DeviceMediaKind = 'image' | 'video';
+export type DeviceMediaKind = 'image' | 'video' | 'file';
 
 export interface DeviceMediaAsset {
   id: string;

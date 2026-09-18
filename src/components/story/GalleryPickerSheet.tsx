@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Check, FolderOpen, ImagePlus, Images, Loader2, Play, Shield } from 'lucide-react';
+import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
 import { reportSilently } from '@/lib/errorSuppression';
@@ -294,7 +294,12 @@ export const GalleryPickerSheet = ({
                       onClick={() => pickExisting(item)}
                       className="relative aspect-square overflow-hidden bg-muted touch-manipulation active:scale-[0.98] transition-transform"
                     >
-                      {item.kind === 'video' && item.thumbUrl && !item.thumbUrl.startsWith('data:') ? (
+                      {item.kind === 'file' ? (
+                        <div className="h-full w-full bg-muted flex flex-col items-center justify-center gap-1 px-2">
+                          <FileIcon className="h-6 w-6 text-muted-foreground" />
+                          <span className="text-[9px] text-muted-foreground truncate w-full text-center">{item.name}</span>
+                        </div>
+                      ) : item.kind === 'video' && item.thumbUrl && !item.thumbUrl.startsWith('data:') ? (
                         <video src={item.thumbUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
                       ) : item.thumbUrl ? (
                         <img src={item.thumbUrl} alt="" className="h-full w-full object-cover" />
@@ -353,7 +358,8 @@ export const GalleryPickerSheet = ({
           <input
             ref={inputRef}
             type="file"
-            accept="image/*,video/*"
+            // No longer locked to image/video — lets people pick documents,
+            // audio, or anything else from the device's file browser too.
             multiple={multiple}
             className="hidden"
             onChange={(e) => {

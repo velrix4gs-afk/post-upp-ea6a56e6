@@ -95,7 +95,9 @@ export async function deviceItemToFile(item: DeviceGalleryItem): Promise<File> {
 function fileKind(file: File): DeviceMediaKind | null {
   if (file.type.startsWith('image/') || IMAGE_EXT.test(file.name)) return 'image';
   if (file.type.startsWith('video/') || VIDEO_EXT.test(file.name)) return 'video';
-  return null;
+  // Anything else (PDF, doc, zip, etc.) is no longer silently dropped —
+  // it's kept as a generic 'file' item instead of returning null.
+  return 'file';
 }
 
 export function filesToGalleryItems(files: File[]): DeviceGalleryItem[] {
