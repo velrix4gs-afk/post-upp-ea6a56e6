@@ -127,6 +127,31 @@ export const GalleryPickerSheet = ({
     };
   }, [open]);
 
+  // Fixes: tapping "Open settings", granting access there, then coming
+  // back left the sheet stuck showing "Allow access" forever — nothing
+  // was re-checking permission once the app regained focus. This
+  // re-verifies whenever the app becomes visible again while the denied
+  // screen is showing.
+  useEffect(() => {
+    if (!open || access !== 'denied' || !canUseNativeGallery()) return;
+
+    const recheck = async () => {
+      const granted = await checkDeviceGalleryAccess();
+      if (granted) setAccess('ready');
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') recheck();
+    };
+
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', recheck);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', recheck);
+    };
+  }, [open, access]);
+
   useEffect(() => {
     if (!open || access !== 'ready') return;
     loadNative(quantity, filter);
