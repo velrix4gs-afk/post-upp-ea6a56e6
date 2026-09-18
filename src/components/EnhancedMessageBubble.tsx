@@ -269,30 +269,46 @@ export const EnhancedMessageBubble = ({
                 const isImageOnly = !!mediaUrl &&
                   (mediaType?.startsWith('image') || mediaType === 'image') &&
                   !content && !replyTo && !isForwarded;
+                const customBg = isOwn && bubbleColor ? getBubbleColorValue(bubbleColor) : undefined;
                 return (
                   <div
                     style={{
-                      backgroundColor: isImageOnly
-                        ? 'transparent'
-                        : isOwn && bubbleColor
-                          ? getBubbleColorValue(bubbleColor)
-                          : undefined,
+                      backgroundColor: isImageOnly ? 'transparent' : customBg,
                     }}
                     className={cn(
                       isImageOnly
                         ? "p-0 bg-transparent shadow-none"
-                        : "rounded-2xl px-3.5 py-2 md:px-4 md:py-2.5 shadow-sm",
-                      !isImageOnly && (isOwn
-                        ? "bg-[#0a2cf1f0] dark:bg-[#005c4b] text-black dark:text-white"
-                        : "bg-[#ffffff] dark:bg-[#202c33] text-black dark:text-white border border-border/50"),
-                      // Dynamic bubble grouping: tail only on the last bubble of a run
-                      !isImageOnly && isOwn && (isLastOfGroup ? "rounded-br-[8px]" : "rounded-br-md"),
-                      !isImageOnly && isOwn && !isFirstOfGroup && "rounded-tr-md",
-                      !isImageOnly && !isOwn && (isLastOfGroup ? "rounded-bl-[8px]" : "rounded-bl-md"),
-                      !isImageOnly && !isOwn && !isFirstOfGroup && "rounded-tl-md",
+                        : "rounded-[18px] px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm",
+                      // True WhatsApp palette — light mode sent bubbles are
+                      // pale green (#d9fdd3), not blue; dark mode already
+                      // matched WhatsApp's actual dark colors.
+                      !isImageOnly && !customBg && (isOwn
+                        ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-black dark:text-white"
+                        : "bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5"),
                       typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}
                   >
+                    {/* WhatsApp-style pointed tail — only on the last bubble
+                        of a same-sender run, matching how WhatsApp groups
+                        consecutive messages under one tail. */}
+                    {!isImageOnly && isLastOfGroup && (
+                      <svg
+                        viewBox="0 0 8 13"
+                        width="8"
+                        height="13"
+                        className={cn(
+                          "absolute bottom-0 pointer-events-none",
+                          isOwn ? "-right-[7px] -scale-x-100" : "-left-[7px]",
+                          !customBg && (isOwn
+                            ? "text-[#d9fdd3] dark:text-[#005c4b]"
+                            : "text-white dark:text-[#202c33]")
+                        )}
+                        style={customBg ? { color: customBg } : undefined}
+                      >
+                        <path fill="currentColor" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z" />
+                      </svg>
+                    )}
+
                     {/* Delivery progress for large media / voice / video */}
                     {typeof uploadProgress === 'number' && uploadProgress < 100 && (
                       <>
