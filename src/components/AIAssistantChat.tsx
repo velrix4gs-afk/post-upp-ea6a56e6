@@ -23,6 +23,53 @@ const isRealRoute = (path: string) => {
   return STATIC_ROUTES.includes(clean) || DYNAMIC_ROUTES.some((r) => r.test(clean));
 };
 
+/**
+ * Renders the handful of markdown bits AI replies actually use
+ * (**bold**, *italic*, `code`, "- " bullets) as real formatting instead
+ * of showing the raw asterisks/backticks. Intentionally not a full
+ * markdown parser — just enough to make chat replies look normal.
+ */
+const renderInlineMarkdown = (line: string, keyPrefix: string) => {
+  const parts = line.split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g).filter(Boolean);
+  return parts.map((part, i) => {
+    const key = `${keyPrefix}-${i}`;
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith('`') && part.endsWith('`')) {
+      return (
+        <code key={key} className="px-1 py-0.5 rounded bg-black/10 dark:bg-white/10 text-[0.9em] font-mono">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
+      return <em key={key}>{part.slice(1, -1)}</em>;
+    }
+    return <span key={key}>{part}</span>;
+  });
+};
+
+const renderFormattedText = (text: string) => {
+  const lines = text.split('\n');
+  return lines.map((line, i) => {
+    const bulletMatch = line.match(/^\s*[-*]\s+(.*)/);
+    if (bulletMatch) {
+      return (
+        <span key={i} className="flex gap-1.5">
+          <span className="select-none">•</span>
+          <span>{renderInlineMarkdown(bulletMatch[1], `l${i}`)}</span>
+        </span>
+      );
+    }
+    return (
+      <span key={i} className="block">
+        {renderInlineMarkdown(line, `l${i}`)}
+      </span>
+    );
+  });
+};
+
 /** Parses `[[go:/route|Label]]` action links out of an assistant reply. */
 const parseNavActions = (content: string) => {
   const actions: { path: string; label: string }[] = [];
@@ -98,7 +145,7 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
               : 'bg-muted rounded-bl-md'
           )}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">{text}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">{renderFormattedText(text)}</p>
           {actions.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {actions.map((action) => (
@@ -189,7 +236,7 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
             </Avatar>
             <div className="max-w-[80%] rounded-2xl rounded-bl-md px-4 py-2.5 bg-muted">
               <p className="text-sm whitespace-pre-wrap break-words">
-                {parseNavActions(streamingContent).text}
+                {renderFormattedText(parseNavActions(streamingContent).text)}
               </p>
               <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5" />
             </div>
