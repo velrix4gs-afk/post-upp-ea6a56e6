@@ -54,6 +54,7 @@ const AnalyticsDashboard = lazy(() => import("./pages/AnalyticsDashboard"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const PremiumPage = lazy(() => import("./pages/PremiumPage"));
+const HelpSupportPage = lazy(() => import("./pages/HelpSupportPage"));
 const PagesDirectory = lazy(() => import("./pages/PagesDirectory"));
 const ReelsPage = lazy(() => import("./pages/ReelsPage"));
 const PagesPage = lazy(() => import("./pages/PagesPage"));
@@ -383,6 +384,7 @@ const App = () => (
                     }
                   />
                   <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
+                  <Route path="/help-support" element={<ProtectedRoute><HelpSupportPage /></ProtectedRoute>} />
                   <Route path="/purchases" element={<ProtectedRoute><PurchaseHistoryPage /></ProtectedRoute>} />
                   <Route path="/coins" element={<ProtectedRoute><CoinsPage /></ProtectedRoute>} />
                   <Route path="/admin-setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />

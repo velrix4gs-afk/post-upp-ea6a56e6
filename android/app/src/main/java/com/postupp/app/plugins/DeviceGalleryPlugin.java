@@ -157,7 +157,7 @@ public class DeviceGalleryPlugin extends Plugin {
         return hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE);
     }
 
-    private boolean hasPermission(String permission) {
+    public boolean hasPermission(String permission) {
         return getContext().checkSelfPermission(permission) == PackageManager.PERMISSION_GRANTED;
     }
 

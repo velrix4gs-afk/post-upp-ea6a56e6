@@ -14,7 +14,7 @@ const STATIC_ROUTES = [
   '/feed', '/explore', '/search', '/reels', '/messages', '/friends', '/bookmarks',
   '/pages', '/premium', '/coins', '/purchases', '/settings', '/onboarding',
   '/create/story', '/create/reel', '/create/page', '/verification', '/analytics',
-  '/starred-messages', '/chat-media', '/chat-settings', '/instructions', '/dashboard',
+  '/starred-messages', '/chat-media', '/chat-settings', '/instructions', '/dashboard', '/help-support',
 ];
 const DYNAMIC_ROUTES = [/^\/profile\/[^/]+$/, /^\/post\/[^/]+$/, /^\/hashtag\/[^/]+$/, /^\/page\/[^/]+$/, /^\/creator\/[^/]+$/];
 

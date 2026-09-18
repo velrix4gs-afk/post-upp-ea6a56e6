@@ -131,7 +131,7 @@ export const MenuPanel = ({
 
       {/* Help & Support */}
       <div className="space-y-1.5 mb-6">
-        <div onClick={() => window.open('https://post-upp-faq-how-to-use.htmlhost.co', '_blank')} className="group flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-muted hover:shadow-md transition-all duration-300 hover:scale-[1.02]">
+        <div onClick={() => handleNavigation('/help-support')} className="group flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-muted hover:shadow-md transition-all duration-300 hover:scale-[1.02]">
           <div className="h-10 w-10 rounded-full bg-muted group-hover:bg-primary/10 flex items-center justify-center flex-shrink-0 transition-all duration-300">
             <HelpCircle className="h-5 w-5 text-foreground group-hover:text-primary group-hover:scale-110 transition-all duration-300" />
           </div>

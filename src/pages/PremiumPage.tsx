@@ -6,6 +6,7 @@ import { Check, Crown, Star, Zap, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { CoinsDialog } from '@/components/premium/CoinsDialog';
+import { cn } from '@/lib/utils';
 const PremiumPage = () => {
   const {
     user
@@ -66,7 +67,7 @@ const PremiumPage = () => {
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
             Unlock exclusive features, remove ads, and get priority support. Choose the plan that's right for you.
           </p>
-          <div className="mt-6 mr-0 pr-[1700px]">
+          <div className="mt-6 flex justify-center">
             <CoinsDialog />
           </div>
         </div>
@@ -128,7 +129,4 @@ const PremiumPage = () => {
       </main>
     </div>;
 };
-function cn(...classes: any[]) {
-  return classes.filter(Boolean).join(' ');
-}
 export default PremiumPage;
