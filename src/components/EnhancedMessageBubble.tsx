@@ -17,7 +17,11 @@ import {
   Info,
   Languages,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Phone,
+  PhoneMissed,
+  Video,
+  VideoOff,
 } from "lucide-react";
 import { ImageViewer } from "./messaging/ImageViewer";
 import { ReadReceiptIndicator } from "./messaging/ReadReceiptIndicator";
@@ -79,6 +83,21 @@ interface ReplyToMessage {
   sender_name: string;
   media_url?: string;
   media_type?: string;
+}
+
+function formatCallDuration(sec?: number): string {
+  const s = Math.max(0, Math.round(sec || 0));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${r.toString().padStart(2, '0')}`;
+}
+
+function PhoneIconIndicator({ missed }: { missed: boolean }) {
+  return missed ? <PhoneMissed className="h-3.5 w-3.5" /> : <Phone className="h-3.5 w-3.5" />;
+}
+
+function VideoIconIndicator({ missed }: { missed: boolean }) {
+  return missed ? <VideoOff className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />;
 }
 
 interface EnhancedMessageBubbleProps {
@@ -201,6 +220,46 @@ export const EnhancedMessageBubble = ({
     onDelete?.(id, deleteFor);
     setShowDeleteDialog(false);
   };
+
+  // Call-log messages (missed/declined/completed calls) get a compact,
+  // centered row instead of the normal chat bubble — matching how
+  // WhatsApp shows call history inline in the thread.
+  if (mediaType === 'call') {
+    let callInfo: { kind: 'voice' | 'video'; status: string; durationSec?: number } | null = null;
+    try {
+      callInfo = JSON.parse(content);
+    } catch {
+      callInfo = null;
+    }
+    if (callInfo) {
+      const isVideo = callInfo.kind === 'video';
+      const isMissedForMe = !isOwn && callInfo.status !== 'completed';
+      const label =
+        callInfo.status === 'completed'
+          ? `${isVideo ? 'Video' : 'Voice'} call · ${formatCallDuration(callInfo.durationSec)}`
+          : callInfo.status === 'declined'
+            ? (isOwn ? `${isVideo ? 'Video' : 'Voice'} call declined` : `Missed ${isVideo ? 'video' : 'voice'} call`)
+            : `Missed ${isVideo ? 'video' : 'voice'} call`;
+      return (
+        <div className="flex justify-center my-2">
+          <div
+            className={cn(
+              'flex items-center gap-2 px-3.5 py-2 rounded-full text-xs',
+              isMissedForMe
+                ? 'bg-destructive/10 text-destructive'
+                : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {isVideo ? <VideoIconIndicator missed={isMissedForMe} /> : <PhoneIconIndicator missed={isMissedForMe} />}
+            <span>{label}</span>
+            <span className="opacity-60">
+              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        </div>
+      );
+    }
+  }
 
   return (
     <>

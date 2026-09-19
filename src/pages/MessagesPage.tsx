@@ -60,7 +60,7 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups';
 
@@ -77,6 +77,7 @@ const isWallpaperUrl = (v?: string) => !!v && /^(https?:|\/|data:)/i.test(v);
 
 const MessagesPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const { isAdmin } = useAdmin();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -133,6 +134,20 @@ const MessagesPage = () => {
   // Calls
   const [activeCall, setActiveCall] = useState<'voice' | 'video' | null>(null);
   const [isCallInitiator, setIsCallInitiator] = useState(false);
+
+  // Accepting an incoming call (IncomingCallOverlay) lands here with
+  // navigation state instead of a URL param -- there's no /messages/:id
+  // route. Pick the chat and open the call UI, then clear the state so
+  // it doesn't re-trigger on the next re-render.
+  useEffect(() => {
+    const state = location.state as { openChatId?: string; callType?: 'voice' | 'video'; autoJoin?: boolean } | null;
+    if (!state?.autoJoin || !state.openChatId || !state.callType) return;
+    setSelectedChatId(state.openChatId);
+    setIsCallInitiator(false);
+    setActiveCall(state.callType);
+    navigate(location.pathname, { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
 
   // Refs
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -1151,9 +1166,17 @@ const MessagesPage = () => {
         <VoiceCall
           chatId={selectedChatId}
           isInitiator={isCallInitiator}
-          onEndCall={() => {
+          onEndCall={(outcome) => {
             setActiveCall(null);
             setIsCallInitiator(false);
+            if (isCallInitiator) {
+              sendMessage(
+                JSON.stringify({ kind: 'voice', status: outcome.status, durationSec: outcome.durationSec }),
+                undefined,
+                undefined,
+                'call'
+              );
+            }
           }}
           participantName={otherParticipant.profiles.display_name}
           participantAvatar={otherParticipant.profiles.avatar_url}
@@ -1164,9 +1187,17 @@ const MessagesPage = () => {
         <VideoCall
           chatId={selectedChatId}
           isInitiator={isCallInitiator}
-          onEndCall={() => {
+          onEndCall={(outcome) => {
             setActiveCall(null);
             setIsCallInitiator(false);
+            if (isCallInitiator) {
+              sendMessage(
+                JSON.stringify({ kind: 'video', status: outcome.status, durationSec: outcome.durationSec }),
+                undefined,
+                undefined,
+                'call'
+              );
+            }
           }}
         />
       )}

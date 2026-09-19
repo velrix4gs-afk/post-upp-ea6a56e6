@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Video, VideoOff, Mic, MicOff, PhoneOff, RefreshCw, Loader2 } from 'lucide-react';
 import {
@@ -13,14 +13,19 @@ import '@stream-io/video-react-sdk/dist/css/styles.css';
 import { useStreamVideoClient, callIdForChat } from '@/hooks/useStreamVideoClient';
 import { CallShell } from '@/components/calls/CallShell';
 import { haptic } from '@/lib/haptics';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import type { CallOutcome } from '@/components/VoiceCall';
 
 interface VideoCallProps {
   chatId: string;
   isInitiator: boolean;
-  onEndCall: () => void;
+  onEndCall: (outcome: CallOutcome) => void;
   participantName?: string;
   participantAvatar?: string;
 }
+
+const RING_TIMEOUT_MS = 45_000;
 
 export const VideoCall = ({
   chatId,
@@ -29,10 +34,21 @@ export const VideoCall = ({
   participantName = 'User',
   participantAvatar,
 }: VideoCallProps) => {
+  const { user } = useAuth();
   const { client, error: clientError } = useStreamVideoClient();
   const [call, setCall] = useState<Call | null>(null);
   const [minimized, setMinimized] = useState(false);
   const callId = useMemo(() => callIdForChat(chatId, 'video'), [chatId]);
+
+  const hasConnectedRef = useRef(false);
+  const durationRef = useRef(0);
+  const endedRef = useRef(false);
+
+  const finish = (status: CallOutcome['status']) => {
+    if (endedRef.current) return;
+    endedRef.current = true;
+    onEndCall({ status, durationSec: durationRef.current });
+  };
 
   useEffect(() => {
     if (!client) return;
@@ -46,24 +62,72 @@ export const VideoCall = ({
         if (!cancelled) setCall(c);
       } catch (e) {
         console.error('[VideoCall] join failed', e);
-        setTimeout(onEndCall, 1500);
+        finish('unanswered');
       }
     })();
     return () => {
       cancelled = true;
-      c.leave().catch(() => {});
+      c.leave().catch(() => { });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, callId]);
 
   useEffect(() => {
-    if (clientError) setTimeout(onEndCall, 1500);
+    if (clientError) finish('unanswered');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientError]);
 
+  useEffect(() => {
+    if (!isInitiator || !user) return;
+
+    // Notifies the other participant via IncomingCallOverlay (which
+    // listens on call_signals) that a call is coming in. This was missing
+    // entirely -- Stream connected the call on its own servers but nothing
+    // ever told the other person's app a call was happening.
+    supabase.from('call_signals').insert({
+      call_id: chatId,
+      sender_id: user.id,
+      signal_type: 'offer',
+      signal_data: { video: true },
+    }).then(() => { });
+
+    const channel = supabase
+      .channel(`call-outcome-${chatId}-${callId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'call_signals' },
+        (payload) => {
+          const signal = payload.new as any;
+          if (signal.call_id !== chatId || signal.sender_id === user.id) return;
+          if (signal.signal_type === 'decline' && !hasConnectedRef.current) {
+            finish('declined');
+          }
+        },
+      )
+      .subscribe();
+
+    const timeout = setTimeout(() => {
+      if (!hasConnectedRef.current) {
+        supabase.from('call_signals').insert({
+          call_id: chatId,
+          sender_id: user.id,
+          signal_type: 'cancel',
+          signal_data: {},
+        }).then(() => { });
+        finish('unanswered');
+      }
+    }, RING_TIMEOUT_MS);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearTimeout(timeout);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitiator, user, chatId, callId]);
+
   const end = () => {
     haptic('heavy');
-    onEndCall();
+    finish(hasConnectedRef.current ? 'completed' : isInitiator ? 'unanswered' : 'declined');
   };
 
   if (!client || !call) {
@@ -108,6 +172,8 @@ export const VideoCall = ({
           setMinimized={setMinimized}
           participantName={participantName}
           participantAvatar={participantAvatar}
+          hasConnectedRef={hasConnectedRef}
+          durationRef={durationRef}
         />
       </StreamCall>
     </StreamVideo>
@@ -120,6 +186,8 @@ interface InnerProps {
   setMinimized: (v: boolean) => void;
   participantName: string;
   participantAvatar?: string;
+  hasConnectedRef: React.MutableRefObject<boolean>;
+  durationRef: React.MutableRefObject<number>;
 }
 
 const VideoCallInner = ({
@@ -128,20 +196,33 @@ const VideoCallInner = ({
   setMinimized,
   participantName,
   participantAvatar,
+  hasConnectedRef,
+  durationRef,
 }: InnerProps) => {
-  const { useCallCallingState, useCameraState, useMicrophoneState } = useCallStateHooks();
+  const { useCallCallingState, useCameraState, useMicrophoneState, useParticipants } = useCallStateHooks();
   const callingState = useCallCallingState();
   const { camera, isMute: camMute } = useCameraState();
   const { microphone, isMute: micMute } = useMicrophoneState();
+  const participants = useParticipants();
+  const remoteParticipants = participants.filter((p) => !p.isLocalParticipant);
 
   const [duration, setDuration] = useState(0);
-  const connected = callingState === CallingState.JOINED;
+  // Only "connected" once the other person has actually joined — not just
+  // because we ourselves reached the JOINED state waiting alone.
+  const connected = callingState === CallingState.JOINED && remoteParticipants.length > 0;
+
+  useEffect(() => {
+    if (connected) hasConnectedRef.current = true;
+  }, [connected, hasConnectedRef]);
 
   useEffect(() => {
     if (!connected) return;
-    const id = setInterval(() => setDuration((d) => d + 1), 1000);
+    const id = setInterval(() => setDuration((d) => {
+      durationRef.current = d + 1;
+      return d + 1;
+    }), 1000);
     return () => clearInterval(id);
-  }, [connected]);
+  }, [connected, durationRef]);
 
   const formatDuration = (s: number) => {
     const m = Math.floor(s / 60);

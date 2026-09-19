@@ -27,8 +27,8 @@ export const IncomingCallOverlay = () => {
     haptic('success');
     const call = acceptCall();
     if (call) {
-      navigate(`/messages/${call.call_id}`, {
-        state: { callType: call.call_type, autoJoin: true },
+      navigate('/messages', {
+        state: { openChatId: call.call_id, callType: call.call_type, autoJoin: true },
       });
     }
   };
