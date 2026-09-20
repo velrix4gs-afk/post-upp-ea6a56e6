@@ -59,7 +59,6 @@ const PagesDirectory = lazy(() => import("./pages/PagesDirectory"));
 const ReelsPage = lazy(() => import("./pages/ReelsPage"));
 const PagesPage = lazy(() => import("./pages/PagesPage"));
 const PurchaseHistoryPage = lazy(() => import("./pages/PurchaseHistoryPage"));
-const CoinsPage = lazy(() => import("./pages/CoinsPage"));
 const StarredMessagesPage = lazy(() => import("./pages/StarredMessagesPage"));
 const ChatMediaPage = lazy(() => import("./pages/ChatMediaPage"));
 const ChatSettingsPage = lazy(() => import("./pages/ChatSettingsPage"));
@@ -386,7 +385,6 @@ const App = () => (
                   <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
                   <Route path="/help-support" element={<ProtectedRoute><HelpSupportPage /></ProtectedRoute>} />
                   <Route path="/purchases" element={<ProtectedRoute><PurchaseHistoryPage /></ProtectedRoute>} />
-                  <Route path="/coins" element={<ProtectedRoute><CoinsPage /></ProtectedRoute>} />
                   <Route path="/admin-setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
                   <Route path="/starred-messages" element={<ProtectedRoute><StarredMessagesPage /></ProtectedRoute>} />
                   <Route path="/chat-media" element={<ProtectedRoute><ChatMediaPage /></ProtectedRoute>} />

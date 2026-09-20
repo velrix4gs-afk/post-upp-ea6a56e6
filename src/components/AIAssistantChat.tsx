@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 /** Routes the assistant is allowed to link to (must exist in App.tsx). */
 const STATIC_ROUTES = [
   '/feed', '/explore', '/search', '/reels', '/messages', '/friends', '/bookmarks',
-  '/pages', '/premium', '/coins', '/purchases', '/settings', '/onboarding',
+  '/pages', '/premium', '/purchases', '/settings', '/onboarding',
   '/create/story', '/create/reel', '/create/page', '/verification', '/analytics',
   '/starred-messages', '/chat-media', '/chat-settings', '/instructions', '/dashboard', '/help-support',
 ];
