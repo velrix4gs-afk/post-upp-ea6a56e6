@@ -43,7 +43,7 @@ const HashtagPage = () => {
     <div className="min-h-screen bg-background">
       <Navigation />
       <BackNavigation title={`#${tag}`} />
-      
+
       <main className="container max-w-2xl mx-auto px-4 py-6">
 
         {posts.length === 0 ? (
@@ -57,7 +57,21 @@ const HashtagPage = () => {
         ) : (
           <div className="space-y-4">
             {posts.map((post) => (
-              <PostCard key={post.id} post={post} />
+              <PostCard key={post.id} post={{
+                id: post.id,
+                content: post.content || '',
+                media_url: post.media_url,
+                media_urls: post.media_urls || undefined,
+                created_at: post.created_at,
+                reactions_count: post.reactions_count,
+                comments_count: post.comments_count,
+                shares_count: post.shares_count || 0,
+                author_name: post.profiles?.display_name || 'Unknown User',
+                author_username: post.profiles?.username,
+                author_avatar: post.profiles?.avatar_url,
+                author_id: post.user_id,
+                is_verified: post.profiles?.is_verified,
+              }} />
             ))}
           </div>
         )}

@@ -4,7 +4,7 @@ import { useBookmarks } from '@/hooks/useBookmarks';
 import { supabase } from '@/integrations/supabase/client';
 import Navigation from '@/components/Navigation';
 import { BackNavigation } from '@/components/BackNavigation';
-import PostCardModern from '@/components/PostCardModern';
+import { PostCardModern } from '@/components/PostCard/PostCardModern';
 import { Card } from '@/components/ui/card';
 import { Post } from '@/hooks/usePosts';
 import { Bookmark } from 'lucide-react';
@@ -60,7 +60,7 @@ const BookmarksPage = () => {
     <div className="min-h-screen bg-background">
       <Navigation />
       <BackNavigation title="Bookmarks" />
-      
+
       <main className="container mx-auto p-4 max-w-2xl">
         <div className="mb-6">
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -97,7 +97,21 @@ const BookmarksPage = () => {
         ) : (
           <div className="space-y-4">
             {posts.map(post => (
-              <PostCardModern key={post.id} post={post} />
+              <PostCardModern key={post.id} post={{
+                id: post.id,
+                content: post.content || '',
+                media_url: post.media_url,
+                media_urls: (post as any).media_urls || undefined,
+                created_at: post.created_at,
+                reactions_count: post.reactions_count,
+                comments_count: post.comments_count,
+                shares_count: (post as any).shares_count || 0,
+                author_name: (post as any).profiles?.display_name || 'Unknown User',
+                author_username: (post as any).profiles?.username,
+                author_avatar: (post as any).profiles?.avatar_url,
+                author_id: (post as any).user_id,
+                is_verified: (post as any).profiles?.is_verified,
+              }} />
             ))}
           </div>
         )}
