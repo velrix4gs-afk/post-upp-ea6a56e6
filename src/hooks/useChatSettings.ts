@@ -58,7 +58,26 @@ export const useChatSettings = (chatId?: string) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user && chatId) {
+    if (!chatId) return;
+    // useState's initializer only runs once on mount, so switching between
+    // chats with different wallpapers kept showing the PREVIOUS chat's
+    // settings/wallpaper until the network fetch below resolved. This
+    // re-applies the new chat's cached wallpaper instantly on switch,
+    // before the fetch even starts.
+    const cachedWallpaper = readCachedWallpaper(chatId);
+    setSettings((prev) =>
+      prev?.chat_id === chatId
+        ? prev
+        : {
+          chat_id: chatId,
+          user_id: user?.id || '',
+          is_muted: false,
+          is_pinned: false,
+          notifications_enabled: true,
+          wallpaper_url: cachedWallpaper,
+        }
+    );
+    if (user) {
       fetchSettings();
     }
   }, [user, chatId]);

@@ -148,8 +148,8 @@ export const ChatLongPressPopup = ({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <div className="rounded-[1.35rem] overflow-hidden border border-border/50 bg-card shadow-2xl min-h-0 flex flex-col">
-          <div className="h-16 px-4 flex items-center gap-3 bg-card/95 border-b border-border/40 flex-shrink-0">
-            <Avatar className="h-12 w-12">
+          <div className="h-16 px-4 flex items-center gap-3 bg-gradient-to-b from-card to-card/95 border-b border-border/40 flex-shrink-0">
+            <Avatar className="h-12 w-12 ring-2 ring-primary/20 shadow-sm">
               <AvatarImage src={avatarUrl} />
               <AvatarFallback className="text-base">{name[0]?.toUpperCase()}</AvatarFallback>
             </Avatar>
@@ -193,10 +193,10 @@ export const ChatLongPressPopup = ({
                   <div key={item.key} className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
                     <div
                       className={cn(
-                        'max-w-[78%] rounded-2xl px-3 py-2 text-[15px] leading-snug shadow-sm',
+                        'max-w-[78%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug shadow-sm',
                         isOwn
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-card text-card-foreground border border-border/50 rounded-bl-md'
+                          ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-black dark:text-white rounded-br-md'
+                          : 'bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5 rounded-bl-md'
                       )}
                     >
                       {message.media_url && message.media_type?.startsWith('image') && (
