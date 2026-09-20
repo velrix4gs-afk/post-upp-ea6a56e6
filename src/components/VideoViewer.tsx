@@ -9,6 +9,11 @@ interface VideoViewerProps {
   muted?: boolean;
   loop?: boolean;
   className?: string;
+  // 'contain' (default) letterboxes to show the full frame -- used in chat.
+  // 'cover' fills and center-crops the frame -- used in the feed, where
+  // post cards need a predictable, capped size regardless of the source
+  // video's own aspect ratio.
+  objectFit?: 'contain' | 'cover';
 }
 
 export const VideoViewer = ({
@@ -16,7 +21,8 @@ export const VideoViewer = ({
   autoPlay = false,
   muted = false,
   loop = false,
-  className
+  className,
+  objectFit = 'contain',
 }: VideoViewerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -111,7 +117,7 @@ export const VideoViewer = ({
         // Only give the browser a src once this video has actually scrolled
         // into view — before that, nothing downloads at all.
         src={isInView ? videoUrl : undefined}
-        className="w-full h-full object-contain"
+        className={cn('w-full h-full', objectFit === 'cover' ? 'object-cover object-center' : 'object-contain')}
         loop={loop}
         muted={isMuted}
         playsInline
