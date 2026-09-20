@@ -31,7 +31,7 @@ export const usePresence = (chatId?: string) => {
       .on('presence', { event: 'sync' }, () => {
         const state = presenceChannel.presenceState<UserPresence>();
         const users: Record<string, UserPresence> = {};
-        
+
         Object.values(state).forEach((presences) => {
           presences.forEach((presence) => {
             // Only consider users online if they've been active in the last 5 minutes
@@ -42,7 +42,7 @@ export const usePresence = (chatId?: string) => {
             }
           });
         });
-        
+
         setOnlineUsers(users);
       })
       .on('presence', { event: 'join' }, ({ newPresences }) => {
@@ -88,7 +88,13 @@ export const usePresence = (chatId?: string) => {
     return () => {
       presenceChannel.unsubscribe();
     };
-  }, [user, chatId]);
+    // Deliberately NOT depending on chatId here -- this channel represents
+    // app-wide "who's online", not a per-chat thing. Recreating it every
+    // time the user opens a different conversation was wiping everyone's
+    // online status and rebuilding it from scratch, which is why the
+    // indicator flickered offline/online while navigating between chats.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const updateViewingChat = async (newChatId?: string) => {
     if (!channel || !user) return;
@@ -107,6 +113,14 @@ export const usePresence = (chatId?: string) => {
       viewing_chat: newChatId,
     });
   };
+
+  // Keep "viewing_chat" in sync with the currently open chat without
+  // tearing down and re-subscribing the whole presence channel.
+  useEffect(() => {
+    if (!channel) return;
+    updateViewingChat(chatId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel, chatId]);
 
   const isUserOnline = (userId: string) => {
     return !!onlineUsers[userId];

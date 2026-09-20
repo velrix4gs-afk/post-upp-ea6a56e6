@@ -143,9 +143,16 @@ export const ChatInput = ({
 
       {/* Send / Mic swap with scale-in animation */}
       <Button
-        type={hasContent ? 'submit' : 'button'}
+        type="button"
         size="icon"
-        onClick={hasContent ? undefined : onMicClick}
+        onClick={(e) => {
+          e.preventDefault();
+          if (hasContent) {
+            onSend();
+          } else {
+            onMicClick();
+          }
+        }}
         disabled={disabled}
         className={cn(
           'h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex-shrink-0',

@@ -36,6 +36,7 @@ export interface ChatSettings {
   is_pinned: boolean;
   wallpaper_url?: string;
   theme_color?: string;
+  nickname?: string;
   auto_delete_duration?: number;
   notifications_enabled: boolean;
 }
@@ -138,7 +139,7 @@ export const useChatSettings = (chatId?: string) => {
   const setAutoDelete = (duration?: number) => updateSettings({ auto_delete_duration: duration });
 
   const muteChat = async (duration?: number) => {
-    const muted_until = duration 
+    const muted_until = duration
       ? new Date(Date.now() + duration * 60 * 1000).toISOString()
       : undefined;
     await updateSettings({ is_muted: true });
@@ -149,8 +150,10 @@ export const useChatSettings = (chatId?: string) => {
   };
 
   const setNickname = async (nickname: string) => {
-    // Store nickname in chat_settings
-    await updateSettings({ theme_color: nickname }); // Using theme_color as temporary storage
+    // Was previously overwriting theme_color with the nickname text --
+    // that silently destroyed whatever theme color the chat had set.
+    // Nickname now has its own real column.
+    await updateSettings({ nickname });
     toast({ description: 'Nickname set' });
   };
 

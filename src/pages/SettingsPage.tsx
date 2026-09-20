@@ -33,7 +33,7 @@ const SettingsPage = () => {
   const { profile, updateProfile, uploadAvatar, uploadCover } = useProfile();
   const { theme, setTheme, colorTheme, setColorTheme, contrast, setContrast } = useTheme();
   const { isAdmin } = useAdmin();
-  
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -46,8 +46,9 @@ const SettingsPage = () => {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
-  
+
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [newUsername, setNewUsername] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
   const [newBio, setNewBio] = useState('');
@@ -100,22 +101,22 @@ const SettingsPage = () => {
   // Load settings and apply them
   const loadSettings = async () => {
     if (!user) return;
-    
+
     const { data } = await supabase
       .from('user_settings')
       .select('*')
       .eq('user_id', user.id)
       .maybeSingle();
-    
+
     if (data) {
       const loadedFontSize = data.font_size || 'medium';
       const loadedLayoutMode = data.layout_mode || 'spacious';
       const loadedAccentColor = data.accent_color || 'blue';
-      
+
       setFontSize(loadedFontSize);
       setLayoutMode(loadedLayoutMode);
       setAccentColor(loadedAccentColor);
-      
+
       setPrivacySettings(prev => ({
         ...prev,
         profile_visibility: data.privacy_who_can_view_profile || 'public',
@@ -166,16 +167,16 @@ const SettingsPage = () => {
     try {
       const { error } = await supabase
         .from('user_settings')
-        .upsert({ 
+        .upsert({
           user_id: user?.id,
           ...updates,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id'
         });
-      
+
       if (error) throw error;
-      
+
       toast({
         title: 'Settings Saved',
         description: 'Your preferences have been updated',
@@ -197,7 +198,7 @@ const SettingsPage = () => {
   const handleExportData = async () => {
     try {
       setIsLoading(true);
-      
+
       // Fetch user data
       const [
         { data: posts },
@@ -212,7 +213,7 @@ const SettingsPage = () => {
         supabase.from('stories').select('*').eq('user_id', user?.id),
         supabase.from('post_comments').select('*').eq('user_id', user?.id)
       ]);
-      
+
       const exportData = {
         profile,
         posts: posts || [],
@@ -234,9 +235,9 @@ const SettingsPage = () => {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast({ 
+      toast({
         title: 'Data Exported',
-        description: 'Your data has been downloaded successfully' 
+        description: 'Your data has been downloaded successfully'
       });
     } catch (error: any) {
       console.error('Export data error:', error);
@@ -267,14 +268,14 @@ const SettingsPage = () => {
         .from('profiles')
         .update({ is_active: false })
         .eq('id', user?.id);
-      
+
       if (error) throw error;
-      
-      toast({ 
+
+      toast({
         title: 'Account Deactivated',
-        description: 'Your account has been deactivated. Login again to reactivate.' 
+        description: 'Your account has been deactivated. Login again to reactivate.'
       });
-      
+
       // Sign out after deactivating
       await supabase.auth.signOut();
       navigate('/signin');
@@ -293,10 +294,10 @@ const SettingsPage = () => {
 
   const handleDeleteAccount = async () => {
     if (!user?.id) return;
-    
+
     try {
       setIsLoading(true);
-      
+
       // Delete user's data in order (to avoid foreign key issues)
       const deletions = [
         supabase.from('bookmarks').delete().eq('user_id', user.id),
@@ -310,23 +311,23 @@ const SettingsPage = () => {
         supabase.from('posts').delete().eq('user_id', user.id),
         supabase.from('stories').delete().eq('user_id', user.id),
       ];
-      
+
       // Execute all deletions
       await Promise.all(deletions);
-      
+
       // Finally delete profile (this will cascade to auth.users)
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', user.id);
-      
+
       if (profileError) throw profileError;
-      
-      toast({ 
+
+      toast({
         title: 'Account Deleted',
-        description: 'Your account and all data have been permanently deleted' 
+        description: 'Your account and all data have been permanently deleted'
       });
-      
+
       // Sign out
       await supabase.auth.signOut();
       navigate('/signin');
@@ -347,9 +348,9 @@ const SettingsPage = () => {
     try {
       setIsLoading(true);
       await supabase.auth.signOut({ scope: 'global' });
-      toast({ 
+      toast({
         title: 'Logged Out',
-        description: 'Successfully logged out from all devices' 
+        description: 'Successfully logged out from all devices'
       });
       navigate('/signin');
     } catch (error: any) {
@@ -366,10 +367,18 @@ const SettingsPage = () => {
 
   const handleChangePassword = async () => {
     if (!newPassword || newPassword.length < 6) {
-      toast({ 
+      toast({
         title: 'Invalid Password',
-        description: 'Password must be at least 6 characters', 
-        variant: 'destructive' 
+        description: 'Password must be at least 6 characters',
+        variant: 'destructive'
+      });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: 'Passwords don\'t match',
+        description: 'Make sure both password fields are the same',
+        variant: 'destructive'
       });
       return;
     }
@@ -377,12 +386,13 @@ const SettingsPage = () => {
       setIsLoading(true);
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
-      toast({ 
+      toast({
         title: 'Success',
-        description: 'Password updated successfully' 
+        description: 'Password updated successfully'
       });
       setShowPasswordDialog(false);
       setNewPassword('');
+      setConfirmPassword('');
     } catch (error: any) {
       console.error('Password update error:', error);
       toast({
@@ -397,28 +407,28 @@ const SettingsPage = () => {
 
   const handleChangeUsername = async () => {
     if (!newUsername || newUsername.length < 3) {
-      toast({ 
+      toast({
         title: 'Invalid Username',
-        description: 'Username must be at least 3 characters', 
-        variant: 'destructive' 
+        description: 'Username must be at least 3 characters',
+        variant: 'destructive'
       });
       return;
     }
-    
+
     // Validate username format (alphanumeric and underscores only)
     const usernameRegex = /^[a-zA-Z0-9_]+$/;
     if (!usernameRegex.test(newUsername)) {
-      toast({ 
+      toast({
         title: 'Invalid Username',
-        description: 'Username can only contain letters, numbers, and underscores', 
-        variant: 'destructive' 
+        description: 'Username can only contain letters, numbers, and underscores',
+        variant: 'destructive'
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
-      
+
       // Check if username is already taken
       const { data: existing } = await supabase
         .from('profiles')
@@ -426,20 +436,20 @@ const SettingsPage = () => {
         .eq('username', newUsername.toLowerCase())
         .neq('id', user?.id)
         .maybeSingle();
-      
+
       if (existing) {
-        toast({ 
+        toast({
           title: 'Username Taken',
-          description: 'This username is already in use', 
-          variant: 'destructive' 
+          description: 'This username is already in use',
+          variant: 'destructive'
         });
         return;
       }
-      
+
       await updateProfile({ username: newUsername.toLowerCase() });
-      toast({ 
+      toast({
         title: 'Success',
-        description: 'Username updated successfully' 
+        description: 'Username updated successfully'
       });
       setShowUsernameDialog(false);
       setNewUsername('');
@@ -472,20 +482,20 @@ const SettingsPage = () => {
 
   const handleChangeBio = async () => {
     if (newBio.length > 160) {
-      toast({ 
+      toast({
         title: 'Bio Too Long',
-        description: 'Bio must be 160 characters or less', 
-        variant: 'destructive' 
+        description: 'Bio must be 160 characters or less',
+        variant: 'destructive'
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
       await updateProfile({ bio: newBio });
-      toast({ 
+      toast({
         title: 'Success',
-        description: 'Bio updated successfully' 
+        description: 'Bio updated successfully'
       });
       setShowBioDialog(false);
       setNewBio('');
@@ -503,23 +513,23 @@ const SettingsPage = () => {
 
   const handleChangeEmail = async () => {
     if (!newEmail) return;
-    
+
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(newEmail)) {
-      toast({ 
+      toast({
         title: 'Invalid Email',
         description: 'Please enter a valid email address',
-        variant: 'destructive' 
+        variant: 'destructive'
       });
       return;
     }
-    
+
     try {
       setIsLoading(true);
       const { error } = await supabase.auth.updateUser({ email: newEmail });
       if (error) throw error;
-      toast({ 
+      toast({
         title: 'Email Update Sent',
         description: 'Check both your old and new email to confirm the change'
       });
@@ -541,7 +551,7 @@ const SettingsPage = () => {
     <div className="min-h-screen bg-background">
       <Navigation />
       <BackNavigation title="Settings" />
-      
+
       <main className="container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Settings</h1>
@@ -608,9 +618,9 @@ const SettingsPage = () => {
                     <p className="text-sm text-muted-foreground mb-3">Update your profile picture (max 5MB)</p>
                     <div className="flex items-center gap-4">
                       {profile?.avatar_url && (
-                        <img 
-                          src={profile.avatar_url} 
-                          alt="Current avatar" 
+                        <img
+                          src={profile.avatar_url}
+                          alt="Current avatar"
                           className="h-16 w-16 rounded-full object-cover border"
                         />
                       )}
@@ -656,9 +666,9 @@ const SettingsPage = () => {
                     <p className="text-sm text-muted-foreground mb-3">Update your cover photo (max 5MB)</p>
                     <div className="space-y-3">
                       {profile?.cover_url && (
-                        <img 
-                          src={profile.cover_url} 
-                          alt="Current cover" 
+                        <img
+                          src={profile.cover_url}
+                          alt="Current cover"
                           className="w-full h-24 object-cover rounded-lg border"
                         />
                       )}
@@ -717,7 +727,7 @@ const SettingsPage = () => {
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
-                        <svg className="h-5 w-5 text-red-600" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                        <svg className="h-5 w-5 text-red-600" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
                       </div>
                       <div>
                         <p className="font-medium">Google</p>
@@ -730,7 +740,7 @@ const SettingsPage = () => {
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24"><path fill="currentColor" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/></svg>
+                        <svg className="h-5 w-5 text-blue-600" viewBox="0 0 24 24"><path fill="currentColor" d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z" /></svg>
                       </div>
                       <div>
                         <p className="font-medium">TikTok</p>
@@ -797,11 +807,10 @@ const SettingsPage = () => {
                             haptic('light');
                             setContrast(opt.id);
                           }}
-                          className={`p-3 rounded-lg border-2 text-left transition-all press-elastic ${
-                            contrast === opt.id
+                          className={`p-3 rounded-lg border-2 text-left transition-all press-elastic ${contrast === opt.id
                               ? 'border-primary ring-2 ring-primary/20'
                               : 'border-border hover:border-primary/50'
-                          }`}
+                            }`}
                         >
                           <span className="block text-sm font-medium">{opt.label}</span>
                           <span className="block text-xs text-muted-foreground">{opt.hint}</span>
@@ -818,9 +827,8 @@ const SettingsPage = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <button
                         onClick={() => setColorTheme('fb-twitter')}
-                        className={`p-6 rounded-lg border-2 transition-all ${
-                          colorTheme === 'fb-twitter' || !colorTheme ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'fb-twitter' || !colorTheme ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-start gap-4 mb-3">
                           <div className="flex gap-2">
@@ -836,9 +844,8 @@ const SettingsPage = () => {
 
                       <button
                         onClick={() => setColorTheme('deep-teal')}
-                        className={`p-6 rounded-lg border-2 transition-all ${
-                          colorTheme === 'deep-teal' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'deep-teal' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-start gap-4 mb-3">
                           <div className="flex gap-2">
@@ -854,9 +861,8 @@ const SettingsPage = () => {
 
                       <button
                         onClick={() => setColorTheme('lemon-yellow')}
-                        className={`p-6 rounded-lg border-2 transition-all ${
-                          colorTheme === 'lemon-yellow' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'lemon-yellow' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-start gap-4 mb-3">
                           <div className="flex gap-2">
@@ -872,9 +878,8 @@ const SettingsPage = () => {
 
                       <button
                         onClick={() => setColorTheme('seamist')}
-                        className={`p-6 rounded-lg border-2 transition-all ${
-                          colorTheme === 'seamist' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'seamist' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-start gap-4 mb-3">
                           <div className="flex gap-2">
@@ -890,9 +895,8 @@ const SettingsPage = () => {
 
                       <button
                         onClick={() => setColorTheme('curious-blue')}
-                        className={`p-6 rounded-lg border-2 transition-all ${
-                          colorTheme === 'curious-blue' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'curious-blue' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-start gap-4 mb-3">
                           <div className="flex gap-2">
@@ -908,9 +912,8 @@ const SettingsPage = () => {
 
                       <button
                         onClick={() => setColorTheme('mulled-wine')}
-                        className={`p-6 rounded-lg border-2 transition-all ${
-                          colorTheme === 'mulled-wine' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                        }`}
+                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'mulled-wine' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
+                          }`}
                       >
                         <div className="flex items-start gap-4 mb-3">
                           <div className="flex gap-2">
@@ -1032,8 +1035,8 @@ const SettingsPage = () => {
                       <Label className="text-base">Profile Visibility</Label>
                       <p className="text-sm text-muted-foreground">Who can view your profile</p>
                     </div>
-                    <Select 
-                      value={privacySettings.profile_visibility} 
+                    <Select
+                      value={privacySettings.profile_visibility}
                       onValueChange={(value) => {
                         setPrivacySettings({ ...privacySettings, profile_visibility: value });
                         handleSettingUpdate({ privacy_who_can_view_profile: value });
@@ -1056,8 +1059,8 @@ const SettingsPage = () => {
                       <Label className="text-base">Who Can Message You</Label>
                       <p className="text-sm text-muted-foreground">Control message access</p>
                     </div>
-                    <Select 
-                      value={privacySettings.who_can_message} 
+                    <Select
+                      value={privacySettings.who_can_message}
                       onValueChange={(value) => {
                         setPrivacySettings({ ...privacySettings, who_can_message: value });
                         handleSettingUpdate({ privacy_who_can_message: value });
@@ -1080,8 +1083,8 @@ const SettingsPage = () => {
                       <Label className="text-base">Who Can Tag You</Label>
                       <p className="text-sm text-muted-foreground">Control post tagging</p>
                     </div>
-                    <Select 
-                      value={privacySettings.who_can_tag} 
+                    <Select
+                      value={privacySettings.who_can_tag}
                       onValueChange={(value) => {
                         setPrivacySettings({ ...privacySettings, who_can_tag: value });
                         handleSettingUpdate({ privacy_who_can_tag: value });
@@ -1166,7 +1169,7 @@ const SettingsPage = () => {
                       <p className="text-sm text-muted-foreground">Customize all notification types and delivery methods</p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => setShowNotificationPreferences(true)}
                     className="rounded-xl"
                   >
@@ -1196,9 +1199,9 @@ const SettingsPage = () => {
                             handleSettingUpdate({ sms_notifications: checked });
                             toast({ description: 'Push notifications enabled' });
                           } else {
-                            toast({ 
-                              description: 'Please enable notifications in your browser settings', 
-                              variant: 'destructive' 
+                            toast({
+                              description: 'Please enable notifications in your browser settings',
+                              variant: 'destructive'
                             });
                           }
                         } else {
@@ -1522,10 +1525,10 @@ const SettingsPage = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>New Password</Label>
-              <Input 
-                type="password" 
-                placeholder="At least 6 characters" 
-                value={newPassword} 
+              <Input
+                type="password"
+                placeholder="At least 6 characters"
+                value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 minLength={6}
                 autoComplete="new-password"
@@ -1534,10 +1537,21 @@ const SettingsPage = () => {
                 Password must be at least 6 characters long
               </p>
             </div>
+            <div className="space-y-2">
+              <Label>Confirm New Password</Label>
+              <Input
+                type="password"
+                placeholder="Re-enter your new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={6}
+                autoComplete="new-password"
+              />
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>Cancel</Button>
-            <Button onClick={handleChangePassword} disabled={!newPassword || isLoading}>Update</Button>
+            <Button variant="outline" onClick={() => { setShowPasswordDialog(false); setConfirmPassword(''); }}>Cancel</Button>
+            <Button onClick={handleChangePassword} disabled={!newPassword || !confirmPassword || isLoading}>Update</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1550,9 +1564,9 @@ const SettingsPage = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>New Username</Label>
-              <Input 
-                placeholder="At least 3 characters" 
-                value={newUsername} 
+              <Input
+                placeholder="At least 3 characters"
+                value={newUsername}
                 onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
                 minLength={3}
                 pattern="[a-zA-Z0-9_]+"
@@ -1595,9 +1609,9 @@ const SettingsPage = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Bio</Label>
-              <Textarea 
-                placeholder="Tell us about yourself..." 
-                value={newBio} 
+              <Textarea
+                placeholder="Tell us about yourself..."
+                value={newBio}
                 onChange={(e) => setNewBio(e.target.value)}
                 className="min-h-[100px]"
                 maxLength={160}
@@ -1620,10 +1634,10 @@ const SettingsPage = () => {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>New Email</Label>
-              <Input 
-                type="email" 
-                placeholder="your@email.com" 
-                value={newEmail} 
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                value={newEmail}
                 onChange={(e) => setNewEmail(e.target.value)}
                 autoComplete="email"
               />
@@ -1640,7 +1654,7 @@ const SettingsPage = () => {
       </Dialog>
 
       {/* Notification Preferences Panel */}
-      <NotificationPreferences 
+      <NotificationPreferences
         isOpen={showNotificationPreferences}
         onOpenChange={setShowNotificationPreferences}
       />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -80,6 +80,8 @@ export interface Chat {
 export const useMessages = (chatId?: string) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
+  const chatIdRef = useRef<string | undefined>(chatId);
+  const freshFetchAppliedRef = useRef(false);
   const [chats, setChats] = useState<Chat[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -93,10 +95,16 @@ export const useMessages = (chatId?: string) => {
     }
   };
 
-  const loadMessagesFromCache = async () => {
-    if (!chatId) return;
-    const cached = await CacheHelper.getMessages(chatId);
-    if (cached) {
+  const loadMessagesFromCache = async (forChatId: string) => {
+    if (!forChatId) return;
+    const cached = await CacheHelper.getMessages(forChatId);
+    // Two races this guards against:
+    // 1) The cache read (disk/IndexedDB) resolving AFTER the network fetch
+    //    already set fresh messages -- without this, opening a chat could
+    //    silently replace up-to-date messages with a stale cached copy.
+    // 2) The cache read for a chat the user has since navigated away from
+    //    landing late and overwriting whatever chat is now open.
+    if (cached && chatIdRef.current === forChatId && !freshFetchAppliedRef.current) {
       setMessages(cached);
     }
   };
@@ -143,12 +151,14 @@ export const useMessages = (chatId?: string) => {
 
   useEffect(() => {
     if (chatId) {
+      chatIdRef.current = chatId;
+      freshFetchAppliedRef.current = false;
       // Reset initial-loaded flag for the new chat so the page can re-anchor scroll
       setMessagesInitialLoaded(false);
       // Load from cache first
-      loadMessagesFromCache();
+      loadMessagesFromCache(chatId);
       fetchMessages();
-      
+
       // Set up real-time subscription for messages
       const channel = supabase
         .channel(`messages:${chatId}`)
@@ -159,10 +169,10 @@ export const useMessages = (chatId?: string) => {
           filter: `chat_id=eq.${chatId}`
         }, async (payload) => {
           const newMessage = payload.new as any;
-          
+
           // Use cached profile for fast real-time updates
           const profile = await getCachedProfile(newMessage.sender_id);
-          
+
           const messageWithProfile: Message = {
             ...newMessage,
             status: 'sent' as const,
@@ -191,31 +201,31 @@ export const useMessages = (chatId?: string) => {
               });
             }
           }
-          
+
           setMessages(prev => {
             // Check if this exact message ID already exists
             if (prev.some(m => m.id === messageWithProfile.id)) {
               return prev;
             }
-            
+
             // Remove optimistic messages that match this real message
             // Match by: same sender, similar content, within 30 seconds
             const withoutOptimistic = prev.filter(m => {
               if (!m.is_optimistic) return true;
               if (m.sender_id !== messageWithProfile.sender_id) return true;
-              
+
               // Check if content matches (or both are media messages)
-              const contentMatches = m.content === messageWithProfile.content || 
+              const contentMatches = m.content === messageWithProfile.content ||
                 (!m.content && !messageWithProfile.content);
               const mediaMatches = m.media_url === messageWithProfile.media_url;
               const timeClose = Math.abs(
                 new Date(m.created_at).getTime() - new Date(messageWithProfile.created_at).getTime()
               ) < 30000;
-              
+
               // Remove if it's the same message
               return !(contentMatches && mediaMatches && timeClose);
             });
-            
+
             return [...withoutOptimistic, messageWithProfile];
           });
         })
@@ -226,10 +236,10 @@ export const useMessages = (chatId?: string) => {
           filter: `chat_id=eq.${chatId}`
         }, async (payload) => {
           const updatedMessage = payload.new as any;
-          
+
           // Use cached profile for fast real-time updates
           const profile = await getCachedProfile(updatedMessage.sender_id);
-          
+
           const messageWithProfile: Message = {
             ...updatedMessage,
             status: (updatedMessage.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
@@ -240,8 +250,8 @@ export const useMessages = (chatId?: string) => {
               avatar_url: profile?.avatar_url
             }
           };
-          
-          setMessages(prev => prev.map(msg => 
+
+          setMessages(prev => prev.map(msg =>
             msg.id === messageWithProfile.id ? messageWithProfile : msg
           ));
         })
@@ -270,7 +280,7 @@ export const useMessages = (chatId?: string) => {
         return prev;
       });
       console.log('[useMessages] Fetching chats via get_chat_list RPC');
-      
+
       // Use the optimized RPC that returns everything in one query
       const { data: chatList, error } = await supabase.rpc('get_chat_list');
 
@@ -335,16 +345,16 @@ export const useMessages = (chatId?: string) => {
           }
         }]
       }));
-      
+
       setChats(validChats);
-      
+
       // Cache chats
       await CacheHelper.saveChats(validChats);
-      
+
       console.log('[useMessages] Successfully loaded', validChats.length, 'chats');
     } catch (err: any) {
       console.error('[CHAT_001] Failed to load chats:', err);
-      
+
       if (!navigator.onLine || err?.message?.includes('fetch') || err?.message?.includes('network')) {
         toast({
           title: 'No internet connection',
@@ -365,11 +375,12 @@ export const useMessages = (chatId?: string) => {
 
   const fetchMessages = async () => {
     if (!chatId) return;
+    const fetchingFor = chatId;
 
     try {
       setMessagesLoading(true);
       console.log('[useMessages] Fetching messages for chat:', chatId);
-      
+
       // Fetch messages
       const { data: messagesData, error } = await supabase
         .from('messages')
@@ -423,12 +434,15 @@ export const useMessages = (chatId?: string) => {
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       setMessages(sorted);
-      
+      if (chatIdRef.current === fetchingFor) {
+        freshFetchAppliedRef.current = true;
+      }
+
       // Cache messages
       if (chatId) {
         await CacheHelper.saveMessages(chatId, sorted);
       }
-      
+
       console.log('[useMessages] Successfully loaded', messagesWithProfiles.length, 'messages');
     } catch (err: any) {
       console.error('[MSG_001] Failed to load messages:', err);
@@ -448,7 +462,7 @@ export const useMessages = (chatId?: string) => {
 
     // Generate temporary ID for optimistic update
     const tempId = `temp-${crypto.randomUUID()}`;
-    
+
     // Create optimistic message
     const optimisticMessage: Message = {
       id: tempId,
@@ -472,14 +486,14 @@ export const useMessages = (chatId?: string) => {
 
     // Add optimistic message immediately
     setMessages(prev => [...prev, optimisticMessage]);
-    
+
     // Persist status in localStorage
     const messageStatusKey = `msg_status_${tempId}`;
 
     // If offline, queue the action and mark as queued
     if (!navigator.onLine) {
       localStorage.setItem(messageStatusKey, 'queued');
-      setMessages(prev => prev.map(msg => 
+      setMessages(prev => prev.map(msg =>
         msg.id === tempId ? { ...msg, status: 'sending' as const } : msg
       ));
       enqueueOfflineAction('insert', 'messages', {
@@ -525,10 +539,10 @@ export const useMessages = (chatId?: string) => {
         .select('username, display_name, avatar_url')
         .eq('id', user.id)
         .single();
-      
+
       // Update status to sent
       localStorage.setItem(messageStatusKey, 'sent');
-      
+
       // Replace optimistic message with real message
       const realMessage: Message = {
         ...data,
@@ -541,16 +555,16 @@ export const useMessages = (chatId?: string) => {
         }
       };
 
-      setMessages(prev => prev.map(msg => 
+      setMessages(prev => prev.map(msg =>
         msg.id === tempId ? realMessage : msg
       ));
-      
+
       // Update chat's updated_at timestamp
       await supabase
         .from('chats')
         .update({ updated_at: new Date().toISOString() })
         .eq('id', chatId);
-      
+
       // Clean up status after 3 seconds
       setTimeout(() => {
         localStorage.removeItem(messageStatusKey);
@@ -558,7 +572,7 @@ export const useMessages = (chatId?: string) => {
       return true;
     } catch (err: any) {
       console.error('Send message error:', err);
-      
+
       // If network error, queue it
       if (!navigator.onLine || err?.message?.includes('fetch') || err?.message?.includes('Failed to fetch')) {
         localStorage.setItem(messageStatusKey, 'queued');
@@ -578,23 +592,23 @@ export const useMessages = (chatId?: string) => {
         });
         return true;
       }
-      
+
       // Update status to failed
       localStorage.setItem(messageStatusKey, 'failed');
-      
+
       // Mark message as failed
-      setMessages(prev => prev.map(msg => 
-        msg.id === tempId 
+      setMessages(prev => prev.map(msg =>
+        msg.id === tempId
           ? { ...msg, status: 'failed' as const }
           : msg
       ));
-      
+
       toast({
         title: 'Error',
         description: err.message || 'Failed to send message',
         variant: 'destructive'
       });
-      
+
       // Keep failed status for 30 seconds
       setTimeout(() => {
         localStorage.removeItem(messageStatusKey);
@@ -609,7 +623,7 @@ export const useMessages = (chatId?: string) => {
     try {
       const { data, error } = await supabase
         .from('messages')
-        .update({ 
+        .update({
           content: content.trim(),
           is_edited: true,
           edited_at: new Date().toISOString()
@@ -626,19 +640,19 @@ export const useMessages = (chatId?: string) => {
         .select('username, display_name, avatar_url')
         .eq('id', data.sender_id)
         .single();
-      
-      setMessages(prev => prev.map(msg => 
-        msg.id === messageId 
+
+      setMessages(prev => prev.map(msg =>
+        msg.id === messageId
           ? {
-              ...data,
-              status: (data.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
-              updated_at: data.edited_at || data.created_at,
-              sender: {
-                username: senderProfile?.username || 'user',
-                display_name: senderProfile?.display_name || 'User',
-                avatar_url: senderProfile?.avatar_url
-              }
+            ...data,
+            status: (data.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
+            updated_at: data.edited_at || data.created_at,
+            sender: {
+              username: senderProfile?.username || 'user',
+              display_name: senderProfile?.display_name || 'User',
+              avatar_url: senderProfile?.avatar_url
             }
+          }
           : msg
       ));
     } catch (err: any) {
@@ -661,10 +675,10 @@ export const useMessages = (chatId?: string) => {
           .eq('sender_id', user!.id); // Only allow sender to delete for everyone
 
         if (error) throw error;
-        
+
         // Remove from local state immediately
         setMessages(prev => prev.filter(msg => msg.id !== messageId));
-        
+
         toast({
           title: 'Success',
           description: 'Message deleted for everyone',
@@ -677,10 +691,10 @@ export const useMessages = (chatId?: string) => {
           .eq('id', messageId);
 
         if (error) throw error;
-        
+
         // Remove from local state
         setMessages(prev => prev.filter(msg => msg.id !== messageId));
-        
+
         toast({
           title: 'Success',
           description: 'Message deleted',
@@ -748,16 +762,16 @@ export const useMessages = (chatId?: string) => {
     try {
       const { error } = await supabase
         .from('starred_messages')
-        .insert({ 
-          user_id: user!.id, 
-          message_id: messageId 
+        .insert({
+          user_id: user!.id,
+          message_id: messageId
         });
 
       if (error && error.code === '23505') {
         // Already starred, ignore
         return;
       }
-      
+
       if (error) throw error;
     } catch (err: any) {
       console.error('Star message error:', err);
@@ -815,9 +829,9 @@ export const useMessages = (chatId?: string) => {
     try {
       const { error } = await supabase
         .from('message_reads')
-        .insert({ 
-          message_id: messageId, 
-          user_id: user!.id 
+        .insert({
+          message_id: messageId,
+          user_id: user!.id
         });
 
       if (error && error.code === '23505') {

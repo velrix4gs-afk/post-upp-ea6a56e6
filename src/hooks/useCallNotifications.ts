@@ -30,9 +30,12 @@ export const useCallNotifications = () => {
         table: 'call_signals',
       }, async (payload) => {
         const signal = payload.new as any;
-        
-        // Check if this is an offer signal (incoming call) for this user
-        if (signal.signal_type === 'offer') {
+
+        // Check if this is an offer signal (incoming call) for this user.
+        // Also skip offers we sent ourselves -- the caller is a participant
+        // in their own chat too, so without this check they'd get their
+        // own incoming-call popup for the call they just placed.
+        if (signal.signal_type === 'offer' && signal.sender_id !== user.id) {
           // Get chat to verify we're a participant
           const { data: chatData } = await supabase
             .from('chats')

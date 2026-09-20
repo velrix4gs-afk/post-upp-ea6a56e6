@@ -54,7 +54,7 @@ export const ChatHeader = ({
             <AvatarFallback className="bg-muted text-sm">{name[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
           {isOnline && !isGroup && (
-            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-card" />
+            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-purple-500 border-2 border-card" />
           )}
         </div>
         <div className="min-w-0 flex-1">

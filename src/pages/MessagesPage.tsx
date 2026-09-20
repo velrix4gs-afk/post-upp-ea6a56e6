@@ -3,7 +3,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { usePresence } from '@/hooks/usePresence';
-import { useLastSeen } from '@/hooks/useLastSeen';
 import { useChatSettings } from '@/hooks/useChatSettings';
 import { useAdmin } from '@/hooks/useAdmin';
 import Navigation from '@/components/Navigation';
@@ -91,7 +90,7 @@ const MessagesPage = () => {
   const { isUserOnline } = usePresence(selectedChatId || undefined);
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const otherParticipant = selectedChat?.participants.find((p) => p.user_id !== user?.id);
-  const { formatLastSeen, isOnline } = useLastSeen(otherParticipant?.user_id);
+  const isOnline = otherParticipant ? isUserOnline(otherParticipant.user_id) : false;
   const { settings: chatSettings } = useChatSettings(selectedChatId || undefined);
 
   // Input/state
@@ -732,7 +731,7 @@ const MessagesPage = () => {
   const renderChatView = () => {
     if (!selectedChat) return null;
     const otherP = selectedChat.participants.find((p) => p.user_id !== user?.id);
-    const chatName = selectedChat.name || otherP?.profiles.display_name || 'User';
+    const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles.display_name || 'User';
     const chatAvatar = selectedChat.avatar_url || otherP?.profiles.avatar_url;
 
     return (
@@ -741,7 +740,7 @@ const MessagesPage = () => {
           name={chatName}
           avatarUrl={chatAvatar}
           isOnline={isOnline}
-          statusText={isOnline ? 'online' : formatLastSeen()}
+          statusText={isOnline ? 'online' : 'last seen recently'}
           isGroup={selectedChat.is_group}
           onBack={() => setSelectedChatId(null)}
           onTitleTap={() => {
