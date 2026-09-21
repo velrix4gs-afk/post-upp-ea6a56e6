@@ -56,11 +56,7 @@ export const ChatInput = ({
   const hasContent = value.trim().length > 0 || hasMedia;
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (hasContent) onSend();
-      }}
+    <div
       data-chat-input
       className="flex items-end gap-1.5 px-2 py-2 bg-card"
     >
@@ -163,6 +159,6 @@ export const ChatInput = ({
       >
         {hasContent ? <Send className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
       </Button>
-    </form>
+    </div>
   );
 };

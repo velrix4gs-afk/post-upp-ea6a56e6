@@ -14,20 +14,20 @@ import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { formatDistanceToNow, format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { CommentsSection } from "./CommentsSection";
-import { SharePostDialog } from "./SharePostDialog";
-import { ImageGalleryViewer } from "./ImageGalleryViewer";
-import { VideoViewer } from "./VideoViewer";
-import { ReportDialog } from "./ReportDialog";
+import { CommentsSection } from "../CommentsSection";
+import { SharePostDialog } from "../SharePostDialog";
+import { ImageGalleryViewer } from "../ImageGalleryViewer";
+import { VideoViewer } from "../VideoViewer";
+import { ReportDialog } from "../ReportDialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { PostReactionPicker } from "./PostReactionPicker";
+import { PostReactionPicker } from "../PostReactionPicker";
 import { useReactions } from "@/hooks/useReactions";
-import { ThreadedCommentsSection } from "./ThreadedCommentsSection";
+import { ThreadedCommentsSection } from "../ThreadedCommentsSection";
 import { useTopComment } from "@/hooks/useTopComment";
-import { VerificationBadge as TopCommentBadge } from "./premium/VerificationBadge";
+import { VerificationBadge as TopCommentBadge } from "../premium/VerificationBadge";
 import { cn } from "@/lib/utils";
-import { VerificationBadge } from "./premium/VerificationBadge";
-import { ProfileHoverCard } from "./ProfileHoverCard";
+import { VerificationBadge } from "../premium/VerificationBadge";
+import { ProfileHoverCard } from "../ProfileHoverCard";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -563,9 +563,9 @@ export const PostCardModern = ({
 
           {/* Media */}
           {mediaItems.length === 1 && <>
-            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3 aspect-[4/5] max-h-[500px]">
+            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3 aspect-[4/3] max-h-[420px]">
               <VideoViewer videoUrl={mediaItems[0]} className="w-full h-full" objectFit="cover" />
-            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black aspect-[4/5] max-h-[500px]" onClick={e => {
+            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black aspect-[4/3] max-h-[420px]" onClick={e => {
               e.stopPropagation();
               captureOriginRect(e.currentTarget as HTMLElement);
               setGalleryImages(mediaItems);
@@ -580,7 +580,7 @@ export const PostCardModern = ({
             <Carousel className="w-full">
               <CarouselContent>
                 {mediaItems.map((url, i) => <CarouselItem key={url + i}>
-                  {isVideoUrl(url) ? <div className="aspect-[4/5] max-h-[500px]"><VideoViewer videoUrl={url} className="w-full h-full" objectFit="cover" /></div> : <div className="bg-black cursor-pointer aspect-[4/5] max-h-[500px]" onClick={e => {
+                  {isVideoUrl(url) ? <div className="aspect-[4/3] max-h-[420px]"><VideoViewer videoUrl={url} className="w-full h-full" objectFit="cover" /></div> : <div className="bg-black cursor-pointer aspect-[4/3] max-h-[420px]" onClick={e => {
                     captureOriginRect(e.currentTarget as HTMLElement);
                     setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
                     setGalleryStartIndex(i);

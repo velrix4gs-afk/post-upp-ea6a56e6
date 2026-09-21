@@ -47,7 +47,7 @@ const Row = ({ icon, label, danger, onClick }: RowProps) => (
       onClick();
     }}
     className={cn(
-      'w-full h-14 px-4 flex items-center gap-4 text-left text-[16px] rounded-xl touch-manipulation',
+      'w-full h-14 px-4 flex items-center gap-4 text-left text-[16px] touch-manipulation',
       'hover:bg-muted/60 active:bg-muted transition-colors',
       danger && 'text-destructive'
     )}
@@ -230,7 +230,7 @@ export const ChatLongPressPopup = ({
           </div>
         </div>
 
-        <div className="w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl p-2">
+        <div className="w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl overflow-hidden divide-y divide-border/40">
           {onMarkUnread && (
             <Row
               icon={<CheckCheck className="h-6 w-6" />}

@@ -63,6 +63,35 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups';
 
+// The chat list's last_message column stores whatever was saved as the
+// message's raw content -- for call-log messages that's the JSON blob
+// itself (e.g. {"kind":"voice","status":"unanswered","durationSec":0}),
+// which was showing up literally in the chat list. This catches that
+// shape and turns it into readable text instead.
+const formatLastMessagePreview = (text?: string): string | undefined => {
+  if (!text) return text;
+  const trimmed = text.trim();
+  if (!trimmed.startsWith('{') || !trimmed.includes('"kind"')) return text;
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed && (parsed.kind === 'voice' || parsed.kind === 'video')) {
+      const isVideo = parsed.kind === 'video';
+      if (parsed.status === 'completed') {
+        const m = Math.floor((parsed.durationSec || 0) / 60);
+        const s = (parsed.durationSec || 0) % 60;
+        return `${isVideo ? '📹' : '📞'} ${isVideo ? 'Video' : 'Voice'} call (${m}:${s.toString().padStart(2, '0')})`;
+      }
+      if (parsed.status === 'declined') {
+        return `${isVideo ? '📹' : '📞'} ${isVideo ? 'Video' : 'Voice'} call declined`;
+      }
+      return `${isVideo ? '📹' : '📞'} Missed ${isVideo ? 'video' : 'voice'} call`;
+    }
+  } catch {
+    // Not actually JSON -- fall through and show it as-is.
+  }
+  return text;
+};
+
 // Preset wallpaper id → Tailwind class. Anything else is treated as an image URL.
 const WALLPAPER_PRESETS: Record<string, string> = {
   default: '',
@@ -694,7 +723,7 @@ const MessagesPage = () => {
                   id={chat.id}
                   name={name}
                   avatarUrl={avatar}
-                  lastMessage={chat.last_message}
+                  lastMessage={formatLastMessagePreview(chat.last_message)}
                   lastMessageAt={chat.last_message_at || chat.updated_at}
                   unreadCount={chat.unread_count || 0}
                   isOnline={isOnlineUser}
@@ -1256,7 +1285,7 @@ const MessagesPage = () => {
             chatId={previewChatId}
             name={previewName}
             avatarUrl={previewAvatar}
-            lastMessage={c.last_message}
+            lastMessage={formatLastMessagePreview(c.last_message)}
             statusText={otherP && isUserOnline(otherP.user_id) ? 'online' : 'last seen recently'}
             unreadCount={c.unread_count || 0}
             onMarkUnread={() => {
