@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, User, Image, BellOff, Download, AlertCircle, Star, Palette, Sparkles, Trash2, Search, Ban, FileText, UserX, Unlock, UserCircle, Heart, Link as LinkIcon, Clock, Shield } from 'lucide-react';
+import { MoreVertical, User, Image, BellOff, Download, AlertCircle, Star, Palette, Sparkles, Trash2, Search, Ban, FileText, UserX, Unlock, UserCircle, Heart, Link as LinkIcon, Clock, Shield, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -34,9 +34,10 @@ interface ChatMenuProps {
   onWallpaperChange?: () => void;
   onViewSharedLinks?: () => void;
   onDisappearingMessages?: () => void;
+  onVideoCall?: () => void;
 }
 
-export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onDisappearingMessages }: ChatMenuProps) => {
+export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onDisappearingMessages, onVideoCall }: ChatMenuProps) => {
   const navigate = useNavigate();
   const { settings, setNickname, muteChat, unmuteChat, togglePin, setTheme } = useChatSettings(chatId);
   const { isBlocked, unblockUser } = useBlockedUsers();
@@ -170,6 +171,12 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
                 <UserCircle className="h-4 w-4 text-primary" />
                 View Profile
               </DropdownMenuItem>
+              {onVideoCall && (
+                <DropdownMenuItem onClick={onVideoCall} className="rounded-lg py-2.5 px-3 gap-3">
+                  <Video className="h-4 w-4 text-primary" />
+                  Video Call
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
             </>
           )}
@@ -212,11 +219,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
           </DropdownMenuItem>
           <DropdownMenuItem onClick={togglePin} className="rounded-lg py-2.5 px-3 gap-3">
             <Star className={`h-4 w-4 text-amber-500 ${settings?.is_pinned ? 'fill-current' : ''}`} />
-            {settings?.is_pinned ? 'Unpin Chat' : 'Pin Chat'}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={togglePin} className="rounded-lg py-2.5 px-3 gap-3">
-            <Heart className={`h-4 w-4 ${settings?.is_pinned ? 'fill-current text-red-500' : 'text-pink-500'}`} />
-            Add to Favorites
+            {settings?.is_pinned ? 'Remove from Favorites' : 'Add to Favorites'}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => settings?.is_muted ? handleUnmute() : setShowMuteDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
             <BellOff className="h-4 w-4 text-muted-foreground" />
