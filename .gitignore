@@ -30,3 +30,4 @@ build/
 .git/
 package-lock.json
 .env
+dev-dist/
