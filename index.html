@@ -7,6 +7,27 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="theme-color" content="#0f172a" />
+  <script>
+    // Applies the cached theme/appearance BEFORE React mounts, so the app
+    // opens already in the right theme instead of flashing light mode
+    // first and snapping to dark a moment later (the class was previously
+    // only ever applied inside a React useEffect, which runs after paint).
+    (function () {
+      try {
+        var theme = localStorage.getItem('theme') || 'system';
+        var resolved = theme === 'system'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : theme;
+        document.documentElement.classList.add(resolved);
+
+        var colorTheme = localStorage.getItem('colorTheme');
+        if (colorTheme) document.documentElement.setAttribute('data-color-theme', colorTheme);
+
+        var contrast = localStorage.getItem('contrastMode');
+        if (contrast) document.documentElement.setAttribute('data-contrast', contrast);
+      } catch (e) {}
+    })();
+  </script>
   <title>POST UPP - Connect with Friends Around the World</title>
   <meta name="description"
     content="Join POST UP to connect with friends, share moments, and discover communities. Experience social media reimagined with real-time messaging, stories, and more.">

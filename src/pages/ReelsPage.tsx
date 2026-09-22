@@ -3,9 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
-import { 
-  Plus, Heart, MessageCircle, Share2, Bookmark, Pause, Play, 
-  Volume2, VolumeX, Film, Loader2, Send, MoreHorizontal, 
+import {
+  Plus, Heart, MessageCircle, Share2, Bookmark, Pause, Play,
+  Volume2, VolumeX, Film, Loader2, Send, MoreHorizontal,
   UserPlus, Eye, Pin, Reply, Trash2, Flag, X
 } from 'lucide-react';
 import { useReels, ReelComment } from '@/hooks/useReels';
@@ -14,6 +14,7 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { VerificationBadge } from '@/components/premium/VerificationBadge';
 import { InstagramReelCreator } from '@/components/InstagramReelCreator';
+import { BottomNavigation } from '@/components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -66,7 +67,7 @@ const ReelsPage = () => {
         entries.forEach((entry) => {
           const video = entry.target as HTMLVideoElement;
           if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
-            video.play().catch(() => {});
+            video.play().catch(() => { });
             setIsPlaying(true);
           } else {
             video.pause();
@@ -84,7 +85,7 @@ const ReelsPage = () => {
   // Observe videos and attach timeupdate listeners
   useEffect(() => {
     const videosToObserve: HTMLVideoElement[] = [];
-    
+
     Object.entries(videoRefs.current).forEach(([indexStr, video]) => {
       if (video && observerRef.current) {
         observerRef.current.observe(video);
@@ -250,7 +251,7 @@ const ReelsPage = () => {
     // Organize comments with replies
     const parentComments = fetchedComments.filter(c => !c.parent_id);
     const replies = fetchedComments.filter(c => c.parent_id);
-    
+
     const commentsWithReplies = parentComments.map(comment => ({
       ...comment,
       replies: replies.filter(r => r.parent_id === comment.id),
@@ -280,7 +281,7 @@ const ReelsPage = () => {
     const updatedComments = await fetchComments(reel.id);
     const parentComments = updatedComments.filter(c => !c.parent_id);
     const replies = updatedComments.filter(c => c.parent_id);
-    
+
     const commentsWithReplies = parentComments.map(comment => ({
       ...comment,
       replies: replies.filter(r => r.parent_id === comment.id),
@@ -806,7 +807,7 @@ const ReelsPage = () => {
                         <span>Pinned by creator</span>
                       </div>
                     )}
-                    
+
                     <div className="flex gap-3">
                       <Avatar className="h-9 w-9 flex-shrink-0">
                         <AvatarImage src={comment.user?.avatar_url} />
@@ -864,7 +865,7 @@ const ReelsPage = () => {
                                 ? 'Hide replies'
                                 : `View ${comment.replies.length} ${comment.replies.length === 1 ? 'reply' : 'replies'}`}
                             </button>
-                            
+
                             {showReplies.has(comment.id) && (
                               <div className="mt-2 space-y-3 pl-4 border-l-2 border-border/50">
                                 {comment.replies.map(reply => (
@@ -945,6 +946,12 @@ const ReelsPage = () => {
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Reels previously had zero navigation chrome -- no way to reach
+          other tabs without tapping the X to fully exit first. This adds
+          the same bottom nav the rest of the app uses, matching how
+          TikTok/Instagram keep their tab bar reachable over video. */}
+      <BottomNavigation />
     </div>
   );
 };

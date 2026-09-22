@@ -390,13 +390,6 @@ const App = () => (
                   <Route path="/chat-media" element={<ProtectedRoute><ChatMediaPage /></ProtectedRoute>} />
                   <Route path="/chat-settings" element={<ProtectedRoute><ChatSettingsPage /></ProtectedRoute>} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="/reels" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <ReelsPage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
                   <Route path="/create/story" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
