@@ -22,6 +22,7 @@ interface ChatListItemProps {
   onLongPress?: () => void;
   onArchive?: () => void;
   onDelete?: () => void;
+  isArchived?: boolean;
 }
 
 const formatChatTime = (iso?: string): string => {
@@ -76,6 +77,7 @@ export const ChatListItem = ({
   onLongPress,
   onArchive,
   onDelete,
+  isArchived,
 }: ChatListItemProps) => {
   const [swipeX, setSwipeX] = useState(0);
   const startX = useRef<number | null>(null);
@@ -174,7 +176,7 @@ export const ChatListItem = ({
           className="h-full w-20 bg-muted text-muted-foreground flex flex-col items-center justify-center text-[10px] gap-1 tap-scale"
         >
           <Archive className="h-4 w-4" />
-          Archive
+          {isArchived ? 'Unarchive' : 'Archive'}
         </button>
         <button
           onClick={(e) => {
@@ -259,8 +261,8 @@ export const ChatListItem = ({
                       media
                         ? 'font-medium text-zinc-400 dark:text-zinc-500'
                         : unreadCount > 0
-                        ? 'text-foreground'
-                        : 'text-muted-foreground'
+                          ? 'text-foreground'
+                          : 'text-muted-foreground'
                     )}
                   >
                     {text}

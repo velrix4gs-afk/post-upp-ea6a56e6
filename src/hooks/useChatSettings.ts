@@ -34,6 +34,7 @@ export interface ChatSettings {
   user_id: string;
   is_muted: boolean;
   is_pinned: boolean;
+  is_archived?: boolean;
   wallpaper_url?: string;
   theme_color?: string;
   nickname?: string;
@@ -153,6 +154,9 @@ export const useChatSettings = (chatId?: string) => {
 
   const toggleMute = () => updateSettings({ is_muted: !settings?.is_muted });
   const togglePin = () => updateSettings({ is_pinned: !settings?.is_pinned });
+  // Archive previously didn't exist at all -- the swipe action just showed
+  // a "coming soon" toast with no real backend behind it.
+  const toggleArchive = () => updateSettings({ is_archived: !settings?.is_archived });
   const setWallpaper = (url: string) => updateSettings({ wallpaper_url: url });
   const setTheme = (color: string) => updateSettings({ theme_color: color });
   const setAutoDelete = (duration?: number) => updateSettings({ auto_delete_duration: duration });
@@ -182,6 +186,7 @@ export const useChatSettings = (chatId?: string) => {
     updateSettings,
     toggleMute,
     togglePin,
+    toggleArchive,
     setWallpaper,
     setTheme,
     setAutoDelete,

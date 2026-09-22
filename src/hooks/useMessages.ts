@@ -106,6 +106,13 @@ export const useMessages = (chatId?: string) => {
     //    landing late and overwriting whatever chat is now open.
     if (cached && chatIdRef.current === forChatId && !freshFetchAppliedRef.current) {
       setMessages(cached);
+      // Anchor scroll-to-bottom as soon as the cache renders, not only
+      // after the network fetch finishes. Previously this stayed false
+      // until fetchMessages() completed, so the chat could render at
+      // whatever position the cache naturally landed on, then visibly
+      // jump once the network response arrived and finally triggered
+      // the scroll -- looking like it "went back" after loading.
+      setMessagesInitialLoaded(true);
     }
   };
 
@@ -845,6 +852,20 @@ export const useMessages = (chatId?: string) => {
     }
   };
 
+  // Marks every message from the other person in this chat as read.
+  // This was previously never called anywhere in the app -- messages
+  // never transitioned to 'read' at all, which is why the unread badge
+  // never cleared and read receipts never showed.
+  const markChatAsRead = async (targetChatId: string) => {
+    if (!user || !targetChatId) return;
+    try {
+      const { error } = await supabase.rpc('mark_chat_messages_read', { p_chat_id: targetChatId });
+      if (error) throw error;
+    } catch (err) {
+      console.error('[markChatAsRead] failed:', err);
+    }
+  };
+
   const createChat = async (participantUuid: string) => {
     if (!user) return null;
 
@@ -887,6 +908,7 @@ export const useMessages = (chatId?: string) => {
     unstarMessage,
     forwardMessage,
     markMessageRead,
+    markChatAsRead,
     createChat,
     refetchChats,
     refetchMessages

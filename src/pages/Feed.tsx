@@ -45,7 +45,7 @@ const Feed = () => {
     }
   });
   useElasticOverscroll(containerRef);
-  const handleNewPost = () => {};
+  const handleNewPost = () => { };
   useEffect(() => {
     if (inView && !loading && !loadingMore && hasMore) {
       const timer = setTimeout(() => {
@@ -55,45 +55,56 @@ const Feed = () => {
     }
   }, [inView, loading, loadingMore, hasMore, loadMore]);
   return <div ref={containerRef} className="min-h-screen bg-background touch-pan-y">
-      <RealtimeFeed onNewPost={handleNewPost} />
-      <PullToRefreshIndicator isPulling={isPulling} isRefreshing={isRefreshing} pullDistance={pullDistance} />
-      <Navigation />
-      
-      <div className="container mx-auto px-0 lg:px-4 flex-row flex items-start justify-center gap-[130px]">
-        {/* Left Sidebar */}
-        <FeedSidebar />
+    <RealtimeFeed onNewPost={handleNewPost} />
+    <PullToRefreshIndicator isPulling={isPulling} isRefreshing={isRefreshing} pullDistance={pullDistance} />
+    <Navigation />
 
-        {/* Main Feed */}
-        <main className="flex-1 max-w-2xl mx-auto lg:mx-0 min-h-screen pb-32 md:pb-20">
-          <FeedTabs activeTab={activeTab} onTabChange={setActiveTab} />
+    <div className="container mx-auto px-0 lg:px-4 flex-row flex items-start justify-center gap-[130px]">
+      {/* Left Sidebar */}
+      <FeedSidebar />
 
-          {/* Stories - scrolls with feed */}
-          <div>
-            <Stories />
-          </div>
+      {/* Main Feed */}
+      <main className="flex-1 max-w-2xl mx-auto lg:mx-0 min-h-screen pb-32 md:pb-20">
+        <FeedTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-          {/* Create Post - Compact on mobile */}
-          <div className="p-4 ">
-            <CreatePostCard />
-          </div>
+        {/* Stories - scrolls with feed */}
+        <div>
+          <Stories />
+        </div>
 
-          {/* Feed Content */}
-          {activeTab === 'trending' ? <TrendingFeed /> : loading ? <div className="space-y-4 p-4">
-              {[1, 2, 3].map(i => <div key={i} className="bg-card rounded-xl p-4 border border-border">
-                  <div className="flex gap-3">
-                    <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-4 w-32" />
-                      <Skeleton className="h-20 w-full" />
-                    </div>
-                  </div>
-                </div>)}
-            </div> : posts.length === 0 ? <div className="p-12 text-center">
-              <Sparkles className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
-              <p className="text-muted-foreground">Be the first to share something!</p>
-            </div> : <div className="feed-stack elastic-scroll space-y-4 p-4">
-              {posts.map(post => <PostCardModern key={post.id} post={{
+        {/* Create Post - Compact on mobile */}
+        <div className="p-4 ">
+          <CreatePostCard />
+        </div>
+
+        {/* Feed Content */}
+        {activeTab === 'trending' ? <TrendingFeed /> : loading ? <div className="space-y-4 p-4">
+          {[1, 2, 3].map(i => <div key={i} className="bg-card rounded-xl p-4 border border-border">
+            {/* Header row: avatar + name/time, matching the real post card */}
+            <div className="flex items-center gap-3 mb-3">
+              <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Skeleton className="h-3.5 w-28" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+            {/* Caption line */}
+            <Skeleton className="h-3.5 w-4/5 mb-3" />
+            {/* Media block -- real posts render a full-width 4:3 image/video */}
+            <Skeleton className="w-full aspect-[4/3] max-h-[420px] rounded-xl mb-3" />
+            {/* Action row: like / comment / share */}
+            <div className="flex items-center gap-6">
+              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-5 w-12" />
+              <Skeleton className="h-5 w-12" />
+            </div>
+          </div>)}
+        </div> : posts.length === 0 ? <div className="p-12 text-center">
+          <Sparkles className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
+          <p className="text-muted-foreground">Be the first to share something!</p>
+        </div> : <div className="feed-stack elastic-scroll space-y-4 p-4">
+          {posts.map(post => <PostCardModern key={post.id} post={{
             id: post.id,
             content: post.content || '',
             media_url: post.media_url,
@@ -115,14 +126,14 @@ const Feed = () => {
             page_avatar: (post as any).page?.avatar_url,
             page_is_verified: (post as any).page?.is_verified,
           }} />)}
-              
-              {hasMore && <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
-                  {loadingMore && <Skeleton className="h-10 w-10 rounded-full" />}
-                </div>}
-            </div>}
-        </main>
-      </div>
-      
-    </div>;
+
+          {hasMore && <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
+            {loadingMore && <Skeleton className="h-10 w-10 rounded-full" />}
+          </div>}
+        </div>}
+      </main>
+    </div>
+
+  </div>;
 };
 export default Feed;

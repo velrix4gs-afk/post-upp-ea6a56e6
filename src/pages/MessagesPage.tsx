@@ -61,7 +61,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-type FilterTab = 'all' | 'unread' | 'favorites' | 'groups';
+type FilterTab = 'all' | 'unread' | 'favorites' | 'groups' | 'archived';
 
 // The chat list's last_message column stores whatever was saved as the
 // message's raw content -- for call-log messages that's the JSON blob
@@ -112,7 +112,7 @@ const MessagesPage = () => {
   const [showAIChat, setShowAIChat] = useState(false);
   const {
     chats, messages, chatsLoading, messagesLoading, messagesInitialLoaded, sendMessage, editMessage, deleteMessage,
-    reactToMessage, unreactToMessage, starMessage, unstarMessage, forwardMessage,
+    reactToMessage, unreactToMessage, starMessage, unstarMessage, forwardMessage, markChatAsRead,
     createChat: createChatByUuid, refetchChats, refetchMessages,
   } = useMessages(selectedChatId || undefined);
   const { handleTyping } = useTypingIndicator(selectedChatId || undefined);
@@ -188,6 +188,7 @@ const MessagesPage = () => {
   const isInitialLoadRef = useRef(true);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [pinnedChatIds, setPinnedChatIds] = useState<string[]>([]);
+  const [archivedChatIds, setArchivedChatIds] = useState<string[]>([]);
 
   // Long-press preview + delete confirm
   const [previewChatId, setPreviewChatId] = useState<string | null>(null);
@@ -262,7 +263,21 @@ const MessagesPage = () => {
   useEffect(() => {
     isInitialLoadRef.current = true;
     setPinnedMessageId(null);
+    // Mark the chat's incoming messages as read the moment it's opened --
+    // this was never called anywhere before, which is why the unread
+    // badge never cleared and read receipts never appeared.
+    if (selectedChatId) markChatAsRead(selectedChatId);
   }, [selectedChatId]);
+
+  // Also mark newly-arrived messages as read while the chat is already
+  // open and visible, so a live incoming message doesn't sit "unread"
+  // until the user leaves and reopens the chat.
+  useEffect(() => {
+    if (selectedChatId && messages.length > 0) {
+      markChatAsRead(selectedChatId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, selectedChatId]);
 
   // Track scroll for scroll-to-bottom FAB
   useEffect(() => {
@@ -289,6 +304,36 @@ const MessagesPage = () => {
     };
     fetchPinned();
   }, [user, selectedChatId]);
+
+  // Archived chats -- previously this feature didn't exist at all; the
+  // swipe "Archive" action just showed a "coming soon" toast.
+  useEffect(() => {
+    if (!user) return;
+    const fetchArchived = async () => {
+      const { data } = await supabase
+        .from('chat_settings')
+        .select('chat_id')
+        .eq('user_id', user.id)
+        .eq('is_archived', true);
+      if (data) setArchivedChatIds(data.map((d) => d.chat_id));
+    };
+    fetchArchived();
+  }, [user, selectedChatId]);
+
+  const archiveChat = async (chatId: string, archived: boolean) => {
+    if (!user) return;
+    const { error } = await supabase
+      .from('chat_settings')
+      .upsert({ chat_id: chatId, user_id: user.id, is_archived: archived }, { onConflict: 'chat_id,user_id' });
+    if (error) {
+      toast({ description: 'Could not update archive status', variant: 'destructive' });
+      return;
+    }
+    setArchivedChatIds((prev) =>
+      archived ? [...prev, chatId] : prev.filter((id) => id !== chatId)
+    );
+    toast({ description: archived ? 'Chat archived' : 'Chat unarchived' });
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -517,6 +562,12 @@ const MessagesPage = () => {
             p.profiles.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
           );
         if (!matchSearch) return false;
+        // Archived chats are hidden from every normal tab and only show
+        // up under the dedicated Archived tab -- matching how Archive
+        // actually behaves elsewhere (WhatsApp, etc.) instead of doing
+        // nothing at all as it did before.
+        if (filterTab === 'archived') return archivedChatIds.includes(chat.id);
+        if (archivedChatIds.includes(chat.id)) return false;
         if (filterTab === 'unread') return (chat.unread_count || 0) > 0;
         if (filterTab === 'groups') return chat.is_group;
         if (filterTab === 'favorites') return pinnedChatIds.includes(chat.id);
@@ -578,6 +629,7 @@ const MessagesPage = () => {
     { id: 'unread', label: 'Unread' },
     { id: 'favorites', label: 'Favorites' },
     { id: 'groups', label: 'Groups' },
+    { id: 'archived', label: 'Archived' },
   ];
 
   // ----- LIST VIEW -----
@@ -736,7 +788,8 @@ const MessagesPage = () => {
                     setShowAIChat(false);
                   }}
                   onLongPress={() => setPreviewChatId(chat.id)}
-                  onArchive={() => toast({ description: 'Archive coming soon' })}
+                  onArchive={() => archiveChat(chat.id, filterTab !== 'archived')}
+                  isArchived={archivedChatIds.includes(chat.id)}
                   onDelete={() => setDeleteTarget({ id: chat.id, name: name })}
                 />
               );
