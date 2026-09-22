@@ -315,8 +315,8 @@ export const PostCardModern = ({
           e.stopPropagation();
           // Navigate to user profile
         }} className="text-primary hover:underline font-medium">
-            {part}
-          </button>;
+          {part}
+        </button>;
       }
       if (part.startsWith('#')) {
         const tag = part.slice(1);
@@ -324,8 +324,8 @@ export const PostCardModern = ({
           e.stopPropagation();
           navigate(`/hashtag/${tag}`);
         }} className="text-primary hover:underline font-medium">
-            {part}
-          </button>;
+          {part}
+        </button>;
       }
       return <span key={index}>{part}</span>;
     });
@@ -346,407 +346,407 @@ export const PostCardModern = ({
     }
   };
   return <TooltipProvider>
-      <>
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Post</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete this post? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+    <>
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-        <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Post</DialogTitle>
-            </DialogHeader>
-            <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
-            {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
-                {editMedia.map((url, i) => {
-                  const { className: dragClass, ...dragProps } = getEditThumbProps(i);
-                  return <div key={url + i} {...dragProps} className={cn("relative rounded-lg overflow-hidden bg-muted aspect-square touch-none", dragClass)}>
-                    <img src={url} alt="Post media" className="w-full h-full object-cover" />
-                    <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 text-[10px] text-foreground">{i + 1}</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))}
-                      className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs"
-                      aria-label="Remove image"
-                    >
-                      ✕
-                    </button>
-                  </div>;
-                })}
-              </div>}
-            {editMedia.length > 1 && <p className="text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>}
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 text-sm text-primary"
-              onClick={() => setShowEditGallery(true)}
-            >
-              {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
-            </button>
-            <GalleryPickerSheet
-              open={showEditGallery}
-              onOpenChange={setShowEditGallery}
-              multiple
-              title="Add to your post"
-              onSelect={(file) => handleEditMediaUpload([file])}
-              onSelectMany={(files) => handleEditMediaUpload(files)}
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-              <Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Post</DialogTitle>
+          </DialogHeader>
+          <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
+          {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
+            {editMedia.map((url, i) => {
+              const { className: dragClass, ...dragProps } = getEditThumbProps(i);
+              return <div key={url + i} {...dragProps} className={cn("relative rounded-lg overflow-hidden bg-muted aspect-square touch-none", dragClass)}>
+                <img src={url} alt="Post media" className="w-full h-full object-cover" />
+                <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 text-[10px] text-foreground">{i + 1}</span>
+                <button
+                  type="button"
+                  onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))}
+                  className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs"
+                  aria-label="Remove image"
+                >
+                  ✕
+                </button>
+              </div>;
+            })}
+          </div>}
+          {editMedia.length > 1 && <p className="text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>}
+          <button
+            type="button"
+            className="inline-flex items-center gap-2 text-sm text-primary"
+            onClick={() => setShowEditGallery(true)}
+          >
+            {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
+          </button>
+          <GalleryPickerSheet
+            open={showEditGallery}
+            onOpenChange={setShowEditGallery}
+            multiple
+            title="Add to your post"
+            onSelect={(file) => handleEditMediaUpload([file])}
+            onSelectMany={(files) => handleEditMediaUpload(files)}
+          />
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
+            <Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
-        <Card data-feed-card className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
-          {/* Pinned indicator */}
-          {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
-              <Pin className="h-3 w-3" />
-              <span>Pinned post</span>
-            </div>}
+      <Card data-feed-card className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
+        {/* Pinned indicator */}
+        {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
+          <Pin className="h-3 w-3" />
+          <span>Pinned post</span>
+        </div>}
 
-          <div className="p-4">
-            {/* Post Header */}
-            <div className="flex items-start gap-3 mb-3">
-              {isPagePost ? (
+        <div className="p-4">
+          {/* Post Header */}
+          <div className="flex items-start gap-3 mb-3">
+            {isPagePost ? (
+              <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
+                <AvatarImage src={displayAvatar} />
+                <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                  {getAvatarFallback()}
+                </AvatarFallback>
+              </Avatar>
+            ) : (
+              <ProfileHoverCard userId={post.author_id}>
                 <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
                   <AvatarImage src={displayAvatar} />
                   <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                     {getAvatarFallback()}
                   </AvatarFallback>
                 </Avatar>
+              </ProfileHoverCard>
+            )}
+
+            <div className="flex-1 min-w-0">
+              {isPagePost ? (
+                <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
+                  {displayName}
+                  {displayVerified && <VerificationBadge isVerified={true} />}
+                </button>
               ) : (
                 <ProfileHoverCard userId={post.author_id}>
-                  <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
-                    <AvatarImage src={displayAvatar} />
-                    <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                      {getAvatarFallback()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
+                    {displayName}
+                    <VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
+                  </button>
                 </ProfileHoverCard>
               )}
 
-              <div className="flex-1 min-w-0">
-                {isPagePost ? (
-                  <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                    {displayName}
-                    {displayVerified && <VerificationBadge isVerified={true} />}
-                  </button>
-                ) : (
-                  <ProfileHoverCard userId={post.author_id}>
-                    <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                      {displayName}
-                      <VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
-                    </button>
-                  </ProfileHoverCard>
-                )}
-                
-                {displayUsername && <div className="text-muted-foreground text-sm">@{displayUsername}</div>}
-                {isPagePost && <div className="text-muted-foreground text-xs">Published by {post.author_name}</div>}
-                
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="hover:underline cursor-default">
-                        {formatRelativeTime(post.created_at)}
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
+              {displayUsername && <div className="text-muted-foreground text-sm">@{displayUsername}</div>}
+              {isPagePost && <div className="text-muted-foreground text-xs">Published by {post.author_name}</div>}
 
-              {/* Follow button - only show if not following and not the owner */}
-              {!isOwner && user && !isFollowingAuthor && <Button variant="default" size="sm" className="h-8 px-4 rounded-full text-xs font-semibold bg-primary hover:bg-primary/90" onClick={e => {
+              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="hover:underline cursor-default">
+                      {formatRelativeTime(post.created_at)}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+
+            {/* Follow button - only show if not following and not the owner */}
+            {!isOwner && user && !isFollowingAuthor && <Button variant="default" size="sm" className="h-8 px-4 rounded-full text-xs font-semibold bg-primary hover:bg-primary/90" onClick={e => {
               e.stopPropagation();
               handleFollowToggle();
             }}>
-                  Follow
-                </Button>}
+              Follow
+            </Button>}
 
-              {/* More options menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}>
-                    <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  {isOwner ? <>
-                      <DropdownMenuItem onClick={e => {
+            {/* More options menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}>
+                  <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {isOwner ? <>
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     handlePinToggle();
                   }}>
-                        {isPinned(post.id) ? <><PinOff className="h-4 w-4 mr-2" />Unpin from Profile</> : <><Pin className="h-4 w-4 mr-2" />Pin to Profile</>}
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={e => {
+                    {isPinned(post.id) ? <><PinOff className="h-4 w-4 mr-2" />Unpin from Profile</> : <><Pin className="h-4 w-4 mr-2" />Pin to Profile</>}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     setShowEditDialog(true);
                   }}>
-                        <Pencil className="h-4 w-4 mr-2" />Edit Post
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={e => {
+                    <Pencil className="h-4 w-4 mr-2" />Edit Post
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     setShowDeleteDialog(true);
                   }} className="text-destructive focus:text-destructive">
-                        <Trash2 className="h-4 w-4 mr-2" />Delete Post
-                      </DropdownMenuItem>
-                    </> : <>
-                      <DropdownMenuItem onClick={e => {
+                    <Trash2 className="h-4 w-4 mr-2" />Delete Post
+                  </DropdownMenuItem>
+                </> : <>
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     navigate(`/profile/${post.author_id}`);
                   }}>
-                        <UserCircle className="h-4 w-4 mr-2" />View Profile
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={e => {
+                    <UserCircle className="h-4 w-4 mr-2" />View Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     toggleBookmark(post.id);
                   }}>
-                        <Bookmark className="h-4 w-4 mr-2" />Save Post
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={e => {
+                    <Bookmark className="h-4 w-4 mr-2" />Save Post
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     handleMuteUser();
                   }}>
-                        <BellOff className="h-4 w-4 mr-2" />Mute User
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={e => {
+                    <BellOff className="h-4 w-4 mr-2" />Mute User
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     handleReportPost();
                   }} className="text-destructive">
-                        <AlertCircle className="h-4 w-4 mr-2" />Report Post
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={e => {
+                    <AlertCircle className="h-4 w-4 mr-2" />Report Post
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
                     handleBlockUser();
                   }} className="text-destructive">
-                        <Ban className="h-4 w-4 mr-2" />Block User
-                      </DropdownMenuItem>
-                    </>}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    <Ban className="h-4 w-4 mr-2" />Block User
+                  </DropdownMenuItem>
+                </>}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Post Content */}
+          <div className="mb-3">
+            <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
+              {renderContent(post.content)}
+            </p>
+          </div>
+
+          {/* Link Preview */}
+          {linkPreview && <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="block mb-3 border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">
+            <div className="p-3 flex items-center gap-3">
+              <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                <ExternalLink className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p>
+                <p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p>
+              </div>
             </div>
+          </a>}
 
-            {/* Post Content */}
-            <div className="mb-3">
-              <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
-                {renderContent(post.content)}
-              </p>
-            </div>
-
-            {/* Link Preview */}
-            {linkPreview && <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="block mb-3 border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">
-                <div className="p-3 flex items-center gap-3">
-                  <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                    <ExternalLink className="h-5 w-5 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p>
-                  </div>
-                </div>
-              </a>}
-
-            {/* Media */}
-            {mediaItems.length === 1 && <>
-                {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3 aspect-[4/3] max-h-[420px]">
-                    <VideoViewer videoUrl={mediaItems[0]} className="w-full h-full" objectFit="cover" />
-                  </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black aspect-[4/3] max-h-[420px]" onClick={e => {
+          {/* Media */}
+          {mediaItems.length === 1 && <>
+            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3 aspect-[4/3] max-h-[420px]">
+              <VideoViewer videoUrl={mediaItems[0]} className="w-full h-full" objectFit="cover" />
+            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black aspect-[4/3] max-h-[420px]" onClick={e => {
               e.stopPropagation();
               captureOriginRect(e.currentTarget as HTMLElement);
               setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
             }}>
-                    <img src={mediaItems[0]} alt="Post media" className="w-full h-full object-cover object-center" loading="lazy" />
-                  </div>}
-              </>}
+              <img src={mediaItems[0]} alt="Post media" className="w-full h-full object-cover object-center" loading="lazy" />
+            </div>}
+          </>}
 
-            {mediaItems.length > 1 && <div className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    {mediaItems.map((url, i) => <CarouselItem key={url + i}>
-                        {isVideoUrl(url) ? <div className="aspect-[4/3] max-h-[420px]"><VideoViewer videoUrl={url} className="w-full h-full" objectFit="cover" /></div> : <div className="bg-black cursor-pointer aspect-[4/3] max-h-[420px]" onClick={e => {
+          {mediaItems.length > 1 && <div className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
+            <Carousel className="w-full">
+              <CarouselContent>
+                {mediaItems.map((url, i) => <CarouselItem key={url + i}>
+                  {isVideoUrl(url) ? <div className="aspect-[4/3] max-h-[420px]"><VideoViewer videoUrl={url} className="w-full h-full" objectFit="cover" /></div> : <div className="bg-black cursor-pointer aspect-[4/3] max-h-[420px]" onClick={e => {
                     captureOriginRect(e.currentTarget as HTMLElement);
                     setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
                     setGalleryStartIndex(i);
                     setShowImageGallery(true);
                   }}>
-                            <img src={url} alt={`Post media ${i + 1}`} className="w-full h-full object-cover object-center" loading="lazy" />
-                          </div>}
-                      </CarouselItem>)}
-                  </CarouselContent>
-                  <CarouselPrevious className="left-2" />
-                  <CarouselNext className="right-2" />
-                </Carousel>
-                <div className="mt-1 text-center text-xs text-muted-foreground">{mediaItems.length} photos</div>
-              </div>}
+                    <img src={url} alt={`Post media ${i + 1}`} className="w-full h-full object-cover object-center" loading="lazy" />
+                  </div>}
+                </CarouselItem>)}
+              </CarouselContent>
+              <CarouselPrevious className="left-2" />
+              <CarouselNext className="right-2" />
+            </Carousel>
+            <div className="mt-1 text-center text-xs text-muted-foreground">{mediaItems.length} photos</div>
+          </div>}
 
-            {/* Engagement Stats */}
-            {(localReactionCount > 0 || post.comments_count > 0 || localRepostCount > 0) && <div className="flex items-center justify-between py-2 border-b border-border text-xs text-muted-foreground">
-                <div className="flex items-center gap-4">
-                  {localReactionCount > 0 && <span className="flex items-center gap-1.5">
-                      <span className="flex -space-x-1">
-                        <span className="h-4 w-4 rounded-full bg-destructive flex items-center justify-center">
-                          <Heart className="h-2.5 w-2.5 text-white fill-white" />
-                        </span>
-                      </span>
-                      <span className="font-medium">{localReactionCount}</span>
-                    </span>}
-                </div>
-                <div className="flex items-center gap-3">
-                  {post.comments_count > 0 && <button onClick={e => {
+          {/* Engagement Stats */}
+          {(localReactionCount > 0 || post.comments_count > 0 || localRepostCount > 0) && <div className="flex items-center justify-between py-2 border-b border-border text-xs text-muted-foreground">
+            <div className="flex items-center gap-4">
+              {localReactionCount > 0 && <span className="flex items-center gap-1.5">
+                <span className="flex -space-x-1">
+                  <span className="h-4 w-4 rounded-full bg-destructive flex items-center justify-center">
+                    <Heart className="h-2.5 w-2.5 text-white fill-white" />
+                  </span>
+                </span>
+                <span className="font-medium">{localReactionCount}</span>
+              </span>}
+            </div>
+            <div className="flex items-center gap-3">
+              {post.comments_count > 0 && <button onClick={e => {
                 e.stopPropagation();
                 setShowComments(!showComments);
               }} className="hover:underline">
-                      {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
-                    </button>}
-                  {localRepostCount > 0 && <span>{localRepostCount} share{localRepostCount !== 1 ? 's' : ''}</span>}
-                </div>
-              </div>}
+                {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
+              </button>}
+              {localRepostCount > 0 && <span>{localRepostCount} share{localRepostCount !== 1 ? 's' : ''}</span>}
+            </div>
+          </div>}
 
-            {/* Top Comment Preview */}
-            {topComment && !showComments && (
-              <div 
-                className="flex items-start gap-2 py-2 cursor-pointer hover:bg-muted/50 rounded-lg px-1 transition-colors"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowComments(true);
-                }}
-              >
-                <Avatar className="h-6 w-6 flex-shrink-0">
-                  <AvatarImage src={topComment.user?.avatar_url} />
-                  <AvatarFallback className="text-[10px]">
-                    {topComment.user?.display_name?.[0] || 'U'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="font-semibold text-xs text-foreground">
-                      {topComment.user?.display_name}
+          {/* Top Comment Preview */}
+          {topComment && !showComments && (
+            <div
+              className="flex items-start gap-2 py-2 cursor-pointer hover:bg-muted/50 rounded-lg px-1 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowComments(true);
+              }}
+            >
+              <Avatar className="h-6 w-6 flex-shrink-0">
+                <AvatarImage src={topComment.user?.avatar_url} />
+                <AvatarFallback className="text-[10px]">
+                  {topComment.user?.display_name?.[0] || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-1">
+                  <span className="font-semibold text-xs text-foreground">
+                    {topComment.user?.display_name}
+                  </span>
+                  <TopCommentBadge
+                    isVerified={topComment.user?.is_verified}
+                    verificationType={topComment.user?.verification_type}
+                  />
+                  {topComment.likes_count > 0 && (
+                    <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
+                      <Heart className="h-2.5 w-2.5 fill-current text-destructive" />
+                      {topComment.likes_count}
                     </span>
-                    <TopCommentBadge 
-                      isVerified={topComment.user?.is_verified}
-                      verificationType={topComment.user?.verification_type}
-                    />
-                    {topComment.likes_count > 0 && (
-                      <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
-                        <Heart className="h-2.5 w-2.5 fill-current text-destructive" />
-                        {topComment.likes_count}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-foreground/80 line-clamp-2">{topComment.content}</p>
+                  )}
                 </div>
+                <p className="text-xs text-foreground/80 line-clamp-2">{topComment.content}</p>
               </div>
-            )}
+            </div>
+          )}
 
-            {post.comments_count > 1 && !showComments && (
-              <button
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors pb-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowComments(true);
-                }}
-              >
-                View all {post.comments_count} comments
-              </button>
-            )}
+          {post.comments_count > 1 && !showComments && (
+            <button
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors pb-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowComments(true);
+              }}
+            >
+              View all {post.comments_count} comments
+            </button>
+          )}
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-1 -mx-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-destructive/10 transition-all", userReaction && "text-destructive", isLikeAnimating && "scale-110")} onClick={e => {
+          {/* Action Buttons */}
+          <div className="flex items-center justify-between pt-1 -mx-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-destructive/10 transition-all", userReaction && "text-destructive", isLikeAnimating && "scale-110")} onClick={e => {
                   e.stopPropagation();
                   handleLikeWithAnimation();
                 }}>
-                    <Heart className={cn("h-5 w-5 transition-all", userReaction && "fill-current")} />
-                    <span className="text-sm font-medium">Like</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Like this post</TooltipContent>
-              </Tooltip>
+                  <Heart className={cn("h-5 w-5 transition-all", userReaction && "fill-current")} />
+                  <span className="text-sm font-medium">Like</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Like this post</TooltipContent>
+            </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="flex-1 gap-2 h-10 rounded-lg hover:bg-primary/10" onClick={e => {
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="flex-1 gap-2 h-10 rounded-lg hover:bg-primary/10" onClick={e => {
                   e.stopPropagation();
                   setShowComments(!showComments);
                 }}>
-                    <MessageCircle className="h-5 w-5" />
-                    <span className="text-sm font-medium">Comment</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Comment on this post</TooltipContent>
-              </Tooltip>
+                  <MessageCircle className="h-5 w-5" />
+                  <span className="text-sm font-medium">Comment</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Comment on this post</TooltipContent>
+            </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
                   e.stopPropagation();
                   handleRepost();
                 }}>
-                    <Repeat2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">Share</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Share this post</TooltipContent>
-              </Tooltip>
+                  <Repeat2 className="h-5 w-5" />
+                  <span className="text-sm font-medium">Share</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Share this post</TooltipContent>
+            </Tooltip>
 
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
                   e.stopPropagation();
                   toggleBookmark(post.id);
                 }}>
-                    <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) && "fill-current")} />
-                    <span className="text-sm font-medium">Save</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Save this post</TooltipContent>
-              </Tooltip>
-            </div>
-
-            {/* Comments Section */}
-            {/* Comments now open in a bottom-sheet popup (see below) */}
+                  <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) && "fill-current")} />
+                  <span className="text-sm font-medium">Save</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Save this post</TooltipContent>
+            </Tooltip>
           </div>
-        </Card>
 
-        <SharePostDialog postId={post.id} open={showShareDialog} onOpenChange={setShowShareDialog} />
+          {/* Comments Section */}
+          {/* Comments now open in a bottom-sheet popup (see below) */}
+        </div>
+      </Card>
 
-        <ImageGalleryViewer images={galleryImages} initialIndex={galleryStartIndex} open={showImageGallery} onOpenChange={setShowImageGallery} originRect={galleryOriginRect} />
+      <SharePostDialog postId={post.id} open={showShareDialog} onOpenChange={setShowShareDialog} />
 
-        <ReportDialog open={showReportDialog} onOpenChange={setShowReportDialog} contentId={post.id} contentType="post" />
+      <ImageGalleryViewer images={galleryImages} initialIndex={galleryStartIndex} open={showImageGallery} onOpenChange={setShowImageGallery} originRect={galleryOriginRect} />
 
-        <Sheet open={showComments} onOpenChange={setShowComments}>
-          <SheetContent
-            side="bottom"
-            className="h-[60vh] max-h-[60vh] p-0 flex flex-col rounded-t-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SheetHeader className="px-4 py-3 border-b border-border">
-              <SheetTitle className="text-base">Comments</SheetTitle>
-            </SheetHeader>
-            <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]">
-              <ThreadedCommentsSection postId={post.id} />
-            </div>
-          </SheetContent>
-        </Sheet>
-      </>
-    </TooltipProvider>;
+      <ReportDialog open={showReportDialog} onOpenChange={setShowReportDialog} contentId={post.id} contentType="post" />
+
+      <Sheet open={showComments} onOpenChange={setShowComments}>
+        <SheetContent
+          side="bottom"
+          className="h-[45vh] max-h-[500vh] p-0 flex flex-col rounded-t-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <SheetHeader className="px-4 py-3 border-b border-border">
+            <SheetTitle className="text-base">Comments</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]">
+            <ThreadedCommentsSection postId={post.id} />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
+  </TooltipProvider>;
 };
