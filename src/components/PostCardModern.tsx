@@ -563,16 +563,16 @@ export const PostCardModern = ({
 
           {/* Media */}
           {mediaItems.length === 1 && <>
-            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3 aspect-[4/3] max-h-[420px]">
+            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3 w-full relative" style={{ aspectRatio: '4/3', maxHeight: '420px' }}>
               <VideoViewer videoUrl={mediaItems[0]} className="w-full h-full" objectFit="cover" />
-            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black aspect-[4/3] max-h-[420px]" onClick={e => {
+            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black w-full relative" style={{ aspectRatio: '4/3', maxHeight: '420px' }} onClick={e => {
               e.stopPropagation();
               captureOriginRect(e.currentTarget as HTMLElement);
               setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
             }}>
-              <img src={mediaItems[0]} alt="Post media" className="w-full h-full object-cover object-center" loading="lazy" />
+              <img src={mediaItems[0]} alt="Post media" className="absolute inset-0 w-full h-full object-cover object-center" loading="lazy" />
             </div>}
           </>}
 
@@ -580,13 +580,13 @@ export const PostCardModern = ({
             <Carousel className="w-full">
               <CarouselContent>
                 {mediaItems.map((url, i) => <CarouselItem key={url + i}>
-                  {isVideoUrl(url) ? <div className="aspect-[4/3] max-h-[420px]"><VideoViewer videoUrl={url} className="w-full h-full" objectFit="cover" /></div> : <div className="bg-black cursor-pointer aspect-[4/3] max-h-[420px]" onClick={e => {
+                  {isVideoUrl(url) ? <div className="w-full relative" style={{ aspectRatio: '4/3', maxHeight: '420px' }}><VideoViewer videoUrl={url} className="w-full h-full" objectFit="cover" /></div> : <div className="bg-black cursor-pointer w-full relative" style={{ aspectRatio: '4/3', maxHeight: '420px' }} onClick={e => {
                     captureOriginRect(e.currentTarget as HTMLElement);
                     setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
                     setGalleryStartIndex(i);
                     setShowImageGallery(true);
                   }}>
-                    <img src={url} alt={`Post media ${i + 1}`} className="w-full h-full object-cover object-center" loading="lazy" />
+                    <img src={url} alt={`Post media ${i + 1}`} className="absolute inset-0 w-full h-full object-cover object-center" loading="lazy" />
                   </div>}
                 </CarouselItem>)}
               </CarouselContent>
