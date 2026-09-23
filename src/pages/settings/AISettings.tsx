@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Bot, Key, MessageSquare, CheckCircle, XCircle, Eye, EyeOff, Sparkles } from 'lucide-react';
+import { Loader2, Bot, Key, MessageSquare, CheckCircle, XCircle, Eye, EyeOff, Sparkles, Cpu } from 'lucide-react';
 import { useAISettings, AISettings as AISettingsType, AVAILABLE_MODELS } from '@/hooks/useAISettings';
 import { toast } from '@/hooks/use-toast';
 
@@ -22,7 +22,8 @@ export const AISettings = () => {
     setLocalSettings(settings);
   }, [settings]);
 
-  const handleProviderChange = (provider: 'lovable' | 'openai' | 'anthropic' | 'google') => {
+  // Updated handler signature to include 'openrouter'
+  const handleProviderChange = (provider: 'lovable' | 'openai' | 'anthropic' | 'google' | 'openrouter') => {
     const models = AVAILABLE_MODELS[provider];
     setLocalSettings(prev => ({
       ...prev,
@@ -44,11 +45,11 @@ export const AISettings = () => {
     const success = await testConnection();
     setTestResult(success);
     setTesting(false);
-    
+
     toast({
       title: success ? 'Connection Successful' : 'Connection Failed',
-      description: success 
-        ? 'AI is working correctly' 
+      description: success
+        ? 'AI is working correctly'
         : 'Failed to connect to AI. Check your settings.',
       variant: success ? 'default' : 'destructive'
     });
@@ -92,6 +93,12 @@ export const AISettings = () => {
                     Lovable AI (Default - No API Key Required)
                   </div>
                 </SelectItem>
+                <SelectItem value="openrouter">
+                  <div className="flex items-center gap-2">
+                    <Cpu className="h-4 w-4 text-teal-500" />
+                    OpenRouter (Qwen & Open Models)
+                  </div>
+                </SelectItem>
                 <SelectItem value="google">
                   <div className="flex items-center gap-2">
                     <Bot className="h-4 w-4 text-blue-500" />
@@ -124,7 +131,7 @@ export const AISettings = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {AVAILABLE_MODELS[localSettings.provider].map((model) => (
+                {AVAILABLE_MODELS[localSettings.provider]?.map((model) => (
                   <SelectItem key={model.value} value={model.value}>
                     {model.label}
                   </SelectItem>
@@ -144,10 +151,10 @@ export const AISettings = () => {
                   type={showApiKey ? 'text' : 'password'}
                   value={localSettings.custom_api_key}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, custom_api_key: e.target.value }))}
-                  placeholder={`Enter your ${
-                    localSettings.provider === 'openai' ? 'OpenAI' : 
-                    localSettings.provider === 'google' ? 'Google AI' : 'Anthropic'
-                  } API key`}
+                  placeholder={`Enter your ${localSettings.provider === 'openrouter' ? 'OpenRouter' :
+                      localSettings.provider === 'openai' ? 'OpenAI' :
+                        localSettings.provider === 'google' ? 'Google AI' : 'Anthropic'
+                    } API key`}
                   className="pr-10"
                 />
                 <Button
@@ -161,9 +168,11 @@ export const AISettings = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                {localSettings.provider === 'google' 
+                {localSettings.provider === 'google'
                   ? 'Get your API key from Google AI Studio (aistudio.google.com)'
-                  : 'Your API key is stored securely and only used for AI requests'}
+                  : localSettings.provider === 'openrouter'
+                    ? 'Get your API key from OpenRouter Dashboard (openrouter.ai/keys)'
+                    : 'Your API key is stored securely and only used for AI requests'}
               </p>
             </div>
           )}
