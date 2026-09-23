@@ -22,13 +22,14 @@ export const AISettings = () => {
     setLocalSettings(settings);
   }, [settings]);
 
-  // Updated handler signature to include 'openrouter'
-  const handleProviderChange = (provider: 'lovable' | 'openai' | 'anthropic' | 'google' | 'openrouter') => {
-    const models = AVAILABLE_MODELS[provider];
+  const handleProviderChange = (provider: any) => {
+    const models = AVAILABLE_MODELS?.[provider as keyof typeof AVAILABLE_MODELS] || [];
+    const defaultModel = models.length > 0 ? models[0].value : 'qwen/qwen-2.5-7b-instruct';
+
     setLocalSettings(prev => ({
       ...prev,
       provider,
-      model: models[0].value
+      model: defaultModel
     }));
   };
 
@@ -62,6 +63,11 @@ export const AISettings = () => {
       </div>
     );
   }
+
+  // Get current provider models safely
+  const currentModels = AVAILABLE_MODELS?.[localSettings.provider as keyof typeof AVAILABLE_MODELS] || [
+    { label: 'Qwen 2.5 7B Instruct', value: 'qwen/qwen-2.5-7b-instruct' }
+  ];
 
   return (
     <div className="space-y-6">
@@ -131,7 +137,7 @@ export const AISettings = () => {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {AVAILABLE_MODELS[localSettings.provider]?.map((model) => (
+                {currentModels.map((model) => (
                   <SelectItem key={model.value} value={model.value}>
                     {model.label}
                   </SelectItem>
