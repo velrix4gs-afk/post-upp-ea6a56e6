@@ -1,73 +1,36 @@
-# Welcome to your Lovable project
 
-## Project info
+# 🚀 POST-UPP
 
-**URL**: https://lovable.dev/projects/9a29c09e-0a4f-48ed-8349-6ca57bde389a
+> A modern, dynamic social media and content-sharing web application built to connect users seamlessly. 
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+## 🌐 Live Deployments
+Explore the live versions of the application:
+* **Production Build:** [post-upp.vercel.app](https://post-upp.vercel.app)
+* **Preview / Alternative Release:** [post-upp.lovable.app](https://post-upp.lovable.app)
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/9a29c09e-0a4f-48ed-8349-6ca57bde389a) and start prompting.
+## 🛠️ About the Project
+**POST-UPP** is designed to provide an interactive platform for users to post, share, and stay connected. Built from the ground up with modern web technologies, it features a responsive user interface, real-time dynamics, and structured component workflows.
 
-Changes made via Lovable will be committed automatically to this repo.
+As the application scaled and the codebase expanded rapidly, managing the sheer volume of code required leveraging AI coding assistants to keep up with development velocity, architecture refactoring, and feature integration.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🔒 License & Intellectual Property Rights
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+**Copyright © 2026 POST-UPP. All Rights Reserved.**
 
-Follow these steps:
+This repository and all its contents (including source code, UI designs, component structures, and assets) are the exclusive property of the creator. 
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### **Terms of Use & Protection:**
+* **No Unauthorized Copying:** You are strictly prohibited from copying, distributing, modifying, or reproducing this codebase or any substantial part of it for commercial or public use without explicit written permission.
+* **Open Source Visibility:** This repository is made public for portfolio and inspection purposes only. It is **not** an open-source project under an MIT or creative commons license. 
+* **Plagiarism & Theft Warning:** Unauthorized harvesting, cloning for commercial deployment, or rebranding of this application under another name will be flagged and pursued as intellectual property theft.
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+---
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
-
-**Edit a file directly in GitHub**
-
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/9a29c09e-0a4f-48ed-8349-6ca57bde389a) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## 💡 Acknowledgements
+Built with passion, late-night debugging sessions, and assistance from modern AI development tools to manage massive code scaling.
