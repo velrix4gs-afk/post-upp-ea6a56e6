@@ -4,7 +4,7 @@ import { useAdmin } from './useAdmin';
 import { toast } from './use-toast';
 
 export interface AISettings {
-  provider: 'lovable' | 'openai' | 'anthropic' | 'google';
+  provider: 'lovable' | 'openai' | 'anthropic' | 'google' | 'openrouter';
   model: string;
   custom_api_key: string;
   system_prompt_user: string;
@@ -40,6 +40,11 @@ export const AVAILABLE_MODELS = {
     { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
     { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
     { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+  ],
+  openrouter: [
+    { value: 'qwen/qwen-2.5-7b-instruct', label: 'Qwen 2.5 7B Instruct' },
+    { value: 'qwen/qwen-2.5-72b-instruct', label: 'Qwen 2.5 72B Instruct' },
+    { value: 'meta-llama/llama-3.1-8b-instruct', label: 'Llama 3.1 8B Instruct' },
   ]
 };
 

@@ -22,7 +22,7 @@ export const AISettings = () => {
     setLocalSettings(settings);
   }, [settings]);
 
-  const handleProviderChange = (provider: 'lovable' | 'openai' | 'anthropic' | 'google') => {
+  const handleProviderChange = (provider: 'lovable' | 'openai' | 'anthropic' | 'google' | 'openrouter') => {
     const models = AVAILABLE_MODELS[provider];
     setLocalSettings(prev => ({
       ...prev,
@@ -110,6 +110,12 @@ export const AISettings = () => {
                     Anthropic (Claude Models)
                   </div>
                 </SelectItem>
+                <SelectItem value="openrouter">
+                  <div className="flex items-center gap-2">
+                    <Bot className="h-4 w-4 text-pink-500" />
+                    OpenRouter (Qwen, Llama & more)
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -145,7 +151,8 @@ export const AISettings = () => {
                   value={localSettings.custom_api_key}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, custom_api_key: e.target.value }))}
                   placeholder={`Enter your ${localSettings.provider === 'openai' ? 'OpenAI' :
-                      localSettings.provider === 'google' ? 'Google AI' : 'Anthropic'
+                      localSettings.provider === 'google' ? 'Google AI' :
+                        localSettings.provider === 'openrouter' ? 'OpenRouter' : 'Anthropic'
                     } API key`}
                   className="pr-10"
                 />
@@ -162,7 +169,9 @@ export const AISettings = () => {
               <p className="text-xs text-muted-foreground">
                 {localSettings.provider === 'google'
                   ? 'Get your API key from Google AI Studio (aistudio.google.com)'
-                  : 'Your API key is stored securely and only used for AI requests'}
+                  : localSettings.provider === 'openrouter'
+                    ? 'Get your API key from openrouter.ai/keys — Qwen 2.5 7B is one of the cheapest models there'
+                    : 'Your API key is stored securely and only used for AI requests'}
               </p>
             </div>
           )}
