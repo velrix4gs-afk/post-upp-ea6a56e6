@@ -14,7 +14,6 @@ import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { VerificationBadge } from '@/components/premium/VerificationBadge';
 import { InstagramReelCreator } from '@/components/InstagramReelCreator';
-import { BottomNavigation } from '@/components/BottomNavigation';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -947,11 +946,6 @@ const ReelsPage = () => {
         </SheetContent>
       </Sheet>
 
-      {/* Reels previously had zero navigation chrome -- no way to reach
-          other tabs without tapping the X to fully exit first. This adds
-          the same bottom nav the rest of the app uses, matching how
-          TikTok/Instagram keep their tab bar reachable over video. */}
-      <BottomNavigation />
     </div>
   );
 };
