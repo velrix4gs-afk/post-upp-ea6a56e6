@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,11 +16,32 @@ export const DisappearingMessagesDialog = ({ isOpen, onClose, chatId }: Disappea
   const [duration, setDuration] = useState<string>('off');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    let cancelled = false;
+    const loadSettings = async () => {
+      const { data, error } = await supabase
+        .from('chat_settings')
+        .select('auto_delete_duration')
+        .eq('chat_id', chatId)
+        .maybeSingle();
+      if (error) {
+        console.error('Error loading disappearing-message settings:', error);
+        toast({ title: 'Could not load disappearing-message settings', variant: 'destructive' });
+        return;
+      }
+      if (cancelled) return;
+      const minutes = data?.auto_delete_duration ? String(data.auto_delete_duration / 60) : 'off';
+      setDuration(['5', '30', '60', '1440', '10080'].includes(minutes) ? minutes : 'off');
+    };
+    void loadSettings();
+    return () => { cancelled = true; };
+  }, [chatId, isOpen]);
+
   const handleSave = async () => {
     setLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
       if (!user) {
         toast({
           title: 'Error',
@@ -39,7 +60,7 @@ export const DisappearingMessagesDialog = ({ isOpen, onClose, chatId }: Disappea
           chat_id: chatId,
           user_id: user.id,
           auto_delete_duration: autoDurationSeconds
-        });
+        }, { onConflict: 'chat_id,user_id' });
 
       if (error) {
         throw error;
@@ -65,7 +86,7 @@ export const DisappearingMessagesDialog = ({ isOpen, onClose, chatId }: Disappea
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Disappearing Messages</DialogTitle>

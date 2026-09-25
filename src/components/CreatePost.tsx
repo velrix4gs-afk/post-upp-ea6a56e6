@@ -16,7 +16,7 @@ import {
   Clock,
   Heart
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -56,6 +56,7 @@ const CreatePost = () => {
   const [postContent, setPostContent] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const previewImagesRef = useRef<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [createdPostId, setCreatedPostId] = useState<string | null>(null);
@@ -85,18 +86,30 @@ const CreatePost = () => {
     saveGhostDraft(postContent);
   }, [postContent, saveGhostDraft]);
 
+  useEffect(() => {
+    previewImagesRef.current = previewImages;
+  }, [previewImages]);
+
+  useEffect(() => () => {
+    previewImagesRef.current.forEach((url) => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+  }, []);
+
+  const clearPreviewUrls = () => {
+    previewImages.forEach((url) => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+    previewImagesRef.current = [];
+  };
+
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     addMediaFiles(Array.from(event.target.files || []));
+    event.target.value = '';
   };
 
   const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
-
-    // Validate max 10 images
-    if (selectedImages.length + files.length > 10) {
-      showCleanError({ code: 'POST_001', message: 'Maximum 10 images per post' }, toast);
-      return;
-    }
 
     // Validate file types and sizes
     const validFiles = files.filter(file => {
@@ -116,21 +129,27 @@ const CreatePost = () => {
       return true;
     });
 
-    if (validFiles.length === 0) return;
-
-    setSelectedImages(prev => [...prev, ...validFiles]);
-    
-    // Generate previews
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImages(prev => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(file);
+    const existingFileKeys = new Set(selectedImages.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
+    const uniqueFiles = validFiles.filter((file) => {
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (existingFileKeys.has(key)) return false;
+      existingFileKeys.add(key);
+      return true;
     });
+    if (uniqueFiles.length === 0) return;
+
+    const availableSlots = Math.max(0, 10 - selectedImages.length);
+    if (uniqueFiles.length > availableSlots) {
+      showCleanError({ code: 'POST_001', message: 'Maximum 10 images per post; added the first remaining items' }, toast);
+    }
+    const acceptedFiles = uniqueFiles.slice(0, availableSlots);
+    setSelectedImages((prev) => [...prev, ...acceptedFiles]);
+    setPreviewImages((prev) => [...prev, ...acceptedFiles.map((file) => URL.createObjectURL(file))]);
   };
 
   const removeImage = (index: number) => {
+    const preview = previewImages[index];
+    if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -259,6 +278,7 @@ const CreatePost = () => {
       // Reset form
       setPostContent('');
       setSelectedImages([]);
+      clearPreviewUrls();
       setPreviewImages([]);
       setLocation('');
       setTaggedUsers([]);
@@ -293,6 +313,7 @@ const CreatePost = () => {
     // Reset form
     setPostContent("");
     setSelectedImages([]);
+    clearPreviewUrls();
     setPreviewImages([]);
     setLocation('');
     setTaggedUsers([]);
@@ -303,6 +324,7 @@ const CreatePost = () => {
 
   const handleLoadDraft = (draft: any) => {
     setPostContent(draft.content || '');
+    clearPreviewUrls();
     if (draft.media_url) {
       setPreviewImages([draft.media_url]);
     }

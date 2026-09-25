@@ -1,34 +1,77 @@
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { useStories } from '@/hooks/useStories';
+import { useStories, type Story } from '@/hooks/useStories';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useNavigate } from 'react-router-dom';
 import { Plus, X } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { VerificationBadge } from '@/components/premium/VerificationBadge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import StoryViewer from '@/components/StoryViewer';
+import { ensurePrivateChat } from '@/lib/chatCreation';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 const Stories = () => {
   const { user } = useAuth();
   const { profile } = useProfile();
   const { stories, viewStory, deleteStory } = useStories();
   const navigate = useNavigate();
-  const [selectedStory, setSelectedStory] = useState<any>(null);
+  const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const selectedStoryIndex = selectedStoryId
+    ? stories.findIndex((story) => story.id === selectedStoryId)
+    : -1;
 
-  const handleStoryClick = async (story: any) => {
-    await viewStory(story.id);
-    setSelectedStory(story);
+  const handleStoryClick = (story: Story) => {
+    setSelectedStoryId(story.id);
+    void viewStory(story.id);
   };
 
   const handleDeleteStory = async (storyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     await deleteStory(storyId);
-    if (selectedStory?.id === storyId) {
-      setSelectedStory(null);
+    if (selectedStoryId === storyId) {
+      setSelectedStoryId(null);
     }
+  };
+
+  const handleReply = async (story: Story, text: string): Promise<boolean> => {
+    if (!user || story.user_id === user.id) return false;
+    try {
+      const chatId = await ensurePrivateChat(user.id, story.user_id);
+      const { error } = await supabase.from('messages').insert({
+        chat_id: chatId,
+        sender_id: user.id,
+        content: text,
+        status: 'sent',
+      });
+      if (error) throw error;
+      setSelectedStoryId(null);
+      navigate(`/messages?chat=${chatId}`);
+      toast({ description: 'Story reply sent' });
+      return true;
+    } catch (error) {
+      console.error('[stories] failed to send story reply', error);
+      toast({
+        title: 'Could not send reply',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  };
+
+  const goToStory = (index: number) => {
+    if (index < 0) {
+      setSelectedStoryId(null);
+      return;
+    }
+    if (index >= stories.length) {
+      setSelectedStoryId(null);
+      return;
+    }
+    setSelectedStoryId(stories[index].id);
+    void viewStory(stories[index].id);
   };
 
   return <>
@@ -90,53 +133,17 @@ const Stories = () => {
       </div>
 
       {/* Story Viewer */}
-      {selectedStory && <Dialog open={!!selectedStory} onOpenChange={() => setSelectedStory(null)}>
-          <DialogContent className="max-w-md p-0 [&>button]:hidden">
-            <div className="relative bg-black rounded-lg overflow-hidden">
-              <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={selectedStory.profiles.avatar_url} />
-                    <AvatarFallback className="text-xs">
-                      {selectedStory.profiles.display_name[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="text-white text-sm font-medium flex items-center gap-1">
-                      {selectedStory.profiles.display_name}
-                      <VerificationBadge isVerified={selectedStory.profiles.is_verified} />
-                    </p>
-                    <p className="text-white/70 text-xs">
-                      {formatDistanceToNow(new Date(selectedStory.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {selectedStory.user_id === user?.id && <Button size="sm" variant="destructive" className="hover:bg-destructive/90" onClick={e => handleDeleteStory(selectedStory.id, e)}>
-                      Delete
-                    </Button>}
-                  <Button size="sm" variant="ghost" className="text-white hover:bg-white/20" onClick={() => setSelectedStory(null)}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="aspect-[9/16] flex items-center justify-center bg-black relative">
-                {selectedStory.media_url ? selectedStory.media_type === 'video' ? <video src={selectedStory.media_url} className="w-full h-full object-cover" autoPlay playsInline muted loop onClick={(e) => {
-                    const video = e.currentTarget;
-                    video.paused ? video.play() : video.pause();
-                  }} /> : <img src={selectedStory.media_url} alt="Story" className="w-full h-full object-cover" /> : <div className="p-6 text-center">
-                    <p className="text-white text-lg">{selectedStory.content}</p>
-                  </div>}
-                {selectedStory.media_url && selectedStory.content && (
-                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent">
-                    <p className="text-white text-sm text-center">{selectedStory.content}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>}
+      {selectedStoryId && selectedStoryIndex >= 0 && (
+        <StoryViewer
+          stories={stories}
+          currentIndex={selectedStoryIndex}
+          onClose={() => setSelectedStoryId(null)}
+          onNext={() => goToStory(selectedStoryIndex + 1)}
+          onPrevious={() => goToStory(selectedStoryIndex - 1)}
+          onReply={handleReply}
+          canReply={stories[selectedStoryIndex].user_id !== user?.id}
+        />
+      )}
     </>;
 };
 export default Stories;

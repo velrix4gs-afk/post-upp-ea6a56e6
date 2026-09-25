@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Image, Video, Smile, MapPin, Users, X, Save, Clock, Globe, Lock, UserCheck } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
@@ -81,6 +81,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const [postContent, setPostContent] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const previewImagesRef = useRef<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
   const [scheduledDate, setScheduledDate] = useState<Date>();
@@ -116,17 +117,27 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
     saveGhostDraft(postContent);
   }, [postContent, saveGhostDraft]);
 
+  useEffect(() => {
+    previewImagesRef.current = previewImages;
+  }, [previewImages]);
+
+  useEffect(() => () => {
+    previewImagesRef.current.forEach((url) => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+  }, []);
+
+  const clearPreviewUrls = () => {
+    previewImages.forEach((url) => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+    previewImagesRef.current = [];
+  };
+
   const charCount = postContent.length;
   const charPercentage = charCount / MAX_CHARS * 100;
   const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
-    if (selectedImages.length + files.length > 10) {
-      showCleanError({
-        code: 'POST_001',
-        message: 'Maximum 10 images per post'
-      }, toast);
-      return;
-    }
     const validFiles = files.filter(file => {
       if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
         showCleanError({
@@ -145,17 +156,28 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
       }
       return true;
     });
-    if (validFiles.length === 0) return;
-    setSelectedImages(prev => [...prev, ...validFiles]);
-    validFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = e => {
-        setPreviewImages(prev => [...prev, e.target?.result as string]);
-      };
-      reader.readAsDataURL(file);
+    const existingFileKeys = new Set(selectedImages.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
+    const uniqueFiles = validFiles.filter((file) => {
+      const key = `${file.name}:${file.size}:${file.lastModified}`;
+      if (existingFileKeys.has(key)) return false;
+      existingFileKeys.add(key);
+      return true;
     });
+    if (uniqueFiles.length === 0) return;
+    const availableSlots = Math.max(0, 10 - selectedImages.length);
+    if (uniqueFiles.length > availableSlots) {
+      showCleanError({
+        code: 'POST_001',
+        message: 'Maximum 10 images per post; added the first remaining items'
+      }, toast);
+    }
+    const acceptedFiles = uniqueFiles.slice(0, availableSlots);
+    setSelectedImages(prev => [...prev, ...acceptedFiles]);
+    setPreviewImages(prev => [...prev, ...acceptedFiles.map((file) => URL.createObjectURL(file))]);
   };
   const removeImage = (index: number) => {
+    const preview = previewImages[index];
+    if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview);
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -272,6 +294,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
       // Reset form
       setPostContent('');
       setSelectedImages([]);
+      clearPreviewUrls();
       setPreviewImages([]);
       setLocation('');
       setTaggedUsers([]);
@@ -302,6 +325,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
     });
     setPostContent("");
     setSelectedImages([]);
+    clearPreviewUrls();
     setPreviewImages([]);
     setLocation('');
     setTaggedUsers([]);

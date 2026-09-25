@@ -164,7 +164,7 @@ export const ChatListItem = ({
   };
 
   return (
-    <div className="relative overflow-hidden">
+    <div data-no-app-swipe className="relative overflow-hidden">
       {/* Swipe action backdrop */}
       <div className="absolute inset-y-0 right-0 flex items-center gap-0">
         <button

@@ -10,7 +10,7 @@ import {
   CallingState,
 } from '@stream-io/video-react-sdk';
 import '@stream-io/video-react-sdk/dist/css/styles.css';
-import { useStreamVideoClient, callIdForChat } from '@/hooks/useStreamVideoClient';
+import { useStreamVideoClient, callIdForChat, describeStreamCallError } from '@/hooks/useStreamVideoClient';
 import { CallShell } from '@/components/calls/CallShell';
 import { haptic } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
@@ -74,7 +74,7 @@ export const VideoCall = ({
       } catch (e) {
         console.error('[VideoCall] join failed', e);
         if (!cancelled) {
-          setCallError(e instanceof Error ? e.message : 'Could not join the video call.');
+          setCallError(describeStreamCallError(e, 'join the video call'));
         }
       }
     })();

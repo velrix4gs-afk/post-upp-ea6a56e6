@@ -3507,3 +3507,8 @@ html[data-skin="fb26"] .animate-message-receive {
   box-shadow: 0 0 0 9999px hsl(var(--background) / 0.5);
   border-radius: 12px;
 }
+
+@keyframes story-progress {
+  from { width: 0; }
+  to { width: 100%; }
+}

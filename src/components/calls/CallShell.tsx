@@ -3,6 +3,7 @@ import { AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { createPortal } from 'react-dom';
 
 interface CallShellProps {
   kind: 'voice' | 'video';
@@ -63,7 +64,7 @@ export const CallShell = ({
     };
   }, [autoHideControls, minimized]);
 
-  return (
+  return createPortal(
     <>
       {/* Hidden mount keeps Stream call alive while minimized */}
       <div className="sr-only" aria-hidden>
@@ -71,23 +72,25 @@ export const CallShell = ({
       </div>
 
       {minimized ? (
-        <button
-          type="button"
-          onClick={onRestore}
-          className="fixed top-4 right-4 z-[100] flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-lg px-3 py-2 touch-manipulation animate-in fade-in slide-in-from-top-2"
-          aria-label="Return to call"
-        >
-          <Avatar className="h-7 w-7">
-            <AvatarImage src={participantAvatar} />
-            <AvatarFallback className="text-xs">
-              {participantName[0]?.toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <span className="text-xs font-medium max-w-[8rem] truncate">{statusText}</span>
+        <div data-no-app-swipe className="fixed right-4 top-[max(env(safe-area-inset-top),1rem)] z-[200] flex items-center gap-2 rounded-full bg-primary px-2 py-1.5 text-primary-foreground shadow-lg touch-manipulation animate-in fade-in slide-in-from-top-2">
+          <button
+            type="button"
+            onClick={onRestore}
+            className="flex min-h-10 min-w-10 items-center gap-2 rounded-full text-left"
+            aria-label="Return to call"
+          >
+            <Avatar className="h-8 w-8">
+              <AvatarImage src={participantAvatar} />
+              <AvatarFallback className="text-xs">
+                {participantName[0]?.toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <span className="max-w-[8rem] truncate text-xs font-medium">{statusText}</span>
+          </button>
           <Button
             size="icon"
             variant="destructive"
-            className="h-7 w-7 rounded-full"
+            className="h-9 w-9 rounded-full"
             onClick={(e) => {
               e.stopPropagation();
               onEnd();
@@ -96,11 +99,12 @@ export const CallShell = ({
           >
             <ChevronDown className="h-4 w-4 rotate-180" />
           </Button>
-        </button>
+        </div>
       ) : (
         <div
+          data-no-app-swipe
           className={cn(
-            'fixed inset-0 z-[90] h-[100dvh] w-screen text-foreground',
+            'fixed inset-0 z-[200] h-[100dvh] w-screen text-foreground',
             kind === 'video'
               ? 'bg-black text-white'
               : 'bg-gradient-to-b from-primary/15 via-background to-background',
@@ -207,7 +211,8 @@ export const CallShell = ({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   );
 };
 

@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { useChatSettings } from '@/hooks/useChatSettings';
+import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { toast } from '@/hooks/use-toast';
 import { haptic } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -78,7 +78,7 @@ export const ChatSettingsDialog = ({
 }: ChatSettingsDialogProps) => {
   const { settings, toggleMute } = useChatSettings(chatId);
   const navigate = useNavigate();
-  const isMuted = !!settings?.is_muted;
+  const isMuted = isChatMuted(settings);
 
   const close = () => onOpenChange(false);
 

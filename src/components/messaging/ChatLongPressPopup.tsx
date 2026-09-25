@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { CheckCheck, Pin, PinOff, Bell, BellOff, Trash2, X, Image as ImageIcon, Video, Mic, FileIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
-import { useChatSettings } from '@/hooks/useChatSettings';
+import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -94,7 +94,7 @@ export const ChatLongPressPopup = ({
   const [messages, setMessages] = useState<PreviewMsg[]>([]);
   const [loading, setLoading] = useState(false);
   const isPinned = !!settings?.is_pinned;
-  const isMuted = !!settings?.is_muted;
+  const isMuted = isChatMuted(settings);
 
   useEffect(() => {
     if (!open || !chatId) return;

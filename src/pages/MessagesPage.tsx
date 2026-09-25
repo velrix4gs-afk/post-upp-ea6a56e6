@@ -6,8 +6,7 @@ import { usePresence } from '@/hooks/usePresence';
 import { useChatSettings } from '@/hooks/useChatSettings';
 import { useAdmin } from '@/hooks/useAdmin';
 import Navigation from '@/components/Navigation';
-import { VideoCall } from '@/components/VideoCall';
-import { VoiceCall } from '@/components/VoiceCall';
+import { useCallSession } from '@/components/calls/CallSessionContext';
 import { ChatSettingsDialog } from '@/components/messaging/ChatSettingsDialog';
 import { EnhancedMessageBubble } from '@/components/EnhancedMessageBubble';
 import { useThreadGestures } from '@/hooks/useThreadGestures';
@@ -107,6 +106,7 @@ const MessagesPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const { startCall } = useCallSession();
   const { isAdmin } = useAdmin();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showAIChat, setShowAIChat] = useState(false);
@@ -121,7 +121,7 @@ const MessagesPage = () => {
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const otherParticipant = selectedChat?.participants.find((p) => p.user_id !== user?.id);
   const isOnline = otherParticipant ? isUserOnline(otherParticipant.user_id) : false;
-  const { settings: chatSettings } = useChatSettings(selectedChatId || undefined);
+  const { settings: chatSettings } = useChatSettings(selectedChatId || undefined, otherParticipant?.user_id);
 
   // Input/state
   const [messageText, setMessageText] = useState('');
@@ -160,10 +160,6 @@ const MessagesPage = () => {
   const [showGallerySheet, setShowGallerySheet] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
 
-  // Calls
-  const [activeCall, setActiveCall] = useState<'voice' | 'video' | null>(null);
-  const [isCallInitiator, setIsCallInitiator] = useState(false);
-
   // Accepting an incoming call (IncomingCallOverlay) lands here with
   // navigation state instead of a URL param -- there's no /messages/:id
   // route. Pick the chat and open the call UI, then clear the state so
@@ -172,8 +168,15 @@ const MessagesPage = () => {
     const state = location.state as { openChatId?: string; callType?: 'voice' | 'video'; autoJoin?: boolean } | null;
     if (!state?.autoJoin || !state.openChatId || !state.callType) return;
     setSelectedChatId(state.openChatId);
-    setIsCallInitiator(false);
-    setActiveCall(state.callType);
+    const incomingChat = chats.find((chat) => chat.id === state.openChatId);
+    const participant = incomingChat?.participants.find((item) => item.user_id !== user?.id);
+    startCall({
+      chatId: state.openChatId,
+      kind: state.callType,
+      isInitiator: false,
+      participantName: participant?.profiles.display_name || incomingChat?.name || 'User',
+      participantAvatar: participant?.profiles.avatar_url,
+    });
     navigate(location.pathname, { replace: true, state: {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state]);
@@ -895,13 +898,23 @@ const MessagesPage = () => {
             }
           }}
           onVoiceCall={() => {
-            setActiveCall('voice');
-            setIsCallInitiator(true);
+            startCall({
+              chatId: selectedChatId,
+              kind: 'voice',
+              isInitiator: true,
+              participantName: otherP?.profiles.display_name || 'User',
+              participantAvatar: otherP?.profiles.avatar_url,
+            });
             toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
           }}
           onVideoCall={() => {
-            setActiveCall('video');
-            setIsCallInitiator(true);
+            startCall({
+              chatId: selectedChatId,
+              kind: 'video',
+              isInitiator: true,
+              participantName: otherP?.profiles.display_name || 'User',
+              participantAvatar: otherP?.profiles.avatar_url,
+            });
             toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
           }}
           menu={
@@ -917,9 +930,24 @@ const MessagesPage = () => {
               onReport={() => setShowReportDialog(true)}
               onDisappearingMessages={() => setShowDisappearingDialog(true)}
               onVideoCall={() => {
-                setActiveCall('video');
-                setIsCallInitiator(true);
+                startCall({
+                  chatId: selectedChatId,
+                  kind: 'video',
+                  isInitiator: true,
+                  participantName: otherP?.profiles.display_name || 'User',
+                  participantAvatar: otherP?.profiles.avatar_url,
+                });
                 toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
+              }}
+              onVoiceCall={() => {
+                startCall({
+                  chatId: selectedChatId,
+                  kind: 'voice',
+                  isInitiator: true,
+                  participantName: otherP?.profiles.display_name || 'User',
+                  participantAvatar: otherP?.profiles.avatar_url,
+                });
+                toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
               }}
             />
           }
@@ -1312,46 +1340,6 @@ const MessagesPage = () => {
           chatId={selectedChatId}
           isOpen={showDisappearingDialog}
           onClose={() => setShowDisappearingDialog(false)}
-        />
-      )}
-
-      {activeCall === 'voice' && selectedChatId && otherParticipant && (
-        <VoiceCall
-          chatId={selectedChatId}
-          isInitiator={isCallInitiator}
-          onEndCall={(outcome) => {
-            setActiveCall(null);
-            setIsCallInitiator(false);
-            if (isCallInitiator) {
-              sendMessage(
-                JSON.stringify({ kind: 'voice', status: outcome.status, durationSec: outcome.durationSec }),
-                undefined,
-                undefined,
-                'call'
-              );
-            }
-          }}
-          participantName={otherParticipant.profiles.display_name}
-          participantAvatar={otherParticipant.profiles.avatar_url}
-        />
-      )}
-
-      {activeCall === 'video' && selectedChatId && (
-        <VideoCall
-          chatId={selectedChatId}
-          isInitiator={isCallInitiator}
-          onEndCall={(outcome) => {
-            setActiveCall(null);
-            setIsCallInitiator(false);
-            if (isCallInitiator) {
-              sendMessage(
-                JSON.stringify({ kind: 'video', status: outcome.status, durationSec: outcome.durationSec }),
-                undefined,
-                undefined,
-                'call'
-              );
-            }
-          }}
         />
       )}
 

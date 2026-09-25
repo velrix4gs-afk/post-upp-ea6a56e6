@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, User, Image, BellOff, Download, AlertCircle, Star, Palette, Sparkles, Trash2, Search, Ban, FileText, UserX, Unlock, UserCircle, Heart, Link as LinkIcon, Clock, Shield, Video } from 'lucide-react';
+import { MoreVertical, User, Image, BellOff, Download, AlertCircle, Star, Palette, Sparkles, Trash2, Search, Ban, Unlock, UserCircle, Link as LinkIcon, Clock, Video, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useChatSettings } from '@/hooks/useChatSettings';
+import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { toast } from '@/hooks/use-toast';
 import { SharedLinksTab } from './messaging/SharedLinksTab';
@@ -34,12 +34,14 @@ interface ChatMenuProps {
   onWallpaperChange?: () => void;
   onViewSharedLinks?: () => void;
   onDisappearingMessages?: () => void;
+  onVoiceCall?: () => void;
   onVideoCall?: () => void;
 }
 
-export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onDisappearingMessages, onVideoCall }: ChatMenuProps) => {
+export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onDisappearingMessages, onVoiceCall, onVideoCall }: ChatMenuProps) => {
   const navigate = useNavigate();
-  const { settings, setNickname, muteChat, unmuteChat, togglePin, setTheme } = useChatSettings(chatId);
+  const { settings, setNickname, muteChat, unmuteChat, togglePin, setTheme } = useChatSettings(chatId, otherUserId);
+  const chatMuted = isChatMuted(settings);
   const { isBlocked, unblockUser } = useBlockedUsers();
   const [showNicknameDialog, setShowNicknameDialog] = useState(false);
   const [showMuteDialog, setShowMuteDialog] = useState(false);
@@ -50,7 +52,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
 
   const handleSetNickname = async () => {
     if (nickname.trim()) {
-      await setNickname(nickname.trim());
+      await setNickname(nickname.trim(), otherUserId);
       setShowNicknameDialog(false);
       setNicknameInput('');
     }
@@ -74,11 +76,12 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
   const handleExportChat = async () => {
     try {
       // Fetch all messages for export
-      const { data: messages } = await supabase
+      const { data: messages, error } = await supabase
         .from('messages')
         .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true });
+      if (error) throw error;
 
       if (!messages || messages.length === 0) {
         toast({
@@ -126,12 +129,13 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
   const handleAISummary = async () => {
     try {
       // Fetch recent messages
-      const { data: messages } = await supabase
+      const { data: messages, error } = await supabase
         .from('messages')
         .select('content')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (error) throw error;
 
       if (!messages || messages.length === 0) {
         toast({
@@ -171,6 +175,12 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
                 <UserCircle className="h-4 w-4 text-primary" />
                 View Profile
               </DropdownMenuItem>
+              {onVoiceCall && (
+                <DropdownMenuItem onClick={onVoiceCall} className="rounded-lg py-2.5 px-3 gap-3">
+                  <Phone className="h-4 w-4 text-primary" />
+                  Voice Call
+                </DropdownMenuItem>
+              )}
               {onVideoCall && (
                 <DropdownMenuItem onClick={onVideoCall} className="rounded-lg py-2.5 px-3 gap-3">
                   <Video className="h-4 w-4 text-primary" />
@@ -182,10 +192,12 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
           )}
 
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-3 py-1.5">Chat</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setShowNicknameDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
-            <User className="h-4 w-4 text-primary" />
-            Add Nickname
-          </DropdownMenuItem>
+          {otherUserId && (
+            <DropdownMenuItem onClick={() => setShowNicknameDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
+              <User className="h-4 w-4 text-primary" />
+              Add Nickname
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={onViewMedia} className="rounded-lg py-2.5 px-3 gap-3">
             <Image className="h-4 w-4 text-sky-500" />
             View Shared Media
@@ -198,7 +210,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
             <Star className="h-4 w-4 text-amber-500" />
             Starred Messages
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setShowLinksDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
+          <DropdownMenuItem onClick={() => onViewSharedLinks ? onViewSharedLinks() : setShowLinksDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
             <LinkIcon className="h-4 w-4 text-sky-500" />
             Shared Links
           </DropdownMenuItem>
@@ -221,9 +233,9 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
             <Star className={`h-4 w-4 text-amber-500 ${settings?.is_pinned ? 'fill-current' : ''}`} />
             {settings?.is_pinned ? 'Remove from Favorites' : 'Add to Favorites'}
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => settings?.is_muted ? handleUnmute() : setShowMuteDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
+          <DropdownMenuItem onClick={() => chatMuted ? handleUnmute() : setShowMuteDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
             <BellOff className="h-4 w-4 text-muted-foreground" />
-            {settings?.is_muted ? 'Unmute Chat' : 'Mute Chat'}
+            {chatMuted ? 'Unmute Chat' : 'Mute Chat'}
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />

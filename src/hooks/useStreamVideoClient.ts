@@ -8,6 +8,14 @@ let clientPromise: Promise<StreamVideoClient> | null = null;
 let cachedClient: StreamVideoClient | null = null;
 let cachedUserId: string | null = null;
 
+export function describeStreamCallError(error: unknown, action: string): string {
+  const message = error instanceof Error ? error.message : String(error || '');
+  if (/not authorized|unauthori[sz]ed|permission denied|\b40[13]\b/i.test(message)) {
+    return `Stream did not authorize this ${action}. Verify the Stream API key and secret belong to the same app and that the deployed token function uses that secret. (${message})`;
+  }
+  return message || `Could not ${action}.`;
+}
+
 async function getOrCreateClient(
   userId: string,
   displayName: string,
@@ -34,6 +42,9 @@ async function getOrCreateClient(
         : null;
       if (status === 404) {
         throw new Error('Call service is not deployed. Deploy the Supabase stream-token function and try again.');
+      }
+      if (status === 401 || status === 403) {
+        throw new Error('Supabase did not authorize the call-token request. Refresh your sign-in session and verify the function JWT settings.');
       }
       throw new Error(failureBody?.error || error.message || 'Could not retrieve call credentials.');
     }

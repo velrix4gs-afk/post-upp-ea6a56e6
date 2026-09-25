@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
+import { toast } from '@/hooks/use-toast';
 import { reportSilently } from '@/lib/errorSuppression';
 import {
   canUseNativeGallery,
@@ -85,8 +86,14 @@ export const GalleryPickerSheet = ({
 
   const loadNative = useCallback(async (count: number, nextFilter: GalleryFilter) => {
     setLoading(true);
+    let timeoutId: number | undefined;
     try {
-      const next = await listNativeDeviceMedia(count, nextFilter);
+      const next = await Promise.race([
+        listNativeDeviceMedia(count, nextFilter),
+        new Promise<DeviceGalleryItem[]>((_, reject) => {
+          timeoutId = window.setTimeout(() => reject(new Error('Gallery loading timed out')), 15000);
+        }),
+      ]);
       setItems((prev) => {
         revokeGalleryThumbs(prev);
         return next;
@@ -96,6 +103,7 @@ export const GalleryPickerSheet = ({
       reportSilently('GALLERY_001', err);
       setAccess('denied');
     } finally {
+      if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }, []);
@@ -162,7 +170,9 @@ export const GalleryPickerSheet = ({
       if (ids.length === 0) return;
       setConfirming(true);
       try {
-        const chosen = items.filter((item) => ids.includes(item.id));
+        const chosen = ids
+          .map((id) => items.find((item) => item.id === id))
+          .filter((item): item is DeviceGalleryItem => Boolean(item));
         const files = await Promise.all(chosen.map((item) => deviceItemToFile(item)));
         emitFiles(files);
         onOpenChange(false);
@@ -180,9 +190,18 @@ export const GalleryPickerSheet = ({
     async (item: DeviceGalleryItem) => {
       haptic('light');
       if (multiple) {
-        setSelected((prev) =>
-          prev.includes(item.id) ? prev.filter((id) => id !== item.id) : [...prev, item.id],
-        );
+        setSelected((prev) => {
+          if (prev.includes(item.id)) return prev.filter((id) => id !== item.id);
+          if (prev.length >= 10) {
+            toast({
+              title: 'Selection limit reached',
+              description: 'Choose up to 10 items for one post.',
+              variant: 'destructive',
+            });
+            return prev;
+          }
+          return [...prev, item.id];
+        });
         return;
       }
       setBusyId(item.id);
@@ -195,14 +214,21 @@ export const GalleryPickerSheet = ({
     (fileList: File[]) => {
       const next = filesToGalleryItems(fileList);
       if (next.length === 0) return;
+      if (multiple && next.length > 10) {
+        toast({
+          title: 'Selection limit reached',
+          description: 'Choose up to 10 items for one post.',
+          variant: 'destructive',
+        });
+      }
       setItems((prev) => {
         revokeGalleryThumbs(prev);
-        return next;
+        return multiple ? next.slice(0, 10) : next;
       });
+      setSelected(multiple ? next.slice(0, 10).map((item) => item.id) : []);
       setAccess('web');
-      setSelected([]);
     },
-    [],
+    [multiple],
   );
 
   const openFolder = useCallback(async () => {
@@ -231,7 +257,8 @@ export const GalleryPickerSheet = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className="h-[88vh] rounded-t-[28px] p-0 flex flex-col bg-background border-t overflow-hidden"
+        overlayClassName="z-[110]"
+        className="z-[111] h-[min(92dvh,900px)] rounded-t-[28px] p-0 flex flex-col bg-background border-t overflow-hidden"
       >
         <div className="px-4 pt-3 pb-2 shrink-0">
           <div className="mx-auto h-1.5 w-10 rounded-full bg-muted-foreground/30 mb-3" />
@@ -262,10 +289,17 @@ export const GalleryPickerSheet = ({
 
         <div className="flex-1 overflow-y-auto">
           {(loading || access === 'checking') && items.length === 0 ? (
-            <div className="grid grid-cols-4 gap-0.5 px-0.5">
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div key={i} className="aspect-square bg-muted animate-pulse" />
-              ))}
+            <div className="relative">
+              <div className="grid grid-cols-4 gap-0.5 px-0.5">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <div key={i} className="aspect-square bg-muted animate-pulse" />
+                ))}
+              </div>
+              <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 justify-center">
+                <span className="rounded-full bg-background/90 px-4 py-2 text-sm text-muted-foreground shadow">
+                  Loading your photos...
+                </span>
+              </div>
             </div>
           ) : showGrant ? (
             <div className="h-full flex flex-col items-center justify-center text-center px-8 py-10">
@@ -286,6 +320,16 @@ export const GalleryPickerSheet = ({
                   </Button>
                   <Button variant="outline" className="rounded-xl h-11" onClick={() => openDeviceGallerySettings()}>
                     Open settings
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="rounded-xl h-11"
+                    onClick={() => {
+                      setAccess('web');
+                      inputRef.current?.click();
+                    }}
+                  >
+                    Use system picker instead
                   </Button>
                 </div>
               ) : (

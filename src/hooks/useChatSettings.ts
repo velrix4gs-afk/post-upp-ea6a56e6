@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -35,6 +35,7 @@ export interface ChatSettings {
   is_muted: boolean;
   is_pinned: boolean;
   is_archived?: boolean;
+  muted_until?: string | null;
   wallpaper_url?: string;
   theme_color?: string;
   nickname?: string;
@@ -42,7 +43,11 @@ export interface ChatSettings {
   notifications_enabled: boolean;
 }
 
-export const useChatSettings = (chatId?: string) => {
+export const isChatMuted = (settings?: Pick<ChatSettings, 'is_muted' | 'muted_until'> | null) => (
+  Boolean(settings?.is_muted && (!settings.muted_until || new Date(settings.muted_until).getTime() > Date.now()))
+);
+
+export const useChatSettings = (chatId?: string, targetUserId?: string) => {
   const { user } = useAuth();
   const [settings, setSettings] = useState<ChatSettings | null>(() => {
     const cachedWallpaper = readCachedWallpaper(chatId);
@@ -66,9 +71,10 @@ export const useChatSettings = (chatId?: string) => {
     // re-applies the new chat's cached wallpaper instantly on switch,
     // before the fetch even starts.
     const cachedWallpaper = readCachedWallpaper(chatId);
+    setLoading(true);
     setSettings((prev) =>
       prev?.chat_id === chatId
-        ? prev
+        ? { ...prev, nickname: undefined }
         : {
           chat_id: chatId,
           user_id: user?.id || '',
@@ -78,12 +84,9 @@ export const useChatSettings = (chatId?: string) => {
           wallpaper_url: cachedWallpaper,
         }
     );
-    if (user) {
-      fetchSettings();
-    }
-  }, [user, chatId]);
+  }, [chatId, targetUserId, user]);
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     if (!user || !chatId) return;
 
     try {
@@ -96,10 +99,8 @@ export const useChatSettings = (chatId?: string) => {
 
       if (error && error.code !== 'PGRST116') throw error;
 
-      if (data) {
-        setSettings(data);
-        writeCachedWallpaper(chatId, data.wallpaper_url);
-      } else {
+      let loadedSettings = data;
+      if (!loadedSettings) {
         // Create default settings
         const { data: newSettings, error: createError } = await supabase
           .from('chat_settings')
@@ -114,15 +115,34 @@ export const useChatSettings = (chatId?: string) => {
           .single();
 
         if (createError) throw createError;
-        setSettings(newSettings);
-        writeCachedWallpaper(chatId, newSettings?.wallpaper_url);
+        loadedSettings = newSettings;
       }
+      if (!loadedSettings) return;
+
+      let nickname: string | undefined;
+      if (targetUserId) {
+        const { data: nicknameRow, error: nicknameError } = await supabase
+          .from('chat_nicknames')
+          .select('nickname')
+          .eq('chat_id', chatId)
+          .eq('user_id', user.id)
+          .eq('target_user_id', targetUserId)
+          .maybeSingle();
+        if (nicknameError) throw nicknameError;
+        nickname = nicknameRow?.nickname;
+      }
+      setSettings({ ...loadedSettings, nickname });
+      writeCachedWallpaper(chatId, loadedSettings.wallpaper_url);
     } catch (error) {
       console.error('Error fetching chat settings:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [chatId, targetUserId, user]);
+
+  useEffect(() => {
+    if (user && chatId) void fetchSettings();
+  }, [chatId, fetchSettings, user]);
 
   const updateSettings = async (updates: Partial<ChatSettings>) => {
     if (!user || !chatId) return;
@@ -164,20 +184,33 @@ export const useChatSettings = (chatId?: string) => {
   const muteChat = async (duration?: number) => {
     const muted_until = duration
       ? new Date(Date.now() + duration * 60 * 1000).toISOString()
-      : undefined;
-    await updateSettings({ is_muted: true });
+      : null;
+    await updateSettings({ is_muted: true, muted_until });
   };
 
   const unmuteChat = async () => {
-    await updateSettings({ is_muted: false });
+    await updateSettings({ is_muted: false, muted_until: null });
   };
 
-  const setNickname = async (nickname: string) => {
-    // Was previously overwriting theme_color with the nickname text --
-    // that silently destroyed whatever theme color the chat had set.
-    // Nickname now has its own real column.
-    await updateSettings({ nickname });
-    toast({ description: 'Nickname set' });
+  const setNickname = async (nickname: string, targetId?: string) => {
+    if (!user || !chatId || !targetId) {
+      toast({ title: 'Could not set nickname', description: 'Choose a person in this chat first.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const { error } = await supabase.from('chat_nicknames').upsert({
+        chat_id: chatId,
+        user_id: user.id,
+        target_user_id: targetId,
+        nickname,
+      }, { onConflict: 'chat_id,user_id,target_user_id' });
+      if (error) throw error;
+      setSettings((prev) => prev ? { ...prev, nickname } : prev);
+      toast({ description: 'Nickname set' });
+    } catch (error) {
+      console.error('Error setting chat nickname:', error);
+      toast({ title: 'Failed to set nickname', variant: 'destructive' });
+    }
   };
 
   return {

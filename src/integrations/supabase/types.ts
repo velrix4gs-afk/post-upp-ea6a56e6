@@ -444,6 +444,7 @@ export type Database = {
           id: string
           is_muted: boolean | null
           is_pinned: boolean | null
+          muted_until: string | null
           notifications_enabled: boolean | null
           theme_color: string | null
           updated_at: string | null
@@ -457,6 +458,7 @@ export type Database = {
           id?: string
           is_muted?: boolean | null
           is_pinned?: boolean | null
+          muted_until?: string | null
           notifications_enabled?: boolean | null
           theme_color?: string | null
           updated_at?: string | null
@@ -470,6 +472,7 @@ export type Database = {
           id?: string
           is_muted?: boolean | null
           is_pinned?: boolean | null
+          muted_until?: string | null
           notifications_enabled?: boolean | null
           theme_color?: string | null
           updated_at?: string | null

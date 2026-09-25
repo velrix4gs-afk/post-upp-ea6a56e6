@@ -18,6 +18,8 @@ import PageTransition from "@/components/transitions/PageTransition";
 import { GlobalProfilePopupHost } from "@/components/GlobalProfilePopupHost";
 import { NavHistoryRecorder } from "@/components/NavHistoryRecorder";
 import { AppTour } from "@/components/AppTour";
+import { CallSessionProvider } from "@/components/calls/CallSessionProvider";
+import { AppSwipeNavigation } from "@/hooks/useAppSwipeNavigation";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -209,9 +211,11 @@ const App = () => (
             <NavHistoryRecorder />
             <GlobalProfilePopupHost />
             <AppTour />
-            <Suspense fallback={<PageLoader />}>
-              <PageTransition>
-                <Routes>
+            <AppSwipeNavigation />
+            <CallSessionProvider>
+              <Suspense fallback={<PageLoader />}>
+                <PageTransition>
+                  <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/signin" element={<SignIn />} />
                   <Route path="/signup" element={<SignUp />} />
@@ -432,9 +436,10 @@ const App = () => (
                     </ProtectedRoute>
                   } />
                   <Route path="*" element={<NotFound />} />
-                </Routes>
-              </PageTransition>
-            </Suspense>
+                  </Routes>
+                </PageTransition>
+              </Suspense>
+            </CallSessionProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

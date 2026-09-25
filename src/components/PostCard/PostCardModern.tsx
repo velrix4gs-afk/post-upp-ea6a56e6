@@ -576,7 +576,7 @@ export const PostCardModern = ({
                   </div>}
               </>}
 
-            {mediaItems.length > 1 && <div className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
+            {mediaItems.length > 1 && <div data-no-app-swipe className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
                 <Carousel className="w-full">
                   <CarouselContent>
                     {mediaItems.map((url, i) => <CarouselItem key={url + i}>
