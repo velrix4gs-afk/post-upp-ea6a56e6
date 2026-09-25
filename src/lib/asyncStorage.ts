@@ -129,14 +129,14 @@ export const CacheHelper = {
     return JSON.parse(data);
   },
 
-  async saveNotifications(notifications: any[]) {
-    await AsyncStorage.setItem('notifications_cache', JSON.stringify(notifications));
-    await AsyncStorage.setItem('notifications_timestamp', Date.now().toString());
+  async saveNotifications(userId: string, notifications: unknown[]) {
+    await AsyncStorage.setItem(`notifications_${userId}_cache`, JSON.stringify(notifications));
+    await AsyncStorage.setItem(`notifications_${userId}_timestamp`, Date.now().toString());
   },
 
-  async getNotifications() {
-    const data = await AsyncStorage.getItem('notifications_cache');
-    const timestamp = await AsyncStorage.getItem('notifications_timestamp');
+  async getNotifications(userId: string) {
+    const data = await AsyncStorage.getItem(`notifications_${userId}_cache`);
+    const timestamp = await AsyncStorage.getItem(`notifications_${userId}_timestamp`);
     
     if (!data || !timestamp) return null;
     

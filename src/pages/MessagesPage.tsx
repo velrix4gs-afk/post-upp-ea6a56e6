@@ -110,6 +110,7 @@ const MessagesPage = () => {
   const { isAdmin } = useAdmin();
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [showAIChat, setShowAIChat] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const {
     chats, messages, chatsLoading, messagesLoading, messagesInitialLoaded, sendMessage, editMessage, deleteMessage,
     reactToMessage, unreactToMessage, starMessage, unstarMessage, forwardMessage, markChatAsRead,
@@ -183,9 +184,12 @@ const MessagesPage = () => {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceSendInFlightRef = useRef(false);
+  const messageSendInFlightRef = useRef(false);
   const prevMessageIdsRef = useRef<Set<string>>(new Set());
   const newMessageIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
+  const threadTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const scrollMotionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [pinnedChatIds, setPinnedChatIds] = useState<string[]>([]);
   const [archivedChatIds, setArchivedChatIds] = useState<string[]>([]);
@@ -283,13 +287,66 @@ const MessagesPage = () => {
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
+    let previousTop = container.scrollTop;
+    let previousTime = performance.now();
     const onScroll = () => {
       const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
       setShowScrollFab(distFromBottom > 300);
+      const now = performance.now();
+      const elapsed = Math.max(1, now - previousTime);
+      const velocity = (container.scrollTop - previousTop) / elapsed;
+      const skew = Math.max(-0.45, Math.min(0.45, velocity * -0.08));
+      container.style.setProperty('--bubble-skew', `${skew.toFixed(3)}deg`);
+      previousTop = container.scrollTop;
+      previousTime = now;
+      if (scrollMotionTimerRef.current) clearTimeout(scrollMotionTimerRef.current);
+      scrollMotionTimerRef.current = setTimeout(() => {
+        container.style.setProperty('--bubble-skew', '0deg');
+      }, 140);
     };
     container.addEventListener('scroll', onScroll);
-    return () => container.removeEventListener('scroll', onScroll);
+    return () => {
+      container.removeEventListener('scroll', onScroll);
+      if (scrollMotionTimerRef.current) clearTimeout(scrollMotionTimerRef.current);
+      container.style.setProperty('--bubble-skew', '0deg');
+      container.style.setProperty('--peek-x', '0px');
+      container.style.setProperty('--peek-opacity', '0');
+    };
   }, [selectedChatId]);
+
+  const handleThreadTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if (event.touches.length !== 1) {
+      threadTouchStartRef.current = null;
+      return;
+    }
+    threadTouchStartRef.current = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+    };
+  };
+
+  const handleThreadTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = threadTouchStartRef.current;
+    if (!start || event.touches.length !== 1) return;
+    const dx = event.touches[0].clientX - start.x;
+    const dy = event.touches[0].clientY - start.y;
+    if (dx >= 0 || Math.abs(dx) <= Math.abs(dy)) {
+      messagesContainerRef.current?.style.setProperty('--peek-x', '0px');
+      messagesContainerRef.current?.style.setProperty('--peek-opacity', '0');
+      return;
+    }
+    const progress = Math.min(1, Math.abs(dx) / 56);
+    const container = messagesContainerRef.current;
+    container?.style.setProperty('--peek-x', `${-56 * progress}px`);
+    container?.style.setProperty('--peek-opacity', progress.toFixed(3));
+  };
+
+  const handleThreadTouchEnd = () => {
+    threadTouchStartRef.current = null;
+    const container = messagesContainerRef.current;
+    container?.style.setProperty('--peek-x', '0px');
+    container?.style.setProperty('--peek-opacity', '0');
+  };
 
   // Pinned chats
   useEffect(() => {
@@ -396,7 +453,9 @@ const MessagesPage = () => {
   };
 
   const handleSendMessage = async () => {
-    if ((!messageText.trim() && !selectedImage) || !selectedChatId) return;
+    if ((!messageText.trim() && !selectedImage) || !selectedChatId || messageSendInFlightRef.current) return;
+    messageSendInFlightRef.current = true;
+    setIsSendingMessage(true);
     const currentText = messageText;
     const currentImage = selectedImage;
     const currentIsVideo = isVideo;
@@ -471,6 +530,9 @@ const MessagesPage = () => {
       if (currentReplyingTo) setReplyingTo(currentReplyingTo);
       setPendingUpload(null);
       toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
+    } finally {
+      messageSendInFlightRef.current = false;
+      setIsSendingMessage(false);
     }
   };
 
@@ -880,6 +942,10 @@ const MessagesPage = () => {
         <div
           ref={messagesContainerRef}
           data-chat-thread
+          onTouchStart={handleThreadTouchStart}
+          onTouchMove={handleThreadTouchMove}
+          onTouchEnd={handleThreadTouchEnd}
+          onTouchCancel={handleThreadTouchEnd}
           className={cn(
             'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative',
             !chatSettings?.wallpaper_url && 'chat-wallpaper',
@@ -1072,6 +1138,7 @@ const MessagesPage = () => {
                 onAttachClick={() => setShowAttachmentsSheet(true)}
                 onCameraClick={() => cameraInputRef.current?.click()}
                 onMicClick={() => setIsRecordingVoice(true)}
+                disabled={isSendingMessage}
                 placeholder={editingMessageId ? 'Edit message…' : 'Message'}
                 hasMedia={!!selectedImage}
                 isEditing={!!editingMessageId}
@@ -1090,7 +1157,7 @@ const MessagesPage = () => {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
       <Navigation />
-      <main className="flex-1 min-h-0 overflow-hidden no-bottom-pad" data-no-bottom-pad="true">
+      <main className="flex-1 min-h-0 overflow-hidden">
         <div className="h-full flex flex-row overflow-hidden">
           {/* List pane */}
           <div className={cn('w-full md:w-80 lg:w-96 md:border-r border-border/40 flex-shrink-0', (selectedChatId || showAIChat) ? 'hidden md:block' : 'block')}>

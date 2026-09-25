@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -12,11 +12,22 @@ interface IncomingCall {
   timestamp: string;
 }
 
+interface CallSignalRow {
+  id: string;
+  call_id: string;
+  sender_id: string;
+  signal_type: string;
+  signal_data?: { video?: boolean } | null;
+  created_at: string;
+}
+
 export const useCallNotifications = () => {
   const { user } = useAuth();
   const [incomingCall, setIncomingCall] = useState<IncomingCall | null>(null);
   const [ringing, setRinging] = useState(false);
-  const audioRef = useState<HTMLAudioElement | null>(null)[0];
+  const incomingCallRef = useRef<IncomingCall | null>(null);
+  const processedSignalIdsRef = useRef(new Set<string>());
+  const endedCallsRef = useRef(new Map<string, number>());
 
   useEffect(() => {
     if (!user) return;
@@ -29,7 +40,30 @@ export const useCallNotifications = () => {
         schema: 'public',
         table: 'call_signals',
       }, async (payload) => {
-        const signal = payload.new as any;
+        const signal = payload.new as CallSignalRow;
+        if (processedSignalIdsRef.current.has(signal.id)) return;
+        processedSignalIdsRef.current.add(signal.id);
+        if (processedSignalIdsRef.current.size > 500) {
+          const oldestId = processedSignalIdsRef.current.values().next().value;
+          if (oldestId) processedSignalIdsRef.current.delete(oldestId);
+        }
+
+        if (
+          (signal.signal_type === 'cancel' || signal.signal_type === 'decline') &&
+          signal.sender_id !== user.id
+        ) {
+          endedCallsRef.current.set(signal.call_id, new Date(signal.created_at).getTime());
+          if (endedCallsRef.current.size > 500) {
+            const oldestCallId = endedCallsRef.current.keys().next().value;
+            if (oldestCallId) endedCallsRef.current.delete(oldestCallId);
+          }
+          if (incomingCallRef.current?.call_id === signal.call_id) {
+            incomingCallRef.current = null;
+            setIncomingCall(null);
+            setRinging(false);
+          }
+          if (signal.signal_type === 'cancel') return;
+        }
 
         // Check if this is an offer signal (incoming call) for this user.
         // Also skip offers we sent ourselves -- the caller is a participant
@@ -64,7 +98,10 @@ export const useCallNotifications = () => {
             call_type: callType,
             timestamp: signal.created_at
           };
+          const endedAt = endedCallsRef.current.get(callInfo.call_id);
+          if (endedAt && new Date(signal.created_at).getTime() <= endedAt) return;
 
+          incomingCallRef.current = callInfo;
           setIncomingCall(callInfo);
           setRinging(true);
 
@@ -84,11 +121,6 @@ export const useCallNotifications = () => {
             duration: 30000, // 30 seconds
           });
 
-          // Play ringtone (if audio element exists)
-          if (audioRef) {
-            audioRef.loop = true;
-            audioRef.play().catch(console.error);
-          }
         }
       })
       .subscribe();
@@ -99,26 +131,17 @@ export const useCallNotifications = () => {
   }, [user]);
 
   const acceptCall = () => {
-    if (audioRef) {
-      audioRef.pause();
-      audioRef.currentTime = 0;
-    }
     setRinging(false);
-    // Return call info for app to handle
-    return incomingCall;
+    const call = incomingCallRef.current;
+    incomingCallRef.current = null;
+    setIncomingCall(null);
+    return call;
   };
 
   const declineCall = async () => {
     if (!incomingCall) return;
 
-    if (audioRef) {
-      audioRef.pause();
-      audioRef.currentTime = 0;
-    }
-    setRinging(false);
-
-    // Send decline signal
-    await supabase
+    const { error } = await supabase
       .from('call_signals')
       .insert({
         call_id: incomingCall.call_id,
@@ -126,7 +149,18 @@ export const useCallNotifications = () => {
         signal_type: 'decline',
         signal_data: {}
       });
+    if (error) {
+      console.error('[calls] failed to decline call', error);
+      toast({
+        title: 'Could not decline call',
+        description: 'The call may still be ringing. Please try again.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
+    setRinging(false);
+    incomingCallRef.current = null;
     setIncomingCall(null);
 
     toast({

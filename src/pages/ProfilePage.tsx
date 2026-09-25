@@ -20,7 +20,7 @@ import { StoryHighlights } from '@/components/StoryHighlights';
 import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
-import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock } from 'lucide-react';
+import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { usePosts } from '@/hooks/usePosts';
@@ -63,13 +63,16 @@ const ProfilePage = () => {
   const {
     followers,
     following,
-    followUser,
-    unfollowUser
   } = useFollowers(profileUserId);
   // Viewer's own following list — used to know if THIS viewer follows the
   // profile being displayed. Without this, `following` above is the profile
   // owner's list and the Follow button never reflects the viewer's state.
-  const { following: viewerFollowing } = useFollowers(user?.id);
+  const {
+    following: viewerFollowing,
+    pendingFollowing: viewerPendingFollowing,
+    followUser: followViewer,
+    unfollowUser: unfollowViewer,
+  } = useFollowers(user?.id);
   const {
     pinnedPostIds
   } = usePinnedPosts(profileUserId);
@@ -87,6 +90,8 @@ const ProfilePage = () => {
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [showCoverViewer, setShowCoverViewer] = useState(false);
   const [activeTab, setActiveTab] = useState('posts');
+  const [followActionBusy, setFollowActionBusy] = useState(false);
+  const [messageActionBusy, setMessageActionBusy] = useState(false);
   const handleProfileEditClose = () => {
     setShowProfileEdit(false);
     refetchProfile();
@@ -95,26 +100,35 @@ const ProfilePage = () => {
   const pinnedPosts = userPosts.filter(post => pinnedPostIds.includes(post.id));
   const regularPosts = userPosts.filter(post => !pinnedPostIds.includes(post.id));
   const isFollowing = viewerFollowing.some(f => f.following_id === profileUserId);
+  const hasFollowRequest = viewerPendingFollowing.some(f => f.following_id === profileUserId);
   const handleFollowToggle = async () => {
-    if (!profileUserId) return;
-    if (isFollowing) {
-      await unfollowUser(profileUserId);
-    } else {
-      await followUser(profileUserId, profile?.is_private || false);
+    if (!profileUserId || followActionBusy) return;
+    setFollowActionBusy(true);
+    try {
+      if (isFollowing || hasFollowRequest) {
+        await unfollowViewer(profileUserId);
+      } else {
+        await followViewer(profileUserId, profile?.is_private || false);
+      }
+    } finally {
+      setFollowActionBusy(false);
     }
   };
   const handleMessage = async () => {
-    if (!profileUserId || !user) return;
+    if (!profileUserId || !user || messageActionBusy) return;
+    setMessageActionBusy(true);
     try {
       const chatId = await ensurePrivateChat(user.id, profileUserId);
       navigate(`/messages?chat=${chatId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Message error:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to start conversation',
+        description: error instanceof Error ? error.message : 'Failed to start conversation',
         variant: 'destructive'
       });
+    } finally {
+      setMessageActionBusy(false);
     }
   };
   const handleShare = async () => {
@@ -242,17 +256,21 @@ const ProfilePage = () => {
             <Edit className="h-4 w-4 mr-2" />
             Edit Profile
           </Button> : <>
-            <Button variant={isFollowing ? "outline" : "default"} onClick={handleFollowToggle} className="flex-1 rounded-full font-semibold">
+            <Button variant={isFollowing || hasFollowRequest ? "outline" : "default"} onClick={handleFollowToggle} disabled={followActionBusy} className="flex-1 rounded-full font-semibold">
+              {followActionBusy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {isFollowing ? <>
                 <UserCheck className="h-4 w-4 mr-2" />
                 Following
+              </> : hasFollowRequest ? <>
+                <UserCheck className="h-4 w-4 mr-2" />
+                Requested
               </> : <>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Follow
               </>}
             </Button>
-            <Button variant="outline" onClick={handleMessage} className="rounded-full px-4">
-              <MessageCircle className="h-4 w-4" />
+            <Button variant="outline" onClick={handleMessage} disabled={messageActionBusy} className="rounded-full px-4" aria-label="Message">
+              {messageActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
             </Button>
           </>}
           <Button variant="outline" onClick={handleShare} className="rounded-full px-4">

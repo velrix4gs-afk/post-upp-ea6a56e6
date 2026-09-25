@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { toast } from 'sonner';
 import { CacheHelper } from '@/lib/asyncStorage';
 
 export interface Notification {
@@ -15,38 +15,38 @@ export interface Notification {
   created_at: string;
 }
 
-const requestNotificationPermission = async () => {
-  if ('Notification' in window && Notification.permission === 'default') {
-    await Notification.requestPermission();
-  }
-};
-
-const showBrowserNotification = (title: string, body?: string, icon?: string) => {
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification(title, {
-      body,
-      icon: icon || '/favicon.ico',
-      badge: '/favicon.ico',
-      tag: 'post-upp-notification'
-    });
-  }
-};
-
 export const useNotifications = () => {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const liveNotificationsRef = useRef(new Map<string, Notification>());
+  const activeUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      requestNotificationPermission();
+    setUnreadCount(notifications.filter((notification) => !notification.is_read).length);
+  }, [notifications]);
 
+  useEffect(() => {
+    if (activeUserIdRef.current !== (user?.id || null)) {
+      activeUserIdRef.current = user?.id || null;
+      liveNotificationsRef.current.clear();
+      setNotifications([]);
+      setUnreadCount(0);
+      setLoading(Boolean(user));
+    }
+    if (user) {
       // Load cached notifications first for instant display
-      CacheHelper.getNotifications().then(cached => {
+      CacheHelper.getNotifications(user.id).then(cached => {
         if (cached && cached.length > 0) {
-          setNotifications(cached);
-          setUnreadCount(cached.filter((n: Notification) => !n.is_read).length);
+          setNotifications((current) => {
+            const byId = new Map(cached.map((notification: Notification) => [notification.id, notification]));
+            current.forEach((notification) => byId.set(notification.id, notification));
+            liveNotificationsRef.current.forEach((notification, id) => byId.set(id, notification));
+            return [...byId.values()]
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .slice(0, 50);
+          });
           setLoading(false);
         }
       });
@@ -63,21 +63,13 @@ export const useNotifications = () => {
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
           const newNotification = payload.new as Notification;
+          liveNotificationsRef.current.set(newNotification.id, newNotification);
           setNotifications(prev => {
-            const updated = [newNotification, ...prev];
-            CacheHelper.saveNotifications(updated);
+            if (prev.some((notification) => notification.id === newNotification.id)) return prev;
+            const updated = [newNotification, ...prev].slice(0, 50);
+            void CacheHelper.saveNotifications(user.id, updated);
             return updated;
           });
-          setUnreadCount(prev => prev + 1);
-          
-          toast(newNotification.title, {
-            description: newNotification.content,
-          });
-
-          showBrowserNotification(
-            newNotification.title,
-            newNotification.content
-          );
         })
         .on('postgres_changes', {
           event: 'UPDATE',
@@ -86,15 +78,11 @@ export const useNotifications = () => {
           filter: `user_id=eq.${user.id}`
         }, (payload) => {
           const updated = payload.new as Notification;
+          liveNotificationsRef.current.set(updated.id, updated);
           setNotifications(prev => {
             const newList = prev.map(n => n.id === updated.id ? updated : n);
-            CacheHelper.saveNotifications(newList);
+            void CacheHelper.saveNotifications(user.id, newList);
             return newList;
-          });
-          // Recalculate unread
-          setNotifications(prev => {
-            setUnreadCount(prev.filter(n => !n.is_read).length);
-            return prev;
           });
         })
         .subscribe();
@@ -106,6 +94,7 @@ export const useNotifications = () => {
   }, [user]);
 
   const fetchNotifications = async () => {
+    if (!user?.id) return;
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -118,10 +107,19 @@ export const useNotifications = () => {
       if (error) throw error;
       
       const notifs = (data || []) as Notification[];
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.is_read).length);
-      CacheHelper.saveNotifications(notifs);
-    } catch (err: any) {
+      setNotifications((current) => {
+        const byId = new Map(notifs.map((notification) => [notification.id, notification]));
+        current.forEach((notification) => {
+          if (!byId.has(notification.id)) byId.set(notification.id, notification);
+        });
+        liveNotificationsRef.current.forEach((notification, id) => byId.set(id, notification));
+        const merged = [...byId.values()]
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 50);
+        void CacheHelper.saveNotifications(user.id, merged);
+        return merged;
+      });
+    } catch {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
@@ -129,6 +127,7 @@ export const useNotifications = () => {
   };
 
   const markAsRead = async (notificationId: string) => {
+    if (!user?.id) return;
     try {
       const { error } = await supabase
         .from('notifications')
@@ -139,16 +138,16 @@ export const useNotifications = () => {
 
       setNotifications(prev => {
         const updated = prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n);
-        CacheHelper.saveNotifications(updated);
+        void CacheHelper.saveNotifications(user.id, updated);
         return updated;
       });
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to mark notification as read');
     }
   };
 
   const markAllAsRead = async () => {
+    if (!user?.id) return;
     try {
       const { error } = await supabase
         .from('notifications')
@@ -160,11 +159,10 @@ export const useNotifications = () => {
 
       setNotifications(prev => {
         const updated = prev.map(n => ({ ...n, is_read: true }));
-        CacheHelper.saveNotifications(updated);
+        void CacheHelper.saveNotifications(user.id, updated);
         return updated;
       });
-      setUnreadCount(0);
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to mark all notifications as read');
     }
   };

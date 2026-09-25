@@ -5,13 +5,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import ThemeToggle from './ThemeToggle';
 import { Home, User, Bell, Menu, Search, MessageCircle, Users, Compass, Bookmark, BarChart3, Settings, Star, Crown, BadgeCheck, FileText, Shield } from 'lucide-react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useProfile } from '@/hooks/useProfile';
 import { useAdmin } from '@/hooks/useAdmin';
 import NotificationCenter from './NotificationCenter';
 import { MenuPanel } from './MenuPanel';
+import { AccountSwitcherSheet, rememberAccount } from './AccountSwitcherSheet';
 import { cn } from '@/lib/utils';
 const Navigation = () => {
   const {
@@ -31,9 +32,39 @@ const Navigation = () => {
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
   const [lastInteraction, setLastInteraction] = useState(Date.now());
+  const lastProfileTapRef = useRef(0);
+  const currentUserId = user?.id;
   const isActive = (path: string) => location.pathname === path;
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    rememberAccount({
+      id: currentUserId,
+      username: profile?.username,
+      displayName: profile?.display_name,
+      avatarUrl: profile?.avatar_url,
+    });
+  }, [currentUserId, profile?.avatar_url, profile?.display_name, profile?.username]);
+
+  const openAccountSwitcher = (event: React.MouseEvent | React.TouchEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setShowMenu(false);
+    setShowAccountSwitcher(true);
+  };
+
+  const handleProfileTouchEnd = (event: React.TouchEvent) => {
+    const now = Date.now();
+    if (now - lastProfileTapRef.current < 350) {
+      openAccountSwitcher(event);
+      lastProfileTapRef.current = 0;
+      return;
+    }
+    lastProfileTapRef.current = now;
+  };
 
   // Hide navigation on auth pages and messages page
   const authPages = ['/auth', '/signin', '/signup', '/forgot-password'];
@@ -87,7 +118,7 @@ const Navigation = () => {
   return <nav style={{
     position: 'static',
     paddingTop: 'env(safe-area-inset-top)'
-  }} className={cn("border-b bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/60 z-50 transition-all duration-300", isCompactMode ? 'py-1' : 'py-1.5',
+  }} className={cn("progressive-blur surface-rim bg-card/60 z-50 transition-all duration-300", isCompactMode ? 'py-1' : 'py-1.5',
   // On feed pages, nav scrolls with page (not sticky). On other pages, it's sticky.
   isFeedPage ? "" : "sticky top-0",
   // Force non-sticky everywhere (requested)
@@ -186,7 +217,13 @@ const Navigation = () => {
 
                 <NotificationCenter isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
 
-                <MenuPanel isOpen={showMenu} onOpenChange={setShowMenu} trigger={<Button variant="ghost" className={`relative rounded-full transition-all duration-300 ${isCompactMode ? 'h-8 w-8' : 'h-10 w-10'}`}>
+                <MenuPanel isOpen={showMenu} onOpenChange={setShowMenu} trigger={<Button
+                  variant="ghost"
+                  className={`relative rounded-full transition-all duration-300 ${isCompactMode ? 'h-8 w-8' : 'h-10 w-10'}`}
+                  onDoubleClick={openAccountSwitcher}
+                  onTouchEnd={handleProfileTouchEnd}
+                  aria-label="Profile menu. Double-tap to switch accounts."
+                >
                       <Avatar className={isCompactMode ? 'h-7 w-7' : ''}>
                         <AvatarImage src={profile?.avatar_url} />
                         <AvatarFallback>{profile?.display_name?.[0] || 'U'}</AvatarFallback>
@@ -195,6 +232,7 @@ const Navigation = () => {
                           <Shield className="h-3 w-3" />
                         </Badge>}
                     </Button>} />
+                <AccountSwitcherSheet open={showAccountSwitcher} onOpenChange={setShowAccountSwitcher} />
               </> : <Link to="/auth">
                 <Button>Sign In</Button>
               </Link>}

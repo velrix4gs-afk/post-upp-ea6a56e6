@@ -57,7 +57,12 @@ const FEELINGS = [{
   label: 'motivated'
 }];
 const MAX_CHARS = 5000;
-const CreatePostCard = () => {
+interface CreatePostCardProps {
+  autoExpand?: boolean;
+  onPostCreated?: () => void;
+}
+
+const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardProps) => {
   const {
     user
   } = useAuth();
@@ -93,6 +98,10 @@ const CreatePostCard = () => {
     clearDraft: clearGhostDraft,
     dismissNotice
   } = useGhostDraft('feed-composer');
+
+  useEffect(() => {
+    if (autoExpand) setIsExpanded(true);
+  }, [autoExpand]);
 
   // Ghost drafting: bring back whatever the user typed before they navigated away.
   useEffect(() => {
@@ -271,6 +280,7 @@ const CreatePostCard = () => {
       setUploadProgress(0);
       setIsExpanded(false);
       clearGhostDraft();
+      onPostCreated?.();
     } catch (error: any) {
       showCleanError(error, toast, 'Failed to Create Post');
     } finally {
@@ -331,7 +341,7 @@ const CreatePostCard = () => {
           </Avatar>
           
           <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-            <MentionTextarea placeholder={`What's on your mind, ${profile?.display_name?.split(' ')[0] || 'there'}?`} value={postContent} onValueChange={value => {
+            <MentionTextarea placeholder="Write a caption..." value={postContent} onValueChange={value => {
             if (value.length <= MAX_CHARS) {
               setPostContent(value);
             }

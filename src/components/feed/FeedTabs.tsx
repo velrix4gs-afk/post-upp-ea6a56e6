@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
-import { Sparkles, Users, TrendingUp } from "lucide-react";
+import { Plus, Sparkles, Users, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FeedCreateMenu } from "@/components/feed/FeedCreateMenu";
 
 interface FeedTabsProps {
   activeTab: 'for-you' | 'following' | 'trending';
@@ -31,8 +33,9 @@ export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
         condensed && "border-b-0 w-fit"
       )}
     >
-      <div className="flex">
-        {tabs.map((tab) => {
+      <div className="flex items-center">
+        <div className="flex min-w-0 flex-1">
+          {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           
@@ -61,7 +64,22 @@ export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
               />
             </button>
           );
-        })}
+          })}
+        </div>
+        <FeedCreateMenu
+          trigger={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="mr-2 h-10 w-10 shrink-0 rounded-full transition-transform duration-200 hover:bg-primary/10 hover:text-primary active:scale-90"
+              aria-label="Create a post or story"
+              title="Create"
+            >
+              <Plus className="h-5 w-5" strokeWidth={2.5} />
+            </Button>
+          }
+        />
       </div>
     </div>
   );

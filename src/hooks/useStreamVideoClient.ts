@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { StreamVideoClient, type User as StreamUser } from '@stream-io/video-react-sdk';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -16,11 +16,29 @@ async function getOrCreateClient(
   if (cachedClient && cachedUserId === userId) return cachedClient;
   if (clientPromise && cachedUserId === userId) return clientPromise;
 
+  if (cachedClient && cachedUserId !== userId) {
+    const previousClient = cachedClient;
+    cachedClient = null;
+    void previousClient.disconnectUser().catch((error) => {
+      console.error('[Stream] Failed to disconnect previous user', error);
+    });
+  }
+
   cachedUserId = userId;
-  clientPromise = (async () => {
+  const pendingClient = (async () => {
     const { data, error } = await supabase.functions.invoke('stream-token');
-    if (error || !data?.token || !data?.api_key) {
-      throw new Error(error?.message || 'Failed to fetch Stream token');
+    if (error) {
+      const status = error.context instanceof Response ? error.context.status : undefined;
+      const failureBody = error.context instanceof Response
+        ? await error.context.clone().json().catch(() => null)
+        : null;
+      if (status === 404) {
+        throw new Error('Call service is not deployed. Deploy the Supabase stream-token function and try again.');
+      }
+      throw new Error(failureBody?.error || error.message || 'Could not retrieve call credentials.');
+    }
+    if (!data?.token || !data?.api_key) {
+      throw new Error(data?.error || 'Call service returned an incomplete token response.');
     }
     const user: StreamUser = {
       id: userId,
@@ -32,26 +50,52 @@ async function getOrCreateClient(
       user,
       token: data.token as string,
     });
-    cachedClient = client;
     return client;
   })();
-  return clientPromise;
+  clientPromise = pendingClient;
+
+  try {
+    const client = await pendingClient;
+    if (clientPromise === pendingClient) cachedClient = client;
+    return client;
+  } catch (error) {
+    if (clientPromise === pendingClient) {
+      clientPromise = null;
+      cachedUserId = null;
+    }
+    throw error;
+  }
 }
 
 export function useStreamVideoClient() {
   const { user } = useAuth();
-  const [client, setClient] = useState<StreamVideoClient | null>(cachedClient);
+  const [client, setClient] = useState<StreamVideoClient | null>(null);
   const [error, setError] = useState<Error | null>(null);
+  const [retryVersion, setRetryVersion] = useState(0);
 
   useEffect(() => {
-    if (!user?.id) return;
+    setClient(null);
+    setError(null);
+    if (!user?.id) {
+      const previousClient = cachedClient;
+      cachedClient = null;
+      cachedUserId = null;
+      clientPromise = null;
+      if (previousClient) {
+        void previousClient.disconnectUser().catch((disconnectError) => {
+          console.error('[Stream] Failed to disconnect client on sign out', disconnectError);
+        });
+      }
+      return;
+    }
     let cancelled = false;
+    const metadata = user.user_metadata as Record<string, unknown>;
     const displayName =
-      (user.user_metadata as any)?.display_name ||
-      (user.user_metadata as any)?.username ||
+      (typeof metadata.display_name === 'string' && metadata.display_name) ||
+      (typeof metadata.username === 'string' && metadata.username) ||
       user.email ||
       'User';
-    const avatar = (user.user_metadata as any)?.avatar_url;
+    const avatar = typeof metadata.avatar_url === 'string' ? metadata.avatar_url : undefined;
     getOrCreateClient(user.id, displayName, avatar)
       .then((c) => {
         if (!cancelled) setClient(c);
@@ -62,9 +106,24 @@ export function useStreamVideoClient() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, user?.email, user?.user_metadata, retryVersion]);
 
-  return { client, error };
+  const retry = useCallback(() => {
+    const previousClient = cachedClient;
+    cachedClient = null;
+    cachedUserId = null;
+    clientPromise = null;
+    if (previousClient) {
+      void previousClient.disconnectUser().catch((disconnectError) => {
+        console.error('[Stream] Failed to disconnect client before retry', disconnectError);
+      });
+    }
+    setClient(null);
+    setError(null);
+    setRetryVersion((version) => version + 1);
+  }, []);
+
+  return { client, error, retry, retryVersion };
 }
 
 // Deterministic call id from a chatId so both participants join the same call.

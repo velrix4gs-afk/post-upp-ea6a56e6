@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,8 @@ interface CallShellProps {
   localPip?: ReactNode;
   /** Bottom control bar (mute / speaker / end / etc.). */
   controls: ReactNode;
+  setupError?: string;
+  onRetry?: () => void;
   /** When true on video calls, auto-hide chrome after 3s of idle. */
   autoHideControls?: boolean;
 }
@@ -38,6 +40,8 @@ export const CallShell = ({
   remoteVideo,
   localPip,
   controls,
+  setupError,
+  onRetry,
   autoHideControls = false,
 }: CallShellProps) => {
   const [chromeVisible, setChromeVisible] = useState(true);
@@ -106,6 +110,23 @@ export const CallShell = ({
           {kind === 'video' && remoteVideo && (
             <div className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full">
               {remoteVideo}
+            </div>
+          )}
+
+          {setupError && (
+            <div
+              role="alert"
+              className="absolute inset-x-6 top-1/2 z-20 mx-auto max-w-sm -translate-y-1/2 rounded-2xl border border-destructive/20 bg-background/95 p-5 text-center shadow-2xl backdrop-blur"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
+              <p className="mt-3 text-sm font-medium">{setupError}</p>
+              {onRetry && (
+                <Button className="mt-4" onClick={onRetry}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Try again
+                </Button>
+              )}
             </div>
           )}
 

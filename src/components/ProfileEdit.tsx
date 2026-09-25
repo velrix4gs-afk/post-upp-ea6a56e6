@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { CropPreviewDialog } from '@/components/profile/CropPreviewDialog';
 
 interface ProfileEditProps {
   onClose: () => void;
@@ -37,6 +38,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
   const [hasChanges, setHasChanges] = useState(false);
   const [avatarDragOver, setAvatarDragOver] = useState(false);
   const [coverDragOver, setCoverDragOver] = useState(false);
+  const [pendingCrop, setPendingCrop] = useState<{ file: File; shape: 'circle' | 'rect' } | null>(null);
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   
@@ -169,14 +171,15 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
 
   const handleAvatarInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) handleAvatarUpload(file);
+    if (file) setPendingCrop({ file, shape: 'circle' });
+    event.target.value = '';
   };
 
   const handleAvatarDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setAvatarDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleAvatarUpload(file);
+    if (file) setPendingCrop({ file, shape: 'circle' });
   };
 
   const handleCoverUpload = async (file: File) => {
@@ -200,14 +203,25 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
 
   const handleCoverInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) handleCoverUpload(file);
+    if (file) setPendingCrop({ file, shape: 'rect' });
+    event.target.value = '';
   };
 
   const handleCoverDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setCoverDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) handleCoverUpload(file);
+    if (file) setPendingCrop({ file, shape: 'rect' });
+  };
+
+  const handleCropConfirm = (file: File) => {
+    const shape = pendingCrop?.shape;
+    setPendingCrop(null);
+    if (shape === 'circle') {
+      void handleAvatarUpload(file);
+    } else if (shape === 'rect') {
+      void handleCoverUpload(file);
+    }
   };
 
   const validateForm = () => {
@@ -542,7 +556,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                   <Label htmlFor="bio" className="text-sm font-medium">Bio</Label>
                   <span className={cn(
                     "text-xs transition-colors",
-                    bioLength > BIO_MAX_LENGTH ? 'text-destructive font-medium' : 
+                    bioLength >= BIO_MAX_LENGTH - 10 ? 'text-destructive font-medium' :
                     bioWarning ? 'text-amber-500' : 'text-muted-foreground'
                   )}>
                     {bioLength}/{BIO_MAX_LENGTH}
@@ -557,7 +571,8 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                   className={cn(
                     "resize-none max-h-[40vh] overflow-y-auto border-2 focus-visible:ring-0 focus-visible:border-primary",
                     errors.bio && 'border-destructive',
-                    bioWarning && !errors.bio && 'border-amber-500/50'
+                    bioLength >= BIO_MAX_LENGTH - 10 && !errors.bio && 'border-destructive/60',
+                    bioWarning && bioLength < BIO_MAX_LENGTH - 10 && !errors.bio && 'border-amber-500/50'
                   )}
                 />
                 {errors.bio && (
@@ -846,6 +861,12 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
           </div>
         </div>
       </DialogContent>
+      <CropPreviewDialog
+        file={pendingCrop?.file || null}
+        shape={pendingCrop?.shape || 'circle'}
+        onCancel={() => setPendingCrop(null)}
+        onConfirm={handleCropConfirm}
+      />
     </Dialog>
   );
 };

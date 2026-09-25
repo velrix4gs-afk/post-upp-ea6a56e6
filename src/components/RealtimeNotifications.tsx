@@ -3,15 +3,22 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
+const alertedNotificationIds = new Set<string>();
+
 export const RealtimeNotifications = () => {
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user) return;
+    if ('Notification' in window && Notification.permission === 'default') {
+      void Notification.requestPermission().catch((error) => {
+        console.error('[notifications] browser permission request failed', error);
+      });
+    }
 
     // Subscribe to notifications
     const channel = supabase
-      .channel('notifications')
+      .channel(`notification-alerts:${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -22,13 +29,17 @@ export const RealtimeNotifications = () => {
         },
         (payload) => {
           const notification = payload.new;
+          if (alertedNotificationIds.has(notification.id)) return;
+          alertedNotificationIds.add(notification.id);
+          if (alertedNotificationIds.size > 500) {
+            const oldestId = alertedNotificationIds.values().next().value;
+            if (oldestId) alertedNotificationIds.delete(oldestId);
+          }
           
-          // Show toast
           toast(notification.title, {
             description: notification.content,
           });
 
-          // Show browser notification if permission granted
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(notification.title, {
               body: notification.content,
@@ -36,8 +47,6 @@ export const RealtimeNotifications = () => {
               badge: '/favicon.ico',
               tag: notification.id
             });
-
-            // Vibrate on mobile
             if ('vibrate' in navigator) {
               navigator.vibrate([200, 100, 200]);
             }

@@ -86,6 +86,10 @@ export const useMessages = (chatId?: string) => {
   const [chatsLoading, setChatsLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messagesInitialLoaded, setMessagesInitialLoaded] = useState(false);
+  const fetchRequestIdRef = useRef(0);
+  const fetchingChatRef = useRef<string | null>(null);
+  const realtimeMessagesDuringFetchRef = useRef(new Map<string, Message>());
+  const locallySentMessageIdsRef = useRef(new Set<string>());
 
   const loadChatsFromCache = async () => {
     const cached = await CacheHelper.getChats();
@@ -157,8 +161,8 @@ export const useMessages = (chatId?: string) => {
   }, [user]);
 
   useEffect(() => {
+    chatIdRef.current = chatId;
     if (chatId) {
-      chatIdRef.current = chatId;
       freshFetchAppliedRef.current = false;
       // Reset initial-loaded flag for the new chat so the page can re-anchor scroll
       setMessagesInitialLoaded(false);
@@ -179,6 +183,8 @@ export const useMessages = (chatId?: string) => {
 
           // Use cached profile for fast real-time updates
           const profile = await getCachedProfile(newMessage.sender_id);
+          if (chatIdRef.current !== chatId) return;
+          freshFetchAppliedRef.current = true;
 
           const messageWithProfile: Message = {
             ...newMessage,
@@ -191,33 +197,14 @@ export const useMessages = (chatId?: string) => {
             }
           };
 
-          // Show notification if message is from another user
-          if (newMessage.sender_id !== user?.id) {
-            toast({
-              title: profile?.display_name || 'New Message',
-              description: newMessage.content || 'Sent an attachment',
-            });
-
-            // Browser notification for mobile
-            if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification(profile?.display_name || 'New Message', {
-                body: newMessage.content || 'Sent an attachment',
-                icon: '/favicon.ico',
-                badge: '/favicon.ico',
-                tag: 'post-upp-message'
-              });
-            }
+          if (fetchingChatRef.current === chatId) {
+            realtimeMessagesDuringFetchRef.current.set(messageWithProfile.id, messageWithProfile);
           }
+          locallySentMessageIdsRef.current.delete(messageWithProfile.id);
 
           setMessages(prev => {
-            // Check if this exact message ID already exists
-            if (prev.some(m => m.id === messageWithProfile.id)) {
-              return prev;
-            }
-
-            // Remove optimistic messages that match this real message
-            // Match by: same sender, similar content, within 30 seconds
             const withoutOptimistic = prev.filter(m => {
+              if (m.id === messageWithProfile.id) return false;
               if (!m.is_optimistic) return true;
               if (m.sender_id !== messageWithProfile.sender_id) return true;
 
@@ -233,7 +220,9 @@ export const useMessages = (chatId?: string) => {
               return !(contentMatches && mediaMatches && timeClose);
             });
 
-            return [...withoutOptimistic, messageWithProfile];
+            return [...withoutOptimistic, messageWithProfile].sort(
+              (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
           });
         })
         .on('postgres_changes', {
@@ -275,6 +264,12 @@ export const useMessages = (chatId?: string) => {
       return () => {
         supabase.removeChannel(channel);
       };
+    } else {
+      fetchRequestIdRef.current += 1;
+      fetchingChatRef.current = null;
+      setMessages([]);
+      setMessagesLoading(false);
+      setMessagesInitialLoaded(false);
     }
   }, [chatId, user]);
 
@@ -383,75 +378,90 @@ export const useMessages = (chatId?: string) => {
   const fetchMessages = async () => {
     if (!chatId) return;
     const fetchingFor = chatId;
+    const requestId = ++fetchRequestIdRef.current;
 
     try {
+      fetchingChatRef.current = fetchingFor;
+      realtimeMessagesDuringFetchRef.current = new Map();
       setMessagesLoading(true);
-      console.log('[useMessages] Fetching messages for chat:', chatId);
+      console.log('[useMessages] Fetching messages for chat:', fetchingFor);
 
-      // Fetch messages
       const { data: messagesData, error } = await supabase
         .from('messages')
         .select('*')
-        .eq('chat_id', chatId)
+        .eq('chat_id', fetchingFor)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+      if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
+      freshFetchAppliedRef.current = true;
 
-      // Fetch sender profiles and reply_to messages
-      const messagesWithProfiles: Message[] = await Promise.all(
-        (messagesData || []).map(async (msg) => {
-          const senderProfile = await getCachedProfile(msg.sender_id);
+      const rows = messagesData || [];
+      const fetchedMessageIds = new Set(rows.map((message) => message.id));
+      fetchedMessageIds.forEach((id) => locallySentMessageIdsRef.current.delete(id));
+      const replyIds = [...new Set(rows.flatMap((message) => message.reply_to ? [message.reply_to] : []))];
+      const { data: replyRows, error: replyError } = replyIds.length
+        ? await supabase.from('messages').select('id, content, sender_id').in('id', replyIds)
+        : { data: [], error: null };
+      if (replyError) throw replyError;
+      if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
 
-          let reply_to_message = undefined;
-          if (msg.reply_to) {
-            const { data: replyMsg } = await supabase
-              .from('messages')
-              .select('id, content')
-              .eq('id', msg.reply_to)
-              .maybeSingle();
+      const replyById = new Map((replyRows || []).map((message) => [message.id, message]));
+      const profileIds = [...new Set([
+        ...rows.map((message) => message.sender_id),
+        ...(replyRows || []).map((message) => message.sender_id),
+      ])];
+      const profiles = await Promise.all(profileIds.map(async (id) => [id, await getCachedProfile(id)] as const));
+      if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
+      const profileById = new Map(profiles);
 
-            if (replyMsg) {
-              const replySenderProfile = await getCachedProfile(msg.sender_id);
+      const messagesWithProfiles: Message[] = rows.map((msg) => {
+        const senderProfile = profileById.get(msg.sender_id);
+        const replyMessage = msg.reply_to ? replyById.get(msg.reply_to) : undefined;
+        const replySenderProfile = replyMessage ? profileById.get(replyMessage.sender_id) : undefined;
 
-              reply_to_message = {
-                id: replyMsg.id,
-                content: replyMsg.content,
-                sender: {
-                  display_name: replySenderProfile?.display_name || 'User'
-                }
-              };
-            }
-          }
+        return {
+          ...msg,
+          status: (msg.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
+          sender: {
+            username: senderProfile?.username || 'Unknown',
+            display_name: senderProfile?.display_name || 'Unknown User',
+            avatar_url: senderProfile?.avatar_url
+          },
+          reply_to_message: replyMessage ? {
+            id: replyMessage.id,
+            content: replyMessage.content,
+            sender: { display_name: replySenderProfile?.display_name || 'User' }
+          } : undefined
+        };
+      });
 
-          return {
-            ...msg,
-            status: (msg.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
-            sender: {
-              username: senderProfile?.username || 'Unknown',
-              display_name: senderProfile?.display_name || 'Unknown User',
-              avatar_url: senderProfile?.avatar_url
-            },
-            reply_to_message
-          };
-        })
-      );
-
-      // Sort safety net — newest at the bottom
       const sorted = [...messagesWithProfiles].sort(
         (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
-      setMessages(sorted);
-      if (chatIdRef.current === fetchingFor) {
-        freshFetchAppliedRef.current = true;
-      }
+      const realtimeMessages = [...realtimeMessagesDuringFetchRef.current.values()];
+      let merged: Message[] = sorted;
+      setMessages((current) => {
+        const mergedById = new Map(sorted.map((message) => [message.id, message]));
+        realtimeMessages.forEach((message) => mergedById.set(message.id, message));
+        current
+          .filter((message) =>
+            message.chat_id === fetchingFor &&
+            (message.is_optimistic || locallySentMessageIdsRef.current.has(message.id))
+          )
+          .forEach((message) => mergedById.set(message.id, message));
+        merged = [...mergedById.values()].sort(
+          (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        return merged;
+      });
+      freshFetchAppliedRef.current = true;
 
-      // Cache messages
-      if (chatId) {
-        await CacheHelper.saveMessages(chatId, sorted);
-      }
+      await CacheHelper.saveMessages(fetchingFor, merged);
 
       console.log('[useMessages] Successfully loaded', messagesWithProfiles.length, 'messages');
     } catch (err: any) {
+      if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
       console.error('[MSG_001] Failed to load messages:', err);
       toast({
         title: 'Failed to load messages',
@@ -459,8 +469,11 @@ export const useMessages = (chatId?: string) => {
         variant: 'destructive'
       });
     } finally {
-      setMessagesLoading(false);
-      setMessagesInitialLoaded(true);
+      if (chatIdRef.current === fetchingFor && requestId === fetchRequestIdRef.current) {
+        fetchingChatRef.current = null;
+        setMessagesLoading(false);
+        setMessagesInitialLoaded(true);
+      }
     }
   };
 
@@ -562,6 +575,7 @@ export const useMessages = (chatId?: string) => {
         }
       };
 
+      locallySentMessageIdsRef.current.add(realMessage.id);
       setMessages(prev => prev.map(msg =>
         msg.id === tempId ? realMessage : msg
       ));

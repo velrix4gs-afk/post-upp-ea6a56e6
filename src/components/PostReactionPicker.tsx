@@ -23,7 +23,9 @@ export const PostReactionPicker = ({ currentReaction, onReactionSelect, reaction
           )}
         >
           {currentReaction ? (
-            <span className="text-lg">{REACTION_EMOJIS[currentReaction]}</span>
+            <span key={currentReaction} className="reaction-float text-lg">
+              {REACTION_EMOJIS[currentReaction]}
+            </span>
           ) : (
             <Heart className={cn(
               "h-[18px] w-[18px]",

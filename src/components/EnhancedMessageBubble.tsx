@@ -334,7 +334,10 @@ export const EnhancedMessageBubble = ({
                     style={{
                       backgroundColor: isImageOnly ? 'transparent' : customBg,
                     }}
+                    data-first-of-group={isFirstOfGroup}
+                    data-last-of-group={isLastOfGroup}
                     className={cn(
+                      "msg-bubble",
                       isImageOnly
                         ? "p-0 bg-transparent shadow-none"
                         : "rounded-[18px] px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm",

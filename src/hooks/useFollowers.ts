@@ -33,6 +33,7 @@ export const useFollowers = (userId?: string) => {
   const { user } = useAuth();
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Follower[]>([]);
+  const [pendingFollowing, setPendingFollowing] = useState<Follower[]>([]);
   const [loading, setLoading] = useState(true);
   const targetUserId = userId || user?.id;
 
@@ -120,9 +121,29 @@ export const useFollowers = (userId?: string) => {
 
       if (followingError) throw followingError;
 
-      setFollowers((followersData as any) || []);
-      setFollowing((followingData as any) || []);
-    } catch (err: any) {
+      const { data: pendingFollowingData, error: pendingFollowingError } = await supabase
+        .from('followers')
+        .select(`
+          *,
+          following:profiles!followers_following_id_fkey (
+            id,
+            username,
+            display_name,
+            avatar_url,
+            is_verified,
+            verification_type,
+            verified_at
+          )
+        `)
+        .eq('follower_id', targetUserId)
+        .eq('status', 'pending');
+
+      if (pendingFollowingError) throw pendingFollowingError;
+
+      setFollowers((followersData as Follower[] | null) || []);
+      setFollowing((followingData as Follower[] | null) || []);
+      setPendingFollowing((pendingFollowingData as Follower[] | null) || []);
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to load followers',
@@ -145,10 +166,15 @@ export const useFollowers = (userId?: string) => {
       created_at: new Date().toISOString(),
     };
 
-    // Optimistic UI flip — instant.
-    setFollowing((prev) =>
-      prev.some((f) => f.following_id === followingId) ? prev : [...prev, optimisticRow]
-    );
+    if (isPrivate) {
+      setPendingFollowing((prev) =>
+        prev.some((f) => f.following_id === followingId) ? prev : [...prev, optimisticRow]
+      );
+    } else {
+      setFollowing((prev) =>
+        prev.some((f) => f.following_id === followingId) ? prev : [...prev, optimisticRow]
+      );
+    }
 
     try {
       const { error } = await supabase
@@ -166,6 +192,7 @@ export const useFollowers = (userId?: string) => {
       if (error && error.code !== '23505') {
         // Revert optimistic row, keep app alive.
         setFollowing((prev) => prev.filter((f) => f.id !== tempId));
+        setPendingFollowing((prev) => prev.filter((f) => f.id !== tempId));
         toast({
           description: error.message?.toLowerCase().includes('network')
             ? 'Network error — try again'
@@ -183,6 +210,7 @@ export const useFollowers = (userId?: string) => {
       // Any unexpected throw — revert + soft toast, do NOT propagate.
       console.error('[follow] unexpected error', err);
       setFollowing((prev) => prev.filter((f) => f.id !== tempId));
+      setPendingFollowing((prev) => prev.filter((f) => f.id !== tempId));
       toast({ description: 'Failed to follow', variant: 'destructive' });
     }
   };
@@ -191,8 +219,10 @@ export const useFollowers = (userId?: string) => {
     if (!user) return;
 
     const snapshot = following;
+    const pendingSnapshot = pendingFollowing;
     // Optimistic UI flip — instant.
     setFollowing((prev) => prev.filter((f) => f.following_id !== followingId));
+    setPendingFollowing((prev) => prev.filter((f) => f.following_id !== followingId));
 
     try {
       const { error } = await supabase
@@ -204,6 +234,7 @@ export const useFollowers = (userId?: string) => {
       if (error) {
         // Revert quietly.
         setFollowing(snapshot);
+        setPendingFollowing(pendingSnapshot);
         toast({ description: 'Failed to unfollow', variant: 'destructive' });
         return;
       }
@@ -213,6 +244,7 @@ export const useFollowers = (userId?: string) => {
     } catch (err) {
       console.error('[unfollow] unexpected error', err);
       setFollowing(snapshot);
+      setPendingFollowing(pendingSnapshot);
       toast({ description: 'Failed to unfollow', variant: 'destructive' });
     }
   };
@@ -233,10 +265,10 @@ export const useFollowers = (userId?: string) => {
       });
 
       fetchFollowers();
-    } catch (err: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: err.message,
+        description: error instanceof Error ? error.message : 'Failed to accept follow request',
         variant: 'destructive'
       });
     }
@@ -258,10 +290,10 @@ export const useFollowers = (userId?: string) => {
       });
 
       fetchFollowers();
-    } catch (err: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error',
-        description: err.message,
+        description: error instanceof Error ? error.message : 'Failed to reject follow request',
         variant: 'destructive'
       });
     }
@@ -292,6 +324,7 @@ export const useFollowers = (userId?: string) => {
   return {
     followers,
     following,
+    pendingFollowing,
     loading,
     followUser,
     unfollowUser,

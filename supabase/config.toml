@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.stream-token]
+verify_jwt = true

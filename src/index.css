@@ -551,10 +551,10 @@ html.dark[data-contrast='dim'] {
 
 /* Floating post cards: no hard strokes, wide ambient shadow instead. */
 .post-card-float {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
 }
 .dark .post-card-float {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
 }
 
 /* Elastic press: spring-like compression under the thumb. */
@@ -564,6 +564,14 @@ html.dark[data-contrast='dim'] {
 }
 .press-elastic:active {
   transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press-elastic,
+  .msg-row,
+  .header-morph {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Typing bubble dots */
@@ -2626,24 +2634,6 @@ html.dark[data-contrast='dim'] {
   --spacing-multiplier: 1rem;
 }
 
-/* Mobile safe area support for bottom navigation */
-.safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
-/* Prevent content from being hidden behind bottom nav on mobile */
-@media (max-width: 768px) {
-  main {
-    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0));
-  }
-
-  /* Messaging surfaces are full-height and manage their own bottom spacing */
-  main.no-bottom-pad,
-  main[data-no-bottom-pad="true"] {
-    padding-bottom: 0 !important;
-  }
-}
-
 /* ===== App-wide Animation Utilities ===== */
 
 /* Staggered fade-in for lists (feed posts, chat list, notifications) */
@@ -3330,7 +3320,10 @@ html[data-skin="fb26"] .animate-message-receive {
     padding-right: 0;
   }
   .feed-stack > * {
-    margin-bottom: 20px;
+    margin-bottom: 0;
+  }
+  .feed-stack > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 20px;
   }
 }
 
@@ -3417,6 +3410,7 @@ html[data-skin="fb26"] .animate-message-receive {
    The thread container owns --peek-x and --bubble-skew. */
 [data-chat-thread] {
   --peek-x: 0px;
+  --peek-opacity: 0;
   --bubble-skew: 0deg;
 }
 .msg-row {
@@ -3429,15 +3423,32 @@ html[data-skin="fb26"] .animate-message-receive {
 }
 .msg-peek-time {
   position: absolute;
-  right: calc(var(--peek-x, 0px) * -1 - 52px);
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   font-size: 10px;
   line-height: 1;
   white-space: nowrap;
-  opacity: clamp(0, calc(var(--peek-x, 0px) / -48), 1);
+  opacity: var(--peek-opacity, 0);
   pointer-events: none;
   color: hsl(var(--muted-foreground));
+}
+
+.msg-bubble[data-first-of-group='false'] {
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+.msg-bubble[data-last-of-group='false'] {
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+}
+[dir='rtl'] .msg-bubble[data-first-of-group='false'] {
+  border-top-left-radius: 18px;
+  border-top-right-radius: 8px;
+}
+[dir='rtl'] .msg-bubble[data-last-of-group='false'] {
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 8px;
 }
 
 /* Swipe-to-reply affordance */

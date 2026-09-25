@@ -27,6 +27,13 @@ interface VideoCallProps {
 
 const RING_TIMEOUT_MS = 45_000;
 
+interface CallSignalRow {
+  id: string;
+  call_id: string;
+  sender_id: string;
+  signal_type: string;
+}
+
 export const VideoCall = ({
   chatId,
   isInitiator,
@@ -35,14 +42,18 @@ export const VideoCall = ({
   participantAvatar,
 }: VideoCallProps) => {
   const { user } = useAuth();
-  const { client, error: clientError } = useStreamVideoClient();
+  const { client, error: clientError, retry: retryStreamClient } = useStreamVideoClient();
   const [call, setCall] = useState<Call | null>(null);
+  const [callError, setCallError] = useState<string | null>(null);
+  const [signalError, setSignalError] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const callId = useMemo(() => callIdForChat(chatId, 'video'), [chatId]);
 
   const hasConnectedRef = useRef(false);
   const durationRef = useRef(0);
   const endedRef = useRef(false);
+  const signaledCallRef = useRef<string | null>(null);
 
   const finish = (status: CallOutcome['status']) => {
     if (endedRef.current) return;
@@ -62,20 +73,16 @@ export const VideoCall = ({
         if (!cancelled) setCall(c);
       } catch (e) {
         console.error('[VideoCall] join failed', e);
-        finish('unanswered');
+        if (!cancelled) {
+          setCallError(e instanceof Error ? e.message : 'Could not join the video call.');
+        }
       }
     })();
     return () => {
       cancelled = true;
       c.leave().catch(() => { });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, callId]);
-
-  useEffect(() => {
-    if (clientError) finish('unanswered');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientError]);
+  }, [client, callId, retryCount]);
 
   useEffect(() => {
     if (!isInitiator || !user) return;
@@ -84,12 +91,24 @@ export const VideoCall = ({
     // listens on call_signals) that a call is coming in. This was missing
     // entirely -- Stream connected the call on its own servers but nothing
     // ever told the other person's app a call was happening.
-    supabase.from('call_signals').insert({
-      call_id: chatId,
-      sender_id: user.id,
-      signal_type: 'offer',
-      signal_data: { video: true },
-    }).then(() => { });
+    const signalKey = `${user.id}:${chatId}:${callId}`;
+    if (signaledCallRef.current !== signalKey) {
+      signaledCallRef.current = signalKey;
+      void supabase.from('call_signals').insert({
+        call_id: chatId,
+        sender_id: user.id,
+        signal_type: 'offer',
+        signal_data: { video: true },
+      }).then(({ error }) => {
+        if (error) {
+          signaledCallRef.current = null;
+          setSignalError('Could not notify the other person. Check that the call migrations are deployed, then retry.');
+          console.error('[VideoCall] failed to send call offer', error);
+        } else {
+          setSignalError(null);
+        }
+      });
+    }
 
     const channel = supabase
       .channel(`call-outcome-${chatId}-${callId}`)
@@ -97,7 +116,7 @@ export const VideoCall = ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'call_signals' },
         (payload) => {
-          const signal = payload.new as any;
+          const signal = payload.new as CallSignalRow;
           if (signal.call_id !== chatId || signal.sender_id === user.id) return;
           if (signal.signal_type === 'decline' && !hasConnectedRef.current) {
             finish('declined');
@@ -108,12 +127,17 @@ export const VideoCall = ({
 
     const timeout = setTimeout(() => {
       if (!hasConnectedRef.current) {
-        supabase.from('call_signals').insert({
+        void supabase.from('call_signals').insert({
           call_id: chatId,
           sender_id: user.id,
           signal_type: 'cancel',
           signal_data: {},
-        }).then(() => { });
+        }).then(({ error }) => {
+          if (error) {
+            setSignalError('The call could not be cancelled for the other person.');
+            console.error('[VideoCall] failed to cancel timed-out call', error);
+          }
+        });
         finish('unanswered');
       }
     }, RING_TIMEOUT_MS);
@@ -123,11 +147,30 @@ export const VideoCall = ({
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitiator, user, chatId, callId]);
+  }, [isInitiator, user, chatId, callId, retryCount]);
+
+  const retry = () => {
+    setCallError(null);
+    setSignalError(null);
+    setCall(null);
+    setRetryCount((count) => count + 1);
+    retryStreamClient();
+  };
 
   const end = () => {
     haptic('heavy');
-    finish(hasConnectedRef.current ? 'completed' : isInitiator ? 'unanswered' : 'declined');
+    const connected = hasConnectedRef.current;
+    if (!connected && user) {
+      void supabase.from('call_signals').insert({
+        call_id: chatId,
+        sender_id: user.id,
+        signal_type: isInitiator ? 'cancel' : 'decline',
+        signal_data: {},
+      }).then(({ error }) => {
+        if (error) console.error('[VideoCall] failed to end pending call', error);
+      });
+    }
+    finish(connected ? 'completed' : isInitiator ? 'unanswered' : 'declined');
   };
 
   if (!client || !call) {
@@ -136,11 +179,13 @@ export const VideoCall = ({
         kind="video"
         participantName={participantName}
         participantAvatar={participantAvatar}
-        statusText={isInitiator ? 'Starting video…' : 'Joining video…'}
+        statusText={callError || signalError || clientError ? 'Call could not start' : isInitiator ? 'Starting video…' : 'Joining video…'}
         minimized={minimized}
         onMinimize={() => setMinimized(true)}
         onRestore={() => setMinimized(false)}
         onEnd={end}
+        setupError={clientError?.message || callError || signalError || undefined}
+        onRetry={retry}
         remoteVideo={
           <div className="absolute inset-0 flex items-center justify-center text-white/80">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -174,6 +219,8 @@ export const VideoCall = ({
           participantAvatar={participantAvatar}
           hasConnectedRef={hasConnectedRef}
           durationRef={durationRef}
+          setupError={signalError || undefined}
+          onRetry={retry}
         />
       </StreamCall>
     </StreamVideo>
@@ -188,6 +235,8 @@ interface InnerProps {
   participantAvatar?: string;
   hasConnectedRef: React.MutableRefObject<boolean>;
   durationRef: React.MutableRefObject<number>;
+  setupError?: string;
+  onRetry: () => void;
 }
 
 const VideoCallInner = ({
@@ -198,6 +247,8 @@ const VideoCallInner = ({
   participantAvatar,
   hasConnectedRef,
   durationRef,
+  setupError,
+  onRetry,
 }: InnerProps) => {
   const { useCallCallingState, useCameraState, useMicrophoneState, useParticipants } = useCallStateHooks();
   const callingState = useCallCallingState();
@@ -311,6 +362,8 @@ const VideoCallInner = ({
       }
       autoHideControls
       controls={controls}
+      setupError={setupError}
+      onRetry={onRetry}
     />
   );
 };

@@ -30,6 +30,13 @@ interface VoiceCallProps {
 
 const RING_TIMEOUT_MS = 45_000;
 
+interface CallSignalRow {
+  id: string;
+  call_id: string;
+  sender_id: string;
+  signal_type: string;
+}
+
 export const VoiceCall = ({
   chatId,
   isInitiator,
@@ -38,14 +45,18 @@ export const VoiceCall = ({
   participantAvatar,
 }: VoiceCallProps) => {
   const { user } = useAuth();
-  const { client, error: clientError } = useStreamVideoClient();
+  const { client, error: clientError, retry: retryStreamClient } = useStreamVideoClient();
   const [call, setCall] = useState<Call | null>(null);
+  const [callError, setCallError] = useState<string | null>(null);
+  const [signalError, setSignalError] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const callId = useMemo(() => callIdForChat(chatId, 'voice'), [chatId]);
 
   const hasConnectedRef = useRef(false);
   const durationRef = useRef(0);
   const endedRef = useRef(false);
+  const signaledCallRef = useRef<string | null>(null);
 
   const finish = (status: CallOutcome['status']) => {
     if (endedRef.current) return;
@@ -65,20 +76,16 @@ export const VoiceCall = ({
         if (!cancelled) setCall(c);
       } catch (e) {
         console.error('[VoiceCall] join failed', e);
-        finish('unanswered');
+        if (!cancelled) {
+          setCallError(e instanceof Error ? e.message : 'Could not join the voice call.');
+        }
       }
     })();
     return () => {
       cancelled = true;
       c.leave().catch(() => { });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, callId]);
-
-  useEffect(() => {
-    if (clientError) finish('unanswered');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientError]);
+  }, [client, callId, retryCount]);
 
   // Notifies the other participant (via IncomingCallOverlay, which listens
   // on the call_signals table) that a call is coming in, and listens for
@@ -88,12 +95,24 @@ export const VoiceCall = ({
   useEffect(() => {
     if (!isInitiator || !user) return;
 
-    supabase.from('call_signals').insert({
-      call_id: chatId,
-      sender_id: user.id,
-      signal_type: 'offer',
-      signal_data: { video: false },
-    }).then(() => { });
+    const signalKey = `${user.id}:${chatId}:${callId}`;
+    if (signaledCallRef.current !== signalKey) {
+      signaledCallRef.current = signalKey;
+      void supabase.from('call_signals').insert({
+        call_id: chatId,
+        sender_id: user.id,
+        signal_type: 'offer',
+        signal_data: { video: false },
+      }).then(({ error }) => {
+        if (error) {
+          signaledCallRef.current = null;
+          setSignalError('Could not notify the other person. Check that the call migrations are deployed, then retry.');
+          console.error('[VoiceCall] failed to send call offer', error);
+        } else {
+          setSignalError(null);
+        }
+      });
+    }
 
     const channel = supabase
       .channel(`call-outcome-${chatId}-${callId}`)
@@ -101,7 +120,7 @@ export const VoiceCall = ({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'call_signals' },
         (payload) => {
-          const signal = payload.new as any;
+          const signal = payload.new as CallSignalRow;
           if (signal.call_id !== chatId || signal.sender_id === user.id) return;
           if (signal.signal_type === 'decline' && !hasConnectedRef.current) {
             finish('declined');
@@ -112,12 +131,17 @@ export const VoiceCall = ({
 
     const timeout = setTimeout(() => {
       if (!hasConnectedRef.current) {
-        supabase.from('call_signals').insert({
+        void supabase.from('call_signals').insert({
           call_id: chatId,
           sender_id: user.id,
           signal_type: 'cancel',
           signal_data: {},
-        }).then(() => { });
+        }).then(({ error }) => {
+          if (error) {
+            setSignalError('The call could not be cancelled for the other person.');
+            console.error('[VoiceCall] failed to cancel timed-out call', error);
+          }
+        });
         finish('unanswered');
       }
     }, RING_TIMEOUT_MS);
@@ -127,11 +151,30 @@ export const VoiceCall = ({
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitiator, user, chatId, callId]);
+  }, [isInitiator, user, chatId, callId, retryCount]);
+
+  const retry = () => {
+    setCallError(null);
+    setSignalError(null);
+    setCall(null);
+    setRetryCount((count) => count + 1);
+    retryStreamClient();
+  };
 
   const end = () => {
     haptic('heavy');
-    finish(hasConnectedRef.current ? 'completed' : isInitiator ? 'unanswered' : 'declined');
+    const connected = hasConnectedRef.current;
+    if (!connected && user) {
+      void supabase.from('call_signals').insert({
+        call_id: chatId,
+        sender_id: user.id,
+        signal_type: isInitiator ? 'cancel' : 'decline',
+        signal_data: {},
+      }).then(({ error }) => {
+        if (error) console.error('[VoiceCall] failed to end pending call', error);
+      });
+    }
+    finish(connected ? 'completed' : isInitiator ? 'unanswered' : 'declined');
   };
 
   if (!client || !call) {
@@ -140,11 +183,13 @@ export const VoiceCall = ({
         kind="voice"
         participantName={participantName}
         participantAvatar={participantAvatar}
-        statusText={isInitiator ? 'Calling…' : 'Connecting…'}
+        statusText={callError || signalError || clientError ? 'Call could not start' : isInitiator ? 'Calling…' : 'Connecting…'}
         minimized={minimized}
         onMinimize={() => setMinimized(true)}
         onRestore={() => setMinimized(false)}
         onEnd={end}
+        setupError={clientError?.message || callError || signalError || undefined}
+        onRetry={retry}
         controls={
           <div className="flex justify-center">
             <Button
@@ -173,6 +218,8 @@ export const VoiceCall = ({
           participantAvatar={participantAvatar}
           hasConnectedRef={hasConnectedRef}
           durationRef={durationRef}
+          setupError={signalError || undefined}
+          onRetry={retry}
         />
       </StreamCall>
     </StreamVideo>
@@ -187,6 +234,8 @@ interface InnerProps {
   participantAvatar?: string;
   hasConnectedRef: React.MutableRefObject<boolean>;
   durationRef: React.MutableRefObject<number>;
+  setupError?: string;
+  onRetry: () => void;
 }
 
 const VoiceCallInner = ({
@@ -197,6 +246,8 @@ const VoiceCallInner = ({
   participantAvatar,
   hasConnectedRef,
   durationRef,
+  setupError,
+  onRetry,
 }: InnerProps) => {
   const { useCallCallingState, useMicrophoneState, useParticipants } = useCallStateHooks();
   const callingState = useCallCallingState();
@@ -299,6 +350,8 @@ const VoiceCallInner = ({
       onEnd={onEnd}
       hiddenStreamMount={<ParticipantsAudio participants={remoteParticipants} />}
       controls={controls}
+      setupError={setupError}
+      onRetry={onRetry}
     />
   );
 };

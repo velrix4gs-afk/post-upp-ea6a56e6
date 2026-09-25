@@ -24,7 +24,6 @@ import Feed from "./pages/Feed";
 import MessagesPage from "./pages/MessagesPage";
 import ProfilePage from "./pages/ProfilePage";
 import SearchPage from "./pages/SearchPage";
-import { BottomNavigation } from "@/components/BottomNavigation";
 
 // Lazy load components that are only needed when authenticated
 const RealtimeNotifications = lazy(() => import("@/components/RealtimeNotifications").then(m => ({ default: m.RealtimeNotifications })));

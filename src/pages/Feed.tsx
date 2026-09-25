@@ -13,7 +13,6 @@ import { usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { PullToRefreshIndicator } from '@/components/PullToRefresh';
 import { FeedTabs } from '@/components/feed/FeedTabs';
 import { FeedSidebar } from '@/components/feed/FeedSidebar';
-import CreatePostCard from '@/components/feed/CreatePostCard';
 import { useElasticOverscroll } from '@/hooks/useElasticOverscroll';
 import { PostCardModern } from '@/components/PostCard/PostCardModern';
 const Feed = () => {
@@ -64,17 +63,12 @@ const Feed = () => {
       <FeedSidebar />
 
       {/* Main Feed */}
-      <main className="flex-1 max-w-2xl mx-auto lg:mx-0 min-h-screen pb-32 md:pb-20">
+      <main className="flex-1 max-w-2xl mx-auto lg:mx-0 min-h-screen pb-8">
         <FeedTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
         {/* Stories - scrolls with feed */}
         <div>
           <Stories />
-        </div>
-
-        {/* Create Post - Compact on mobile */}
-        <div className="p-4 ">
-          <CreatePostCard />
         </div>
 
         {/* Feed Content */}
