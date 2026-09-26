@@ -40,6 +40,12 @@ const Navigation = () => {
   const isActive = (path: string) => location.pathname === path;
 
   useEffect(() => {
+    const openMenu = () => setShowMenu(true);
+    window.addEventListener('app:open-menu', openMenu);
+    return () => window.removeEventListener('app:open-menu', openMenu);
+  }, []);
+
+  useEffect(() => {
     if (!currentUserId) return;
     rememberAccount({
       id: currentUserId,

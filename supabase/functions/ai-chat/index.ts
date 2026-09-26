@@ -30,14 +30,15 @@ const APP_KNOWLEDGE = `
 ## POST UP — app knowledge
 
 POST UP is a mobile-first social app (web + Android/iOS via Capacitor).
+This guide describes the current UI and supersedes older descriptions or assumptions. Do not direct users to removed controls or claim an action is complete when you can only explain how to do it.
 
 ### Screens and routes
-- /feed — main feed with two tabs: "For You" (discovery mix) and "Following" (only accounts the user follows). Stories sit on top; a fixed one-line post bar sits under them.
+- /feed — main feed with two tabs: "For You" (discovery mix) and "Following" (only accounts the user follows). Stories sit at the top. Use the + button in the header to open the create menu for posts, reels, and stories.
 - /explore — search and discovery of people, posts and hashtags.
 - /search — dedicated search page (people, posts, hashtags).
 - /reels — vertical short videos. /create/reel to make one.
 - /create/story — story editor: gallery picker, filters, crop, adjustments, text, stickers, drawing, audience selector. (Camera capture is intentionally not available.)
-- /messages — chats: text, photos, videos, voice notes, reactions, replies, wallpapers, pinning, muting. Voice and video calls start from the chat header.
+- /messages — chats: text, photos, videos, voice notes, reactions, replies, wallpapers, themes, favorites (pinned chats), archive, disappearing messages, and live typing indicators. Voice and video calls start from the chat header.
 - Notifications live inside the bell panel (no standalone route) — follows, likes, comments, mentions, friend and follow requests (requests can be accepted right in the panel).
 - /profile/:userId — a user profile: posts, replies, likes, media tabs, follow / message buttons.
 - /bookmarks — saved posts.
@@ -52,7 +53,14 @@ POST UP is a mobile-first social app (web + Android/iOS via Capacitor).
 ### Key behaviours to explain when asked
 - Long-press any name or avatar for a quick profile peek.
 - Posts support multiple images (swipeable carousel) and can be edited, including their images.
+- The feed composer opens with the + button at the top; there is no "What's on your mind?" composer card or bottom navigation.
+- Swipe from the feed to open the side menu; swipe right from a conversation to go back. Chats support swipe actions, an Archived filter, Favorites for pinned chats, and personal chat themes.
+- Story audiences are Public, Followers, or Only me. Story media is private and expires after 24 hours.
 - Voice notes: hold the mic in a chat; a waveform is generated for playback.
+- Chat themes, mute, pin/favorite, archive, wallpaper, and disappearing-message settings apply to the current user's chat view. Most update without reloading.
+- The signed-in user's AI conversation history is saved to their account across sessions and devices; the trash button clears it. Never claim to remember previous chats if history is not present in the current conversation context.
+- Missed and completed calls appear as readable call cards in the conversation, not as raw JSON text.
+- Read receipts and live typing indicators appear in active conversations. If typing is not visible, check that the conversation is open and online.
 - Themes and dark/light mode live in Settings → Appearance.
 - Back navigation returns to the previous screen and re-opens whatever popup was open there.
 

@@ -51,6 +51,7 @@ import { ReactionPicker } from "./ReactionPicker";
 import { toast } from "@/hooks/use-toast";
 import { VoiceMessagePlayer } from "./messaging/VoiceMessagePlayer";
 import { haptic } from "@/lib/haptics";
+import { formatCallRecord, parseCallRecord } from "@/lib/callRecord";
 
 const getBubbleColorValue = (color: string): string => {
   const colorMap: Record<string, string> = {
@@ -69,7 +70,10 @@ const getBubbleColorValue = (color: string): string => {
     'whatsapp-received': '#ffffff', // Light mode
     'whatsapp-received-dark': '#202c33', // Dark mode
   };
-  return colorMap[color] || colorMap.default;
+  if (colorMap[color]) return colorMap[color];
+  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)
+    ? color
+    : colorMap.default;
 };
 
 interface MessageReaction {
@@ -83,13 +87,6 @@ interface ReplyToMessage {
   sender_name: string;
   media_url?: string;
   media_type?: string;
-}
-
-function formatCallDuration(sec?: number): string {
-  const s = Math.max(0, Math.round(sec || 0));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${m}:${r.toString().padStart(2, '0')}`;
 }
 
 function PhoneIconIndicator({ missed }: { missed: boolean }) {
@@ -225,40 +222,28 @@ export const EnhancedMessageBubble = ({
   // centered row instead of the normal chat bubble — matching how
   // WhatsApp shows call history inline in the thread.
   if (mediaType === 'call') {
-    let callInfo: { kind: 'voice' | 'video'; status: string; durationSec?: number } | null = null;
-    try {
-      callInfo = JSON.parse(content);
-    } catch {
-      callInfo = null;
-    }
-    if (callInfo) {
-      const isVideo = callInfo.kind === 'video';
-      const isMissedForMe = !isOwn && callInfo.status !== 'completed';
-      const label =
-        callInfo.status === 'completed'
-          ? `${isVideo ? 'Video' : 'Voice'} call · ${formatCallDuration(callInfo.durationSec)}`
-          : callInfo.status === 'declined'
-            ? (isOwn ? `${isVideo ? 'Video' : 'Voice'} call declined` : `Missed ${isVideo ? 'video' : 'voice'} call`)
-            : `Missed ${isVideo ? 'video' : 'voice'} call`;
-      return (
-        <div className="flex justify-center my-2">
-          <div
-            className={cn(
-              'flex items-center gap-2 px-3.5 py-2 rounded-full text-xs',
-              isMissedForMe
-                ? 'bg-destructive/10 text-destructive'
-                : 'bg-muted text-muted-foreground'
-            )}
-          >
-            {isVideo ? <VideoIconIndicator missed={isMissedForMe} /> : <PhoneIconIndicator missed={isMissedForMe} />}
-            <span>{label}</span>
-            <span className="opacity-60">
-              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          </div>
+    const callInfo = parseCallRecord(content) ?? { kind: 'voice' as const, status: 'unknown' as const };
+    const isVideo = callInfo.kind === 'video';
+    const isMissedForMe = !isOwn && callInfo.status === 'missed';
+    const label = formatCallRecord(callInfo, { isOwn, includeDirection: true });
+    return (
+      <div className="flex justify-center my-2">
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3.5 py-2 rounded-full text-xs',
+            isMissedForMe
+              ? 'bg-destructive/10 text-destructive'
+              : 'bg-muted text-muted-foreground'
+          )}
+        >
+          {isVideo ? <VideoIconIndicator missed={isMissedForMe} /> : <PhoneIconIndicator missed={isMissedForMe} />}
+          <span>{label}</span>
+          <span className="opacity-60">
+            {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
         </div>
-      );
-    }
+      </div>
+    );
   }
 
   return (
@@ -308,7 +293,7 @@ export const EnhancedMessageBubble = ({
         <div className={cn(
           "flex flex-col min-w-0",
           isOwn ? "items-end" : "items-start",
-          "max-w-[80%]"
+          "w-fit max-w-[80%]"
         )}>
           {!isOwn && isFirstOfGroup && (
             <span className="text-xs text-muted-foreground mb-1 px-3">
@@ -317,7 +302,7 @@ export const EnhancedMessageBubble = ({
           )}
 
           <div className={cn("flex items-start gap-1", isOwn ? "flex-row-reverse" : "flex-row")}>
-            <div className="relative">
+            <div className="relative min-w-0 max-w-full">
               {isStarred && (
                 <div className="absolute -top-2 -right-2 z-10">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
@@ -338,6 +323,7 @@ export const EnhancedMessageBubble = ({
                     data-last-of-group={isLastOfGroup}
                     className={cn(
                       "msg-bubble",
+                      "transition-[background-color,color] duration-300 ease-out",
                       isImageOnly
                         ? "p-0 bg-transparent shadow-none"
                         : "rounded-[18px] px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm",
@@ -471,7 +457,7 @@ export const EnhancedMessageBubble = ({
                     )}
 
                     {content && (
-                      <p className="text-[15px] break-words whitespace-pre-wrap leading-relaxed">
+                      <p className="max-w-full text-[15px] whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">
                         {content}
                         {isEdited && (
                           <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>

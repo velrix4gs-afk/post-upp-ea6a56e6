@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
+import { AlertCircle, ChevronDown, PhoneOff, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
@@ -47,6 +47,26 @@ export const CallShell = ({
 }: CallShellProps) => {
   const [chromeVisible, setChromeVisible] = useState(true);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const minimizeTouch = useRef<{ x: number; y: number } | null>(null);
+
+  const onCallTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if ((event.target as Element).closest('button, input, [role="button"]')) {
+      minimizeTouch.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    if (touch) minimizeTouch.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const onCallTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = minimizeTouch.current;
+    minimizeTouch.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (dy > 88 && dy > Math.abs(dx) * 1.2) onMinimize();
+  };
 
   useEffect(() => {
     if (!autoHideControls || minimized) {
@@ -72,34 +92,63 @@ export const CallShell = ({
       </div>
 
       {minimized ? (
-        <div data-no-app-swipe className="fixed right-4 top-[max(env(safe-area-inset-top),1rem)] z-[200] flex items-center gap-2 rounded-full bg-primary px-2 py-1.5 text-primary-foreground shadow-lg touch-manipulation animate-in fade-in slide-in-from-top-2">
-          <button
-            type="button"
-            onClick={onRestore}
-            className="flex min-h-10 min-w-10 items-center gap-2 rounded-full text-left"
-            aria-label="Return to call"
+        kind === 'video' ? (
+          <div
+            data-no-app-swipe
+            className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] h-44 w-64 overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/20 animate-in fade-in zoom-in-95"
           >
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={participantAvatar} />
-              <AvatarFallback className="text-xs">
-                {participantName[0]?.toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <span className="max-w-[8rem] truncate text-xs font-medium">{statusText}</span>
-          </button>
-          <Button
-            size="icon"
-            variant="destructive"
-            className="h-9 w-9 rounded-full"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEnd();
-            }}
-            aria-label="End call"
-          >
-            <ChevronDown className="h-4 w-4 rotate-180" />
-          </Button>
-        </div>
+            <button type="button" onClick={onRestore} className="absolute inset-0 h-full w-full" aria-label="Return to video call">
+              <span className="absolute inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-cover">
+                {remoteVideo}
+              </span>
+            </button>
+            {localPip && (
+              <div className="pointer-events-none absolute bottom-2 right-2 z-10 h-14 w-12 overflow-hidden rounded-lg border border-white/50 [&_video]:h-full [&_video]:w-full [&_video]:object-cover">
+                {localPip}
+              </div>
+            )}
+            <div className="absolute left-2 right-2 top-2 z-20 flex items-center justify-between gap-2">
+              <span className="max-w-40 truncate rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+                {participantName} · {statusText}
+              </span>
+              <Button
+                size="icon"
+                variant="destructive"
+                className="h-9 w-9 shrink-0 rounded-full shadow-lg"
+                onClick={onEnd}
+                aria-label="End call"
+              >
+                <PhoneOff className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div data-no-app-swipe className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] flex items-center gap-2 rounded-full bg-background/95 p-1.5 text-foreground shadow-2xl ring-1 ring-border/70 backdrop-blur-xl touch-manipulation animate-in fade-in slide-in-from-bottom-2">
+            <button
+              type="button"
+              onClick={onRestore}
+              className="flex min-h-11 min-w-11 items-center gap-2 rounded-full pl-1 text-left"
+              aria-label="Return to voice call"
+            >
+              <Avatar className="h-9 w-9">
+                <AvatarImage src={participantAvatar} />
+                <AvatarFallback className="text-xs">
+                  {participantName[0]?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <span className="max-w-[9rem] truncate text-xs font-medium">{participantName} · {statusText}</span>
+            </button>
+            <Button
+              size="icon"
+              variant="destructive"
+              className="h-10 w-10 rounded-full"
+              onClick={onEnd}
+              aria-label="End call"
+            >
+              <PhoneOff className="h-4 w-4" />
+            </Button>
+          </div>
+        )
       ) : (
         <div
           data-no-app-swipe
@@ -110,6 +159,10 @@ export const CallShell = ({
               : 'bg-gradient-to-b from-primary/15 via-background to-background',
           )}
           onClick={() => autoHideControls && setChromeVisible((v) => !v)}
+          onTouchStart={onCallTouchStart}
+          onTouchEnd={onCallTouchEnd}
+          onTouchCancel={() => { minimizeTouch.current = null; }}
+          style={{ touchAction: 'none' }}
         >
           {kind === 'video' && remoteVideo && (
             <div className="absolute inset-0 [&_video]:object-cover [&_video]:w-full [&_video]:h-full">

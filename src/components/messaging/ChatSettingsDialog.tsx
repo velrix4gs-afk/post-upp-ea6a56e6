@@ -1,6 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { haptic } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -32,19 +37,21 @@ type RowProps = {
   danger?: boolean;
   premium?: boolean;
   trailing?: React.ReactNode;
+  disabled?: boolean;
   onClick?: () => void;
 };
 
-const Row = ({ icon, label, danger, premium, trailing, onClick }: RowProps) => (
+const Row = ({ icon, label, danger, premium, trailing, disabled, onClick }: RowProps) => (
   <button
     type="button"
+    disabled={disabled}
     onClick={() => {
       haptic('light');
       onClick?.();
     }}
     className={cn(
       'w-full h-14 px-5 flex items-center gap-4 text-left text-[15px] transition-colors',
-      'hover:bg-muted/60 active:bg-muted',
+      'hover:bg-muted/60 active:bg-muted disabled:opacity-60 disabled:pointer-events-none',
       danger && 'text-destructive',
       premium && 'relative'
     )}
@@ -76,11 +83,77 @@ export const ChatSettingsDialog = ({
   onDeleteChat,
   onBlockUser,
 }: ChatSettingsDialogProps) => {
-  const { settings, toggleMute } = useChatSettings(chatId);
+  const { settings, toggleMute, setNickname } = useChatSettings(chatId, otherUserId);
   const navigate = useNavigate();
   const isMuted = isChatMuted(settings);
+  const [nickname, setNicknameInput] = useState('');
+  const [nicknameOpen, setNicknameOpen] = useState(false);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
 
   const close = () => onOpenChange(false);
+  const saveNickname = async () => {
+    if (!otherUserId || !nickname.trim()) return;
+    if (await setNickname(nickname.trim(), otherUserId)) {
+      setNicknameInput('');
+      setNicknameOpen(false);
+    }
+  };
+  const summarizeChat = async () => {
+    setSummaryLoading(true);
+    try {
+      const { data: messages, error } = await supabase
+        .from('messages')
+        .select('content, media_type, created_at')
+        .eq('chat_id', chatId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      if (!messages?.length) {
+        toast({ title: 'No messages', description: 'This chat has no messages to summarize.' });
+        return;
+      }
+
+      const transcript = [...messages].reverse().map((message) => {
+        const time = message.created_at ? new Date(message.created_at).toLocaleString() : '';
+        return `[${time}] ${message.content?.trim() || `[${message.media_type || 'media'}]`}`;
+      }).join('\n');
+      const { data, error: aiError } = await supabase.functions.invoke('ai-chat', {
+        body: {
+          messages: [{
+            role: 'user',
+            content: `Summarize this recent chat conversation in concise bullet points. State key topics, decisions, and clear follow-ups. Do not invent information.\n\n${transcript}`,
+          }],
+        },
+      });
+      if (aiError) throw aiError;
+      const response = data as {
+        choices?: Array<{ message?: { content?: string }; delta?: { content?: string } }>;
+        content?: string;
+        message?: string;
+      } | string | null;
+      const result = typeof response === 'string'
+        ? response
+        : response?.choices?.[0]?.message?.content
+          || response?.choices?.[0]?.delta?.content
+          || response?.content
+          || response?.message
+          || '';
+      if (!result.trim()) throw new Error('The AI returned an empty summary.');
+      setSummary(result.trim());
+      setSummaryOpen(true);
+    } catch (error) {
+      console.error('Could not summarize chat:', error);
+      toast({
+        title: 'Summary failed',
+        description: error instanceof Error ? error.message : 'Could not summarize this chat.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSummaryLoading(false);
+    }
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -106,13 +179,13 @@ export const ChatSettingsDialog = ({
               />
             )}
 
-            <Row
-              icon={<Pencil className="h-5 w-5" />}
-              label="Add Nickname"
-              onClick={() => {
-                toast({ title: 'Nicknames', description: 'Coming soon' });
-              }}
-            />
+            {!isGroup && otherUserId && (
+              <Row
+                icon={<Pencil className="h-5 w-5" />}
+                label="Add Nickname"
+                onClick={() => setNicknameOpen(true)}
+              />
+            )}
 
             <Row
               icon={<Images className="h-5 w-5" />}
@@ -132,43 +205,69 @@ export const ChatSettingsDialog = ({
             <Row
               icon={<Sparkles className="h-5 w-5" />}
               label="AI Summary"
-              premium
               trailing={
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-                  Premium
-                </span>
+                summaryLoading ? (
+                  <span className="text-xs text-muted-foreground">Working…</span>
+                ) : undefined
               }
-              onClick={() => {
-                toast({ title: 'AI Summary', description: 'Premium feature — coming soon' });
-              }}
+              disabled={summaryLoading}
+              onClick={() => void summarizeChat()}
             />
 
             <div className="h-px bg-border/60 my-1 mx-5" />
 
-            <Row
-              icon={<Trash2 className="h-5 w-5" />}
-              label="Delete Chat"
-              danger
-              onClick={() => {
-                close();
-                onDeleteChat?.();
-              }}
-            />
+            {onDeleteChat && (
+              <Row
+                icon={<Trash2 className="h-5 w-5" />}
+                label="Delete Chat"
+                danger
+                onClick={() => {
+                  close();
+                  onDeleteChat();
+                }}
+              />
+            )}
 
-            {!isGroup && (
+            {!isGroup && onBlockUser && (
               <Row
                 icon={<Ban className="h-5 w-5" />}
                 label="Block User"
                 danger
                 onClick={() => {
                   close();
-                  onBlockUser?.();
+                  onBlockUser();
                 }}
               />
             )}
           </div>
         </div>
       </SheetContent>
+      <Dialog open={nicknameOpen} onOpenChange={setNicknameOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set chat nickname</DialogTitle>
+            <DialogDescription>This nickname is only visible to you in this conversation.</DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={nickname}
+            onChange={(event) => setNicknameInput(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && void saveNickname()}
+            placeholder="Enter nickname"
+            maxLength={40}
+          />
+          <Button onClick={() => void saveNickname()} disabled={!nickname.trim()}>Save nickname</Button>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Chat summary</DialogTitle>
+            <DialogDescription>Summary of the most recent messages in this conversation.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60dvh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">{summary}</div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 };

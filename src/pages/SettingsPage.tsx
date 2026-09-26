@@ -552,7 +552,7 @@ const SettingsPage = () => {
       <Navigation />
       <BackNavigation title="Settings" />
 
-      <main className="container mx-auto px-4 py-6 max-w-5xl">
+      <main className="settings-page container mx-auto px-4 py-6 max-w-5xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Settings</h1>
           <p className="text-muted-foreground mt-2">Manage your account and preferences</p>
@@ -889,23 +889,6 @@ const SettingsPage = () => {
                           <div className="text-left flex-1">
                             <span className="font-semibold text-base block mb-1">Sea Mist</span>
                             <p className="text-xs text-muted-foreground">Mist bg (#DFE8E6) • Copper text (#A0430A)</p>
-                          </div>
-                        </div>
-                      </button>
-
-                      <button
-                        onClick={() => setColorTheme('curious-blue')}
-                        className={`p-6 rounded-lg border-2 transition-all ${colorTheme === 'curious-blue' ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:border-primary/50'
-                          }`}
-                      >
-                        <div className="flex items-start gap-4 mb-3">
-                          <div className="flex gap-2">
-                            <div className="h-10 w-10 rounded-full bg-[#2092E9]" />
-                            <div className="h-10 w-10 rounded-full bg-[#F4F5F3] border border-border" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <span className="font-semibold text-base block mb-1">Curious Blue</span>
-                            <p className="text-xs text-muted-foreground">Blue bg (#2092E9) • White text (#F4F5F3)</p>
                           </div>
                         </div>
                       </button>

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { X, Check, Globe, Users, Lock, Star } from 'lucide-react';
+import { X, Check, Globe, Users, Lock } from 'lucide-react';
 
-export type StoryAudience = 'public' | 'followers' | 'close-friends' | 'only-me';
+export type StoryAudience = 'public' | 'followers' | 'only-me';
 
 interface StoryAudienceSelectorProps {
   selected: StoryAudience;
@@ -24,16 +24,10 @@ const audienceOptions = [
     description: 'Only people who follow you'
   },
   {
-    id: 'close-friends' as StoryAudience,
-    icon: Star,
-    title: 'Close Friends',
-    description: 'Share with your close friends list'
-  },
-  {
     id: 'only-me' as StoryAudience,
     icon: Lock,
     title: 'Only Me',
-    description: 'Save as a private story draft'
+    description: 'Only you can see this story'
   }
 ];
 

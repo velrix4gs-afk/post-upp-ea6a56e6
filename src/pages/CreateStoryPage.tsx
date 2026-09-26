@@ -42,6 +42,20 @@ const textBackgrounds = [
 
 type Tool = null | 'filters' | 'adjust' | 'stickers' | 'crop' | 'draw' | 'audience' | 'textEdit';
 
+const getStickerLabel = (sticker: Sticker): string => {
+  const data = sticker.data as Record<string, unknown>;
+  if (sticker.type === 'emoji') return String(data.emoji || '');
+  if (sticker.type === 'mention') return `@${String(data.username || '')}`;
+  if (sticker.type === 'hashtag') return `#${String(data.tag || '')}`;
+  if (sticker.type === 'location') return String(data.location || '');
+  if (sticker.type === 'poll') {
+    const options = Array.isArray(data.options) ? data.options.join(' / ') : '';
+    return `${String(data.question || 'Poll')}${options ? `: ${options}` : ''}`;
+  }
+  if (sticker.type === 'countdown') return `${String(data.title || 'Countdown')} ${String(data.endDate || '')}`;
+  return String(data.question || (sticker.type === 'slider' ? 'Slider' : 'Quiz'));
+};
+
 const CreateStoryPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -174,9 +188,9 @@ const CreateStoryPage = () => {
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
       if (!ctx) return mediaFile;
-      if (filterCss !== 'none') (ctx as any).filter = filterCss;
+      if (filterCss !== 'none') ctx.filter = filterCss;
       ctx.drawImage(img, 0, 0, W, H);
-      (ctx as any).filter = 'none';
+      ctx.filter = 'none';
 
       // Vignette
       if (adjustments.vignette > 0) {
@@ -212,12 +226,30 @@ const CreateStoryPage = () => {
 
       // Stickers (emoji only, others kept simple)
       stickers.forEach(s => {
+        const stickerText = getStickerLabel(s);
         if (s.type === 'emoji') {
           ctx.save();
           ctx.font = `${(60 / 360) * H}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText(s.data.emoji, (s.x / 100) * W, (s.y / 100) * H);
+          ctx.fillText(stickerText, (s.x / 100) * W, (s.y / 100) * H);
+          ctx.restore();
+        } else if (stickerText.trim()) {
+          ctx.save();
+          const fontSize = (28 / 360) * H;
+          ctx.font = `600 ${fontSize}px sans-serif`;
+          const width = Math.min(W * 0.82, ctx.measureText(stickerText).width + fontSize);
+          const height = fontSize * 1.8;
+          const x = (s.x / 100) * W - width / 2;
+          const y = (s.y / 100) * H - height / 2;
+          ctx.fillStyle = 'rgba(255,255,255,0.92)';
+          ctx.beginPath();
+          ctx.roundRect(x, y, width, height, height / 2);
+          ctx.fill();
+          ctx.fillStyle = '#111827';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(stickerText, (s.x / 100) * W, (s.y / 100) * H, width - fontSize * 0.5);
           ctx.restore();
         }
       });
@@ -246,6 +278,7 @@ const CreateStoryPage = () => {
     }
 
     setUploading(true);
+    let uploadedPath: string | null = null;
     try {
       let media_url: string | null = null;
       let media_type: string | null = null;
@@ -261,18 +294,9 @@ const CreateStoryPage = () => {
         const { error: upErr } = await supabase.storage.from('stories').upload(path, fileToUpload, {
           cacheControl: '3600', upsert: false,
         });
-        if (upErr) {
-          // Fallback to posts bucket if stories bucket doesn't exist
-          const { error: upErr2 } = await supabase.storage.from('posts').upload(path, fileToUpload, {
-            cacheControl: '3600', upsert: false,
-          });
-          if (upErr2) throw upErr;
-          const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(path);
-          media_url = publicUrl;
-        } else {
-          const { data: { publicUrl } } = supabase.storage.from('stories').getPublicUrl(path);
-          media_url = publicUrl;
-        }
+        if (upErr) throw upErr;
+        uploadedPath = path;
+        media_url = path;
         media_type = mediaType;
       }
 
@@ -281,14 +305,25 @@ const CreateStoryPage = () => {
         media_url,
         media_type,
         content,
+        audience,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
       if (insErr) throw insErr;
+      uploadedPath = null;
 
       toast({ title: 'Story shared 🎉' });
       navigate('/');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Share story error', err);
-      toast({ title: 'Failed to share story', description: err?.message, variant: 'destructive' });
+      if (uploadedPath) {
+        const { error: cleanupError } = await supabase.storage.from('stories').remove([uploadedPath]);
+        if (cleanupError) console.error('Could not clean up unreferenced story media:', cleanupError);
+      }
+      toast({
+        title: 'Failed to share story',
+        description: err instanceof Error ? err.message : 'Please try again.',
+        variant: 'destructive',
+      });
     } finally {
       setUploading(false);
     }
@@ -354,16 +389,14 @@ const CreateStoryPage = () => {
         </button>
 
         <div className="flex items-center gap-2">
-          {hasMedia && (
-            <button
-              onClick={() => setActiveTool('audience')}
-              className="h-10 px-3 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-1.5 text-xs font-medium active:scale-95 transition-transform"
-            >
-              <Users className="h-4 w-4" />
-              {audience === 'public' ? 'Everyone' : audience === 'followers' ? 'Followers' : audience === 'close-friends' ? 'Close' : 'Only me'}
-              <ChevronDown className="h-3 w-3" />
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTool('audience')}
+            className="h-10 px-3 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-1.5 text-xs font-medium active:scale-95 transition-transform"
+          >
+            <Users className="h-4 w-4" />
+            {audience === 'public' ? 'Everyone' : audience === 'followers' ? 'Followers' : 'Only me'}
+            <ChevronDown className="h-3 w-3" />
+          </button>
         </div>
       </div>
 
@@ -380,7 +413,6 @@ const CreateStoryPage = () => {
             <video
               src={mediaPreview!}
               className="absolute inset-0 w-full h-full object-cover"
-              style={{ filter: filterCss }}
               autoPlay loop muted playsInline
             />
           ) : (
@@ -462,12 +494,7 @@ const CreateStoryPage = () => {
                 {s.type === 'emoji' && <span className="text-5xl">{s.data.emoji}</span>}
                 {s.type !== 'emoji' && (
                   <div className="bg-white/90 text-black rounded-xl px-3 py-2 text-sm font-medium">
-                    {s.type === 'mention' && `@${s.data.username}`}
-                    {s.type === 'hashtag' && `#${s.data.tag}`}
-                    {s.type === 'location' && s.data.location}
-                    {s.type === 'question' && s.data.question}
-                    {s.type === 'poll' && s.data.question}
-                    {s.type === 'countdown' && s.data.title}
+                    {getStickerLabel(s)}
                   </div>
                 )}
               </div>
@@ -483,7 +510,7 @@ const CreateStoryPage = () => {
         ))}
 
         {/* Right-side tool rail (Instagram-style) */}
-        {hasMedia && (
+        {hasMedia && mediaType === 'image' && (
           <div className="absolute right-2 top-20 flex flex-col gap-2 z-10">
             <ToolBtn icon={<Type className="h-5 w-5" />} onClick={addText} />
             <ToolBtn icon={<Paintbrush className="h-5 w-5" />} onClick={() => setActiveTool('draw')} />
@@ -493,6 +520,11 @@ const CreateStoryPage = () => {
             {mediaType === 'image' && (
               <ToolBtn icon={<Crop className="h-5 w-5" />} onClick={() => setActiveTool('crop')} />
             )}
+          </div>
+        )}
+        {hasMedia && mediaType === 'video' && (
+          <div className="absolute bottom-24 left-4 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs text-white/80 backdrop-blur">
+            Video stories post as selected. Photo editing tools apply to images.
           </div>
         )}
 

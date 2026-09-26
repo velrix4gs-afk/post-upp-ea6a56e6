@@ -59,36 +59,16 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups' | 'archived';
 
-// The chat list's last_message column stores whatever was saved as the
-// message's raw content -- for call-log messages that's the JSON blob
-// itself (e.g. {"kind":"voice","status":"unanswered","durationSec":0}),
-// which was showing up literally in the chat list. This catches that
-// shape and turns it into readable text instead.
 const formatLastMessagePreview = (text?: string): string | undefined => {
   if (!text) return text;
-  const trimmed = text.trim();
-  if (!trimmed.startsWith('{') || !trimmed.includes('"kind"')) return text;
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (parsed && (parsed.kind === 'voice' || parsed.kind === 'video')) {
-      const isVideo = parsed.kind === 'video';
-      if (parsed.status === 'completed') {
-        const m = Math.floor((parsed.durationSec || 0) / 60);
-        const s = (parsed.durationSec || 0) % 60;
-        return `${isVideo ? '📹' : '📞'} ${isVideo ? 'Video' : 'Voice'} call (${m}:${s.toString().padStart(2, '0')})`;
-      }
-      if (parsed.status === 'declined') {
-        return `${isVideo ? '📹' : '📞'} ${isVideo ? 'Video' : 'Voice'} call declined`;
-      }
-      return `${isVideo ? '📹' : '📞'} Missed ${isVideo ? 'video' : 'voice'} call`;
-    }
-  } catch {
-    // Not actually JSON -- fall through and show it as-is.
-  }
-  return text;
+  const callRecord = parseCallRecord(text);
+  if (!callRecord) return text;
+  const icon = callRecord.kind === 'video' ? '📹' : '📞';
+  return `${icon} ${formatCallRecord(callRecord, { includeDirection: true })}`;
 };
 
 // Preset wallpaper id → Tailwind class. Anything else is treated as an image URL.
@@ -185,6 +165,7 @@ const MessagesPage = () => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const chatViewRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const voiceSendInFlightRef = useRef(false);
   const messageSendInFlightRef = useRef(false);
@@ -192,6 +173,8 @@ const MessagesPage = () => {
   const newMessageIdsRef = useRef<Set<string>>(new Set());
   const isInitialLoadRef = useRef(true);
   const threadTouchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const threadSwipeBackRef = useRef(false);
+  const chatBackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scrollMotionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showScrollFab, setShowScrollFab] = useState(false);
   const [pinnedChatIds, setPinnedChatIds] = useState<string[]>([]);
@@ -326,6 +309,7 @@ const MessagesPage = () => {
       x: event.touches[0].clientX,
       y: event.touches[0].clientY,
     };
+    threadSwipeBackRef.current = false;
   };
 
   const handleThreadTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
@@ -333,6 +317,16 @@ const MessagesPage = () => {
     if (!start || event.touches.length !== 1) return;
     const dx = event.touches[0].clientX - start.x;
     const dy = event.touches[0].clientY - start.y;
+    if (start.x <= 28 && dx > 0 && dx > Math.abs(dy) * 1.25) {
+      threadSwipeBackRef.current = dx >= 90;
+      const view = chatViewRef.current;
+      if (view) {
+        view.style.transition = 'none';
+        view.style.transform = `translateX(${Math.min(96, dx * 0.45)}px)`;
+        view.style.opacity = String(Math.max(0.7, 1 - dx / 700));
+      }
+      return;
+    }
     if (dx >= 0 || Math.abs(dx) <= Math.abs(dy)) {
       messagesContainerRef.current?.style.setProperty('--peek-x', '0px');
       messagesContainerRef.current?.style.setProperty('--peek-opacity', '0');
@@ -345,53 +339,121 @@ const MessagesPage = () => {
   };
 
   const handleThreadTouchEnd = () => {
+    const shouldGoBack = threadSwipeBackRef.current;
+    threadSwipeBackRef.current = false;
     threadTouchStartRef.current = null;
     const container = messagesContainerRef.current;
     container?.style.setProperty('--peek-x', '0px');
     container?.style.setProperty('--peek-opacity', '0');
+    const view = chatViewRef.current;
+    if (shouldGoBack && view) {
+      view.style.transition = 'transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1), opacity 180ms ease';
+      view.style.transform = 'translateX(100%)';
+      view.style.opacity = '0.7';
+      chatBackTimerRef.current = setTimeout(() => {
+        setSelectedChatId(null);
+        if (chatViewRef.current) {
+          chatViewRef.current.style.transition = '';
+          chatViewRef.current.style.transform = '';
+          chatViewRef.current.style.opacity = '';
+        }
+      }, 150);
+    } else if (view) {
+      view.style.transition = 'transform 180ms ease, opacity 180ms ease';
+      view.style.transform = '';
+      view.style.opacity = '';
+    }
   };
 
-  // Pinned chats
+  // Keep user-specific pin/archive state in sync with local actions and
+  // database changes from this user's other sessions.
   useEffect(() => {
     if (!user) return;
-    const fetchPinned = async () => {
-      const { data } = await supabase
+    const fetchChatSettings = async () => {
+      const { data, error } = await supabase
         .from('chat_settings')
-        .select('chat_id')
-        .eq('user_id', user.id)
-        .eq('is_pinned', true);
-      if (data) setPinnedChatIds(data.map((d) => d.chat_id));
+        .select('chat_id, is_pinned, is_archived')
+        .eq('user_id', user.id);
+      if (error) {
+        console.error('Could not load pinned and archived chats:', error);
+        toast({ title: 'Could not load chat preferences', variant: 'destructive' });
+        return;
+      }
+      setPinnedChatIds((data || []).filter((row) => row.is_pinned).map((row) => row.chat_id));
+      setArchivedChatIds((data || []).filter((row) => row.is_archived).map((row) => row.chat_id));
     };
-    fetchPinned();
-  }, [user, selectedChatId]);
+    void fetchChatSettings();
 
-  // Archived chats -- previously this feature didn't exist at all; the
-  // swipe "Archive" action just showed a "coming soon" toast.
-  useEffect(() => {
-    if (!user) return;
-    const fetchArchived = async () => {
-      const { data } = await supabase
-        .from('chat_settings')
-        .select('chat_id')
-        .eq('user_id', user.id)
-        .eq('is_archived', true);
-      if (data) setArchivedChatIds(data.map((d) => d.chat_id));
+    const onSettingsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{
+        chatId?: string;
+        updates?: { is_pinned?: boolean; is_archived?: boolean };
+      }>).detail;
+      if (!detail?.chatId || !detail.updates) return;
+      if (typeof detail.updates.is_pinned === 'boolean') {
+        setPinnedChatIds((previous) => detail.updates!.is_pinned
+          ? [...new Set([...previous, detail.chatId!])]
+          : previous.filter((id) => id !== detail.chatId));
+      }
+      if (typeof detail.updates.is_archived === 'boolean') {
+        setArchivedChatIds((previous) => detail.updates!.is_archived
+          ? [...new Set([...previous, detail.chatId!])]
+          : previous.filter((id) => id !== detail.chatId));
+      }
     };
-    fetchArchived();
-  }, [user, selectedChatId]);
+    window.addEventListener('chat-settings-updated', onSettingsUpdated);
+
+    const channel = supabase
+      .channel(`chat-list-settings:${user.id}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_settings',
+        filter: `user_id=eq.${user.id}`,
+      }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const deleted = payload.old as { chat_id?: string };
+          if (!deleted.chat_id) return;
+          setPinnedChatIds((previous) => previous.filter((id) => id !== deleted.chat_id));
+          setArchivedChatIds((previous) => previous.filter((id) => id !== deleted.chat_id));
+          return;
+        }
+        const changed = payload.new as { chat_id?: string; is_pinned?: boolean; is_archived?: boolean };
+        if (!changed.chat_id) return;
+        setPinnedChatIds((previous) => changed.is_pinned
+          ? [...new Set([...previous, changed.chat_id!])]
+          : previous.filter((id) => id !== changed.chat_id));
+        setArchivedChatIds((previous) => changed.is_archived
+          ? [...new Set([...previous, changed.chat_id!])]
+          : previous.filter((id) => id !== changed.chat_id));
+      })
+      .subscribe();
+
+    return () => {
+      window.removeEventListener('chat-settings-updated', onSettingsUpdated);
+      void supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const archiveChat = async (chatId: string, archived: boolean) => {
     if (!user) return;
-    const { error } = await supabase
-      .from('chat_settings')
-      .upsert({ chat_id: chatId, user_id: user.id, is_archived: archived }, { onConflict: 'chat_id,user_id' });
-    if (error) {
+    const wasArchived = archivedChatIds.includes(chatId);
+    setArchivedChatIds((previous) => archived
+      ? [...new Set([...previous, chatId])]
+      : previous.filter((id) => id !== chatId));
+    try {
+      const { error } = await supabase
+        .from('chat_settings')
+        .upsert({ chat_id: chatId, user_id: user.id, is_archived: archived }, { onConflict: 'chat_id,user_id' });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Could not update archive status:', error);
+      setArchivedChatIds((previous) => wasArchived
+        ? [...new Set([...previous, chatId])]
+        : previous.filter((id) => id !== chatId));
       toast({ description: 'Could not update archive status', variant: 'destructive' });
       return;
     }
-    setArchivedChatIds((prev) =>
-      archived ? [...prev, chatId] : prev.filter((id) => id !== chatId)
-    );
     toast({ description: archived ? 'Chat archived' : 'Chat unarchived' });
   };
 
@@ -647,7 +709,7 @@ const MessagesPage = () => {
         const bT = new Date(b.last_message_at || b.updated_at || 0).getTime();
         return bT - aT;
       });
-  }, [chats, searchQuery, filterTab, pinnedChatIds, user?.id]);
+  }, [chats, searchQuery, filterTab, pinnedChatIds, archivedChatIds, user?.id]);
 
   // Filtered messages by content for in-chat search
   const filteredMessages =
@@ -882,7 +944,7 @@ const MessagesPage = () => {
     const chatAvatar = selectedChat.avatar_url || otherP?.profiles.avatar_url;
 
     return (
-      <div className="flex flex-col h-full bg-card animate-slide-in-right">
+      <div ref={chatViewRef} className="flex flex-col h-full bg-card animate-slide-in-right will-change-transform">
         <ChatHeader
           name={chatName}
           avatarUrl={chatAvatar}
@@ -975,7 +1037,7 @@ const MessagesPage = () => {
           onTouchEnd={handleThreadTouchEnd}
           onTouchCancel={handleThreadTouchEnd}
           className={cn(
-            'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative',
+            'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative transition-[background-color] duration-300 ease-out',
             !chatSettings?.wallpaper_url && 'chat-wallpaper',
             chatSettings?.wallpaper_url && !isWallpaperUrl(chatSettings.wallpaper_url) &&
               (WALLPAPER_PRESETS[chatSettings.wallpaper_url] || '')
@@ -1267,7 +1329,13 @@ const MessagesPage = () => {
         />
       )}
 
-      {showMediaTab && selectedChatId && <ChatMediaTab chatId={selectedChatId} />}
+      {selectedChatId && (
+        <ChatMediaTab
+          chatId={selectedChatId}
+          open={showMediaTab}
+          onOpenChange={setShowMediaTab}
+        />
+      )}
 
       {showGroupInfo && selectedChatId && selectedChat?.is_group && (
         <GroupInfoDialog chatId={selectedChatId} open={showGroupInfo} onOpenChange={setShowGroupInfo} />

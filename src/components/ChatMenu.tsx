@@ -47,21 +47,24 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
   const [showMuteDialog, setShowMuteDialog] = useState(false);
   const [showThemeDialog, setShowThemeDialog] = useState(false);
   const [showLinksDialog, setShowLinksDialog] = useState(false);
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
   const [nickname, setNicknameInput] = useState('');
   const [muteDuration, setMuteDuration] = useState<string>('30');
 
   const handleSetNickname = async () => {
     if (nickname.trim()) {
-      await setNickname(nickname.trim(), otherUserId);
-      setShowNicknameDialog(false);
-      setNicknameInput('');
+      if (await setNickname(nickname.trim(), otherUserId)) {
+        setShowNicknameDialog(false);
+        setNicknameInput('');
+      }
     }
   };
 
   const handleMute = async () => {
     const duration = muteDuration === 'forever' ? undefined : parseInt(muteDuration);
-    await muteChat(duration);
-    setShowMuteDialog(false);
+    if (await muteChat(duration)) setShowMuteDialog(false);
   };
 
   const handleUnmute = async () => {
@@ -69,8 +72,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
   };
 
   const handleThemeChange = async (color: string) => {
-    await setTheme(color);
-    setShowThemeDialog(false);
+    if (await setTheme(color)) setShowThemeDialog(false);
   };
 
   const handleExportChat = async () => {
@@ -127,11 +129,11 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
   };
 
   const handleAISummary = async () => {
+    setSummaryLoading(true);
     try {
-      // Fetch recent messages
       const { data: messages, error } = await supabase
         .from('messages')
-        .select('content')
+        .select('content, media_type, created_at')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -145,18 +147,68 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
         return;
       }
 
-      const messageCount = messages.length;
-      const hasMedia = messages.some(m => !m.content);
-      
-      toast({
-        title: 'Chat Summary',
-        description: `This chat has ${messageCount} recent messages${hasMedia ? ', including media files' : ''}. Full AI summary is a premium feature.`,
+      const transcript = [...messages].reverse().map((message) => {
+        const time = message.created_at ? new Date(message.created_at).toLocaleString() : '';
+        const body = message.content?.trim() || `[${message.media_type || 'media'}]`;
+        return `[${time}] ${body.slice(0, 1000)}`;
+      }).join('\n');
+      const { data, error: aiError } = await supabase.functions.invoke('ai-chat', {
+        body: {
+          messages: [{
+            role: 'user',
+            content: `Summarize this recent chat conversation in concise bullet points. State key topics, decisions, and any clear follow-ups. Do not invent information.\n\n${transcript}`,
+          }],
+        },
       });
+      if (aiError) throw aiError;
+
+      const response = data as {
+        choices?: Array<{ message?: { content?: string }; delta?: { content?: string } }>;
+        content?: string;
+        message?: string;
+      } | string | null;
+      let generated = '';
+      if (typeof response === 'string') {
+        generated = response.split(/\r?\n/)
+          .filter((line) => line.startsWith('data:'))
+          .map((line) => line.slice(5).trim())
+          .filter((line) => line && line !== '[DONE]')
+          .map((line) => {
+            try {
+              const chunk = JSON.parse(line) as { choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }> };
+              return chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.message?.content || '';
+            } catch {
+              return '';
+            }
+          })
+          .join('');
+        if (!generated) {
+          try {
+            const parsed = JSON.parse(response) as { choices?: Array<{ message?: { content?: string } }>; content?: string; message?: string };
+            generated = parsed.choices?.[0]?.message?.content || parsed.content || parsed.message || '';
+          } catch {
+            generated = response.trim();
+          }
+        }
+      } else if (response) {
+        generated = response.choices?.[0]?.message?.content
+          || response.choices?.[0]?.delta?.content
+          || response.content
+          || response.message
+          || '';
+      }
+      if (!generated.trim()) throw new Error('The AI returned an empty summary.');
+      setSummary(generated.trim());
+      setShowSummaryDialog(true);
     } catch (error) {
+      console.error('Chat summary error:', error);
       toast({
         title: 'Summary failed',
+        description: error instanceof Error ? error.message : 'Could not summarize this chat.',
         variant: 'destructive',
       });
+    } finally {
+      setSummaryLoading(false);
     }
   };
 
@@ -198,18 +250,24 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
               Add Nickname
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem onClick={onViewMedia} className="rounded-lg py-2.5 px-3 gap-3">
-            <Image className="h-4 w-4 text-sky-500" />
-            View Shared Media
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onSearchInChat} className="rounded-lg py-2.5 px-3 gap-3">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            Search in Chat
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onViewStarred} className="rounded-lg py-2.5 px-3 gap-3">
-            <Star className="h-4 w-4 text-amber-500" />
-            Starred Messages
-          </DropdownMenuItem>
+          {onViewMedia && (
+            <DropdownMenuItem onClick={onViewMedia} className="rounded-lg py-2.5 px-3 gap-3">
+              <Image className="h-4 w-4 text-sky-500" />
+              View Shared Media
+            </DropdownMenuItem>
+          )}
+          {onSearchInChat && (
+            <DropdownMenuItem onClick={onSearchInChat} className="rounded-lg py-2.5 px-3 gap-3">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              Search in Chat
+            </DropdownMenuItem>
+          )}
+          {onViewStarred && (
+            <DropdownMenuItem onClick={onViewStarred} className="rounded-lg py-2.5 px-3 gap-3">
+              <Star className="h-4 w-4 text-amber-500" />
+              Starred Messages
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={() => onViewSharedLinks ? onViewSharedLinks() : setShowLinksDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
             <LinkIcon className="h-4 w-4 text-sky-500" />
             Shared Links
@@ -221,14 +279,18 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
             <Palette className="h-4 w-4 text-violet-500" />
             Change Theme
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={onWallpaperChange} className="rounded-lg py-2.5 px-3 gap-3">
-            <Image className="h-4 w-4 text-violet-500" />
-            Change Wallpaper
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onDisappearingMessages} className="rounded-lg py-2.5 px-3 gap-3">
-            <Clock className="h-4 w-4 text-orange-500" />
-            Disappearing Messages
-          </DropdownMenuItem>
+          {onWallpaperChange && (
+            <DropdownMenuItem onClick={onWallpaperChange} className="rounded-lg py-2.5 px-3 gap-3">
+              <Image className="h-4 w-4 text-violet-500" />
+              Change Wallpaper
+            </DropdownMenuItem>
+          )}
+          {onDisappearingMessages && (
+            <DropdownMenuItem onClick={onDisappearingMessages} className="rounded-lg py-2.5 px-3 gap-3">
+              <Clock className="h-4 w-4 text-orange-500" />
+              Disappearing Messages
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem onClick={togglePin} className="rounded-lg py-2.5 px-3 gap-3">
             <Star className={`h-4 w-4 text-amber-500 ${settings?.is_pinned ? 'fill-current' : ''}`} />
             {settings?.is_pinned ? 'Remove from Favorites' : 'Add to Favorites'}
@@ -240,9 +302,9 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
 
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-3 py-1.5">More</DropdownMenuLabel>
-          <DropdownMenuItem onClick={handleAISummary} className="rounded-lg py-2.5 px-3 gap-3">
+          <DropdownMenuItem onClick={() => void handleAISummary()} disabled={summaryLoading} className="rounded-lg py-2.5 px-3 gap-3">
             <Sparkles className="h-4 w-4 text-violet-500" />
-            AI Summary (Premium)
+            {summaryLoading ? 'Creating summary…' : 'AI Summary'}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={handleExportChat} className="rounded-lg py-2.5 px-3 gap-3">
             <Download className="h-4 w-4 text-muted-foreground" />
@@ -251,30 +313,36 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
 
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-destructive/60 px-3 py-1.5">Danger Zone</DropdownMenuLabel>
-          <DropdownMenuItem onClick={onClearChat} className="rounded-lg py-2.5 px-3 gap-3 text-destructive focus:text-destructive">
-            <Trash2 className="h-4 w-4" />
-            Clear Chat
-          </DropdownMenuItem>
+          {onClearChat && (
+            <DropdownMenuItem onClick={onClearChat} className="rounded-lg py-2.5 px-3 gap-3 text-destructive focus:text-destructive">
+              <Trash2 className="h-4 w-4" />
+              Clear Chat
+            </DropdownMenuItem>
+          )}
           {otherUserId && (
             <>
               {isBlocked(otherUserId) ? (
-                <DropdownMenuItem 
-                  onClick={() => unblockUser(otherUserId)}
+                <DropdownMenuItem
+                  onClick={() => void unblockUser(otherUserId)}
                   className="rounded-lg py-2.5 px-3 gap-3 text-emerald-600 focus:text-emerald-600"
                 >
                   <Unlock className="h-4 w-4" />
                   Unblock User
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onClick={onBlock} className="rounded-lg py-2.5 px-3 gap-3 text-destructive focus:text-destructive">
-                  <Ban className="h-4 w-4" />
-                  Block User
+                onBlock && (
+                  <DropdownMenuItem onClick={onBlock} className="rounded-lg py-2.5 px-3 gap-3 text-destructive focus:text-destructive">
+                    <Ban className="h-4 w-4" />
+                    Block User
+                  </DropdownMenuItem>
+                )
+              )}
+              {onReport && (
+                <DropdownMenuItem onClick={onReport} className="rounded-lg py-2.5 px-3 gap-3 text-destructive focus:text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  Report User
                 </DropdownMenuItem>
               )}
-              <DropdownMenuItem onClick={onReport} className="rounded-lg py-2.5 px-3 gap-3 text-destructive focus:text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                Report User
-              </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>
@@ -360,6 +428,18 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
             <DialogDescription>All links shared in this conversation</DialogDescription>
           </DialogHeader>
           <SharedLinksTab chatId={chatId} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSummaryDialog} onOpenChange={setShowSummaryDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Chat summary</DialogTitle>
+            <DialogDescription>Summary of the most recent messages in this conversation.</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60dvh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
+            {summary}
+          </div>
         </DialogContent>
       </Dialog>
     </>

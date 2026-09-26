@@ -7,7 +7,6 @@ type ColorTheme =
   | 'deep-teal'
   | 'lemon-yellow'
   | 'seamist'
-  | 'curious-blue'
   | 'mulled-wine'
   | null;
 
@@ -21,9 +20,13 @@ export const useTheme = () => {
 
   const [colorTheme, setColorTheme] = useState<ColorTheme>(() => {
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('colorTheme') as ColorTheme;
+      const stored = localStorage.getItem('colorTheme');
+      if (stored === 'curious-blue') {
+        localStorage.setItem('colorTheme', 'fb-twitter');
+        return 'fb-twitter';
+      }
       // Default to the clean Facebook+Twitter combined skin if user has no pick.
-      return stored || 'fb-twitter';
+      return (stored as ColorTheme) || 'fb-twitter';
     }
     return 'fb-twitter';
   });
@@ -49,24 +52,40 @@ export const useTheme = () => {
       root.classList.add(theme);
     }
     // Always persist so reloads & cross-page navs restore correctly.
-    try { localStorage.setItem('theme', theme); } catch {}
+    try {
+      localStorage.setItem('theme', theme);
+    } catch (error) {
+      console.warn('[useTheme] Failed to persist theme preference', error);
+    }
   }, [theme]);
 
   useEffect(() => {
     const root = window.document.documentElement;
     if (colorTheme) {
       root.setAttribute('data-color-theme', colorTheme);
-      try { localStorage.setItem('colorTheme', colorTheme); } catch {}
+      try {
+        localStorage.setItem('colorTheme', colorTheme);
+      } catch (error) {
+        console.warn('[useTheme] Failed to persist color theme', error);
+      }
     } else {
       root.removeAttribute('data-color-theme');
-      try { localStorage.removeItem('colorTheme'); } catch {}
+      try {
+        localStorage.removeItem('colorTheme');
+      } catch (error) {
+        console.warn('[useTheme] Failed to clear color theme preference', error);
+      }
     }
   }, [colorTheme]);
 
   useEffect(() => {
     const root = window.document.documentElement;
     root.setAttribute('data-contrast', contrast);
-    try { localStorage.setItem('contrastMode', contrast); } catch {}
+    try {
+      localStorage.setItem('contrastMode', contrast);
+    } catch (error) {
+      console.warn('[useTheme] Failed to persist contrast preference', error);
+    }
   }, [contrast]);
 
   const setThemeValue = (newTheme: Theme) => {
@@ -81,7 +100,11 @@ export const useTheme = () => {
   };
 
   const setContrastValue = (mode: ContrastMode) => {
-    try { localStorage.setItem('contrastMode', mode); } catch {}
+    try {
+      localStorage.setItem('contrastMode', mode);
+    } catch (error) {
+      console.warn('[useTheme] Failed to persist contrast preference', error);
+    }
     // AMOLED / Dim only make sense on a dark canvas — force dark alongside.
     if (mode !== 'normal') setThemeValue('dark');
     setContrast(mode);

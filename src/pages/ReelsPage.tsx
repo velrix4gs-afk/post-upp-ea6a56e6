@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
@@ -8,14 +8,17 @@ import {
   Volume2, VolumeX, Film, Loader2, Send, MoreHorizontal,
   UserPlus, Eye, Pin, Reply, Trash2, Flag, X
 } from 'lucide-react';
-import { useReels, ReelComment } from '@/hooks/useReels';
+import { useReels, Reel, ReelComment } from '@/hooks/useReels';
 import { useAuth } from '@/hooks/useAuth';
+import { useFollowers } from '@/hooks/useFollowers';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { VerificationBadge } from '@/components/premium/VerificationBadge';
 import { InstagramReelCreator } from '@/components/InstagramReelCreator';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
+import { ReportUserDialog } from '@/components/messaging/ReportUserDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,7 +36,26 @@ interface CommentWithReplies extends ReelComment {
 const ReelsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { reels, loading, hasMore, fetchReels, viewReel, likeReel, fetchComments, addComment, deleteReel } = useReels();
+  const {
+    reels,
+    loading,
+    hasMore,
+    savedReelIds,
+    fetchReels,
+    viewReel,
+    likeReel,
+    toggleSaveReel,
+    fetchComments,
+    addComment,
+    deleteReel,
+  } = useReels();
+  const {
+    following,
+    pendingFollowing,
+    loading: followingUsersLoading,
+    followUser,
+    unfollowUser,
+  } = useFollowers();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -43,7 +65,6 @@ const ReelsPage = () => {
   const [newComment, setNewComment] = useState('');
   const [activeTab, setActiveTab] = useState<'forYou' | 'following'>('forYou');
   const [likeAnimations, setLikeAnimations] = useState<{ [key: string]: boolean }>({});
-  const [savedReels, setSavedReels] = useState<Set<string>>(new Set());
   const [loadingComment, setLoadingComment] = useState(false);
   const [videoProgress, setVideoProgress] = useState<{ [key: string]: number }>({});
   const [likingReels, setLikingReels] = useState<Set<string>>(new Set());
@@ -52,12 +73,114 @@ const ReelsPage = () => {
   const [likedComments, setLikedComments] = useState<Set<string>>(new Set());
   const [commentLikes, setCommentLikes] = useState<{ [key: string]: number }>({});
   const [showReplies, setShowReplies] = useState<Set<string>>(new Set());
+  const [followingReels, setFollowingReels] = useState<Reel[]>([]);
+  const [followingFeedLoading, setFollowingFeedLoading] = useState(false);
+  const [followingHasMore, setFollowingHasMore] = useState(false);
+  const [followActions, setFollowActions] = useState<Set<string>>(new Set());
+  const [reportingUser, setReportingUser] = useState<Reel | null>(null);
 
   const videoRefs = useRef<{ [key: number]: HTMLVideoElement | null }>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const viewTimers = useRef<{ [key: string]: number }>({});
   const observerRef = useRef<IntersectionObserver | null>(null);
   const commentInputRef = useRef<HTMLInputElement>(null);
+  const followingFeedLock = useRef(false);
+  const followingFeedOffset = useRef(0);
+  const commentActionLocks = useRef(new Set<string>());
+  const pinnedCommentLock = useRef(false);
+  const followingIds = useMemo(
+    () => new Set(following.map((entry) => entry.following_id)),
+    [following],
+  );
+  const pendingFollowingIds = useMemo(
+    () => new Set(pendingFollowing.map((entry) => entry.following_id)),
+    [pendingFollowing],
+  );
+  const followingKey = useMemo(
+    () => [...followingIds].sort().join(','),
+    [followingIds],
+  );
+  const visibleReels = activeTab === 'following' ? followingReels : reels;
+  const visibleLoading = activeTab === 'following' ? followingFeedLoading || followingUsersLoading : loading;
+  const visibleHasMore = activeTab === 'following' ? followingHasMore : hasMore;
+
+  const fetchFollowingReels = useCallback(async (reset = false) => {
+    if (!user || followingFeedLock.current || followingIds.size === 0) return;
+    followingFeedLock.current = true;
+    setFollowingFeedLoading(true);
+    if (reset) {
+      setFollowingReels([]);
+      followingFeedOffset.current = 0;
+    }
+    const start = followingFeedOffset.current;
+    try {
+      const { data, error } = await supabase
+        .from('reels')
+        .select(`
+          id, user_id, video_url, thumbnail_url, caption, duration,
+          views_count, likes_count, comments_count, shares_count, created_at,
+          creator:profiles!reels_user_id_fkey(display_name, avatar_url, is_verified)
+        `)
+        .in('user_id', [...followingIds])
+        .order('created_at', { ascending: false })
+        .range(start, start + 19);
+      if (error) throw error;
+
+      const reelIds = (data || []).map((reel) => reel.id);
+      const { data: likedRows, error: likedError } = reelIds.length
+        ? await supabase.from('reel_reactions').select('reel_id').eq('user_id', user.id).in('reel_id', reelIds)
+        : { data: [], error: null };
+      if (likedError) throw likedError;
+
+      const likedIds = new Set((likedRows || []).map((row) => row.reel_id));
+      const nextReels: Reel[] = (data || []).map((row) => ({
+        id: row.id,
+        user_id: row.user_id,
+        video_url: row.video_url,
+        thumbnail_url: row.thumbnail_url || undefined,
+        caption: row.caption || undefined,
+        duration: row.duration || undefined,
+        views_count: row.views_count || 0,
+        likes_count: row.likes_count || 0,
+        comments_count: row.comments_count || 0,
+        shares_count: row.shares_count || 0,
+        created_at: row.created_at || new Date().toISOString(),
+        creator_name: row.creator?.display_name || 'User',
+        creator_avatar: row.creator?.avatar_url || undefined,
+        is_verified: row.creator?.is_verified || false,
+        is_liked: likedIds.has(row.id),
+      }));
+      setFollowingReels((previous) => reset ? nextReels : [...previous, ...nextReels]);
+      followingFeedOffset.current = start + nextReels.length;
+      setFollowingHasMore(nextReels.length === 20);
+    } catch (error) {
+      console.error('Failed to load following reels:', error);
+      toast({ title: 'Could not load reels from followed creators', variant: 'destructive' });
+      if (reset) setFollowingReels([]);
+      setFollowingHasMore(false);
+    } finally {
+      followingFeedLock.current = false;
+      setFollowingFeedLoading(false);
+    }
+  }, [followingIds, user]);
+
+  useEffect(() => {
+    if (activeTab !== 'following' || followingUsersLoading) return;
+    if (followingIds.size === 0) {
+      setFollowingReels([]);
+      setFollowingHasMore(false);
+      return;
+    }
+    setCurrentIndex(0);
+    containerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+    void fetchFollowingReels(true);
+  }, [activeTab, followingKey, followingUsersLoading, followingIds.size, fetchFollowingReels]);
+
+  const selectTab = (tab: 'forYou' | 'following') => {
+    setActiveTab(tab);
+    setCurrentIndex(0);
+    containerRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  };
 
   // Setup Intersection Observer for auto-play
   useEffect(() => {
@@ -93,7 +216,7 @@ const ReelsPage = () => {
         const handleTimeUpdate = () => {
           if (video.duration) {
             const progress = (video.currentTime / video.duration) * 100;
-            const reelId = reels[parseInt(indexStr)]?.id;
+            const reelId = visibleReels[parseInt(indexStr)]?.id;
             if (reelId) {
               setVideoProgress(prev => ({ ...prev, [reelId]: progress }));
             }
@@ -110,11 +233,11 @@ const ReelsPage = () => {
         observerRef.current?.unobserve(video);
       });
     };
-  }, [reels]);
+  }, [visibleReels]);
 
   // Track views
   useEffect(() => {
-    const reel = reels[currentIndex];
+    const reel = visibleReels[currentIndex];
     if (reel) {
       startViewTracking(reel.id);
     }
@@ -122,7 +245,7 @@ const ReelsPage = () => {
     return () => {
       Object.values(viewTimers.current).forEach(clearTimeout);
     };
-  }, [currentIndex, reels]);
+  }, [currentIndex, visibleReels]);
 
   const startViewTracking = (reelId: string) => {
     if (!reelId || viewTimers.current[reelId]) return;
@@ -139,16 +262,18 @@ const ReelsPage = () => {
     const container = e.currentTarget;
     const scrollTop = container.scrollTop;
     const itemHeight = container.clientHeight;
+    if (!itemHeight) return;
     const newIndex = Math.round(scrollTop / itemHeight);
 
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < reels.length) {
+    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < visibleReels.length) {
       setCurrentIndex(newIndex);
 
-      if (newIndex >= reels.length - 2 && hasMore && !loading) {
-        fetchReels();
+      if (newIndex >= visibleReels.length - 2 && visibleHasMore && !visibleLoading) {
+        if (activeTab === 'following') void fetchFollowingReels();
+        else void fetchReels();
       }
     }
-  }, [currentIndex, reels.length, hasMore, loading, fetchReels]);
+  }, [activeTab, currentIndex, fetchFollowingReels, fetchReels, visibleHasMore, visibleLoading, visibleReels.length]);
 
   const togglePlayPause = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -206,21 +331,11 @@ const ReelsPage = () => {
     }
   };
 
-  const handleSave = (reelId: string) => {
-    setSavedReels(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(reelId)) {
-        newSet.delete(reelId);
-        toast({ title: 'Removed from saved' });
-      } else {
-        newSet.add(reelId);
-        toast({ title: 'Saved to collection' });
-      }
-      return newSet;
-    });
+  const handleSave = async (reelId: string) => {
+    await toggleSaveReel(reelId);
   };
 
-  const handleShare = async (reel: any) => {
+  const handleShare = async (reel: Reel) => {
     const shareData = {
       title: reel.caption || 'Check out this reel!',
       text: `Check out this reel by ${reel.creator_name}`,
@@ -232,21 +347,64 @@ const ReelsPage = () => {
         await navigator.share(shareData);
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
-          copyToClipboard(shareData.url);
+          await copyToClipboard(shareData.url);
         }
       }
     } else {
-      copyToClipboard(shareData.url);
+      await copyToClipboard(shareData.url);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: 'Link copied!' });
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: 'Link copied!' });
+    } catch (error) {
+      console.error('Could not copy reel link:', error);
+      toast({ title: 'Could not copy the link', description: text, variant: 'destructive' });
+    }
+  };
+
+  const handleFollowCreator = async (reel: Reel) => {
+    if (!user) {
+      toast({ title: 'Sign in to follow creators', variant: 'destructive' });
+      return;
+    }
+    if (followActions.has(reel.user_id)) return;
+
+    setFollowActions((previous) => new Set(previous).add(reel.user_id));
+    try {
+      if (followingIds.has(reel.user_id) || pendingFollowingIds.has(reel.user_id)) {
+        await unfollowUser(reel.user_id);
+        return;
+      }
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('is_private')
+        .eq('id', reel.user_id)
+        .single();
+      if (error) throw error;
+      await followUser(reel.user_id, profile.is_private);
+    } catch (error) {
+      console.error('Could not follow reel creator:', error);
+      toast({ title: 'Could not update follow status', variant: 'destructive' });
+    } finally {
+      setFollowActions((previous) => {
+        const next = new Set(previous);
+        next.delete(reel.user_id);
+        return next;
+      });
+    }
   };
 
   const handleOpenComments = async (reelId: string) => {
     const fetchedComments = await fetchComments(reelId);
+    const initialLikes = Object.fromEntries(fetchedComments.map((comment) => [comment.id, comment.likes_count || 0]));
+    const initialLiked = new Set(fetchedComments.filter((comment) => comment.is_liked).map((comment) => comment.id));
+    const initialPinned = new Set(fetchedComments.filter((comment) => comment.is_pinned).map((comment) => comment.id));
+    setCommentLikes(initialLikes);
+    setLikedComments(initialLiked);
+    setPinnedComments(initialPinned);
     // Organize comments with replies
     const parentComments = fetchedComments.filter(c => !c.parent_id);
     const replies = fetchedComments.filter(c => c.parent_id);
@@ -254,9 +412,9 @@ const ReelsPage = () => {
     const commentsWithReplies = parentComments.map(comment => ({
       ...comment,
       replies: replies.filter(r => r.parent_id === comment.id),
-      likes_count: commentLikes[comment.id] || 0,
-      is_liked: likedComments.has(comment.id),
-      is_pinned: pinnedComments.has(comment.id)
+      likes_count: initialLikes[comment.id] || 0,
+      is_liked: initialLiked.has(comment.id),
+      is_pinned: initialPinned.has(comment.id)
     }));
 
     // Sort: pinned first, then by date
@@ -274,19 +432,33 @@ const ReelsPage = () => {
     if (!newComment.trim() || loadingComment) return;
 
     setLoadingComment(true);
-    const reel = reels[currentIndex];
-    await addComment(reel.id, newComment, replyingTo || undefined);
+    const reel = visibleReels[currentIndex];
+    if (!reel) {
+      setLoadingComment(false);
+      return;
+    }
+    const createdComment = await addComment(reel.id, newComment, replyingTo || undefined);
+    if (!createdComment) {
+      setLoadingComment(false);
+      return;
+    }
 
     const updatedComments = await fetchComments(reel.id);
+    const refreshedLikes = Object.fromEntries(updatedComments.map((comment) => [comment.id, comment.likes_count || 0]));
+    const refreshedLiked = new Set(updatedComments.filter((comment) => comment.is_liked).map((comment) => comment.id));
+    const refreshedPinned = new Set(updatedComments.filter((comment) => comment.is_pinned).map((comment) => comment.id));
+    setCommentLikes(refreshedLikes);
+    setLikedComments(refreshedLiked);
+    setPinnedComments(refreshedPinned);
     const parentComments = updatedComments.filter(c => !c.parent_id);
     const replies = updatedComments.filter(c => c.parent_id);
 
     const commentsWithReplies = parentComments.map(comment => ({
       ...comment,
       replies: replies.filter(r => r.parent_id === comment.id),
-      likes_count: commentLikes[comment.id] || 0,
-      is_liked: likedComments.has(comment.id),
-      is_pinned: pinnedComments.has(comment.id)
+      likes_count: refreshedLikes[comment.id] || 0,
+      is_liked: refreshedLiked.has(comment.id),
+      is_pinned: refreshedPinned.has(comment.id)
     }));
 
     commentsWithReplies.sort((a, b) => {
@@ -307,59 +479,93 @@ const ReelsPage = () => {
     commentInputRef.current?.focus();
   };
 
-  const handleLikeComment = (commentId: string) => {
-    setLikedComments(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-        setCommentLikes(p => ({ ...p, [commentId]: (p[commentId] || 1) - 1 }));
-      } else {
-        newSet.add(commentId);
-        setCommentLikes(p => ({ ...p, [commentId]: (p[commentId] || 0) + 1 }));
-      }
-      return newSet;
+  const handleLikeComment = async (commentId: string) => {
+    if (!user || commentActionLocks.current.has(commentId)) return;
+    commentActionLocks.current.add(commentId);
+    const wasLiked = likedComments.has(commentId);
+    const previousCount = commentLikes[commentId] || 0;
+    setLikedComments((previous) => {
+      const next = new Set(previous);
+      if (wasLiked) next.delete(commentId);
+      else next.add(commentId);
+      return next;
     });
+    setCommentLikes((previous) => ({
+      ...previous,
+      [commentId]: Math.max(0, previousCount + (wasLiked ? -1 : 1)),
+    }));
+    try {
+      const result = wasLiked
+        ? await supabase.from('reel_comment_likes').delete().eq('comment_id', commentId).eq('user_id', user.id)
+        : await supabase.from('reel_comment_likes').insert({ comment_id: commentId, user_id: user.id });
+      if (result.error) throw result.error;
+    } catch (error) {
+      setLikedComments((previous) => {
+        const next = new Set(previous);
+        if (wasLiked) next.add(commentId);
+        else next.delete(commentId);
+        return next;
+      });
+      setCommentLikes((previous) => ({ ...previous, [commentId]: previousCount }));
+      console.error('Could not update reel comment like:', error);
+      toast({ title: 'Could not update comment like', variant: 'destructive' });
+    } finally {
+      commentActionLocks.current.delete(commentId);
+    }
   };
 
-  const handlePinComment = (commentId: string) => {
-    const reel = reels[currentIndex];
+  const handlePinComment = async (commentId: string) => {
+    const reel = visibleReels[currentIndex];
+    if (!reel) return;
     if (reel.user_id !== user?.id) {
       toast({ title: 'Only the reel author can pin comments', variant: 'destructive' });
       return;
     }
+    if (pinnedCommentLock.current) return;
+    pinnedCommentLock.current = true;
 
-    setPinnedComments(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-        toast({ title: 'Comment unpinned' });
-      } else {
-        // Only allow one pinned comment
-        newSet.clear();
-        newSet.add(commentId);
-        toast({ title: 'Comment pinned' });
+    const previousPinned = new Set(pinnedComments);
+    const wasPinned = previousPinned.has(commentId);
+    const nextPinned = wasPinned ? new Set<string>() : new Set([commentId]);
+    const applyPinned = (pinned: Set<string>) => {
+      setPinnedComments(pinned);
+      setComments((previous) => [...previous]
+        .map((comment) => ({ ...comment, is_pinned: pinned.has(comment.id) }))
+        .sort((a, b) => {
+          if (a.is_pinned && !b.is_pinned) return -1;
+          if (!a.is_pinned && b.is_pinned) return 1;
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        }));
+    };
+    applyPinned(nextPinned);
+    try {
+      if (wasPinned) {
+        const { error } = await supabase.from('reel_comment_pins')
+          .delete()
+          .eq('reel_id', reel.id)
+          .eq('comment_id', commentId);
+        if (error) throw error;
+      } else if (user) {
+        const { error } = await supabase.from('reel_comment_pins').upsert({
+          reel_id: reel.id,
+          comment_id: commentId,
+          user_id: user.id,
+        }, { onConflict: 'reel_id' });
+        if (error) throw error;
       }
-      return newSet;
-    });
-
-    // Re-sort comments
-    setComments(prev => {
-      const sorted = [...prev].sort((a, b) => {
-        const aIsPinned = pinnedComments.has(a.id) || a.id === commentId;
-        const bIsPinned = pinnedComments.has(b.id);
-        if (aIsPinned && !bIsPinned) return -1;
-        if (!aIsPinned && bIsPinned) return 1;
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      });
-      return sorted;
-    });
+      toast({ title: wasPinned ? 'Comment unpinned' : 'Comment pinned' });
+    } catch (error) {
+      applyPinned(previousPinned);
+      console.error('Could not update pinned reel comment:', error);
+      toast({ title: 'Could not update pinned comment', variant: 'destructive' });
+    } finally {
+      pinnedCommentLock.current = false;
+    }
   };
 
   const handleDeleteReel = async (reelId: string) => {
     await deleteReel(reelId);
-    if (currentIndex > 0) {
-      setCurrentIndex(prev => prev - 1);
-    }
+    setCurrentIndex((index) => Math.max(0, Math.min(index, visibleReels.length - 1)));
   };
 
   const toggleShowReplies = (commentId: string) => {
@@ -376,7 +582,8 @@ const ReelsPage = () => {
 
   const handleReelCreated = () => {
     setCreateDialogOpen(false);
-    fetchReels(true);
+    void fetchReels(true);
+    if (activeTab === 'following') void fetchFollowingReels(true);
   };
 
   const formatCount = (count: number) => {
@@ -430,9 +637,9 @@ const ReelsPage = () => {
     return user?.id === reelUserId;
   };
 
-  if (loading && reels.length === 0) {
+  if (activeTab === 'forYou' && loading && reels.length === 0) {
     return (
-      <div className="h-screen bg-black flex items-center justify-center">
+      <div className="h-[100dvh] bg-black flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-white" />
           <p className="text-white/70">Loading reels...</p>
@@ -441,9 +648,9 @@ const ReelsPage = () => {
     );
   }
 
-  if (reels.length === 0) {
+  if (activeTab === 'forYou' && reels.length === 0) {
     return (
-      <div className="h-screen bg-black flex flex-col">
+      <div className="h-[100dvh] bg-black flex flex-col">
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="text-center max-w-md">
             <div className="mx-auto w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mb-6">
@@ -473,7 +680,7 @@ const ReelsPage = () => {
   }
 
   return (
-    <div className="h-screen bg-black overflow-hidden relative">
+    <div className="h-[100dvh] bg-black overflow-hidden relative">
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/70 to-transparent">
         <div className="flex items-center gap-2">
@@ -490,18 +697,18 @@ const ReelsPage = () => {
         {/* Tabs */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => setActiveTab('forYou')}
+            onClick={() => selectTab('forYou')}
             className={cn(
-              "text-sm font-semibold transition-all",
+              "min-h-11 px-1 text-sm font-semibold transition-all",
               activeTab === 'forYou' ? "text-white" : "text-white/50"
             )}
           >
             For You
           </button>
           <button
-            onClick={() => setActiveTab('following')}
+            onClick={() => selectTab('following')}
             className={cn(
-              "text-sm font-semibold transition-all",
+              "min-h-11 px-1 text-sm font-semibold transition-all",
               activeTab === 'following' ? "text-white" : "text-white/50"
             )}
           >
@@ -522,14 +729,35 @@ const ReelsPage = () => {
       {/* Reels Container */}
       <div
         ref={containerRef}
-        className="h-full overflow-y-scroll snap-y snap-mandatory scrollbar-hide touch-pan-y overscroll-contain"
+        className="h-full overflow-y-auto snap-y snap-mandatory scrollbar-hide touch-pan-y overscroll-contain"
         onScroll={handleScroll}
         style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch' }}
       >
-        {reels.map((reel, index) => (
+        {activeTab === 'following' && visibleReels.length === 0 ? (
+          <div className="flex h-[100dvh] flex-col items-center justify-center px-8 text-center text-white">
+            <Film className="mb-4 h-12 w-12 text-white/60" />
+            <h2 className="text-xl font-semibold">
+              {followingUsersLoading ? 'Loading followed creators…' : followingIds.size === 0 ? 'Follow creators to see their reels' : 'No reels from followed creators yet'}
+            </h2>
+            <p className="mt-2 max-w-sm text-sm text-white/60">
+              {followingIds.size === 0 ? 'When you follow someone, their reels will appear here.' : 'Check back later or discover more creators.'}
+            </p>
+            {followingIds.size === 0 && !followingUsersLoading && (
+              <Button className="mt-5" variant="secondary" onClick={() => navigate('/explore')}>
+                Explore creators
+              </Button>
+            )}
+            {followingIds.size > 0 && followingHasMore && (
+              <Button className="mt-5" variant="secondary" onClick={() => void fetchFollowingReels()}>
+                Load more
+              </Button>
+            )}
+            {followingFeedLoading && <Loader2 className="mt-5 h-6 w-6 animate-spin" />}
+          </div>
+        ) : visibleReels.map((reel, index) => (
           <div
             key={reel.id}
-            className="h-screen w-full snap-start snap-always relative flex items-center justify-center bg-black"
+            className="h-[100dvh] w-full snap-start snap-always relative flex items-center justify-center bg-black"
             style={{ scrollSnapAlign: 'start' }}
           >
             {/* Video */}
@@ -582,7 +810,10 @@ const ReelsPage = () => {
             )}
 
             {/* Right Side Actions */}
-            <div className="absolute right-3 bottom-32 flex flex-col items-center gap-5 z-20">
+            <div
+              className="absolute right-3 z-20 flex flex-col items-center gap-3"
+              style={{ bottom: 'calc(max(env(safe-area-inset-bottom, 0px), 1rem) + 8rem)' }}
+            >
               {/* Creator Avatar with Follow */}
               <div className="relative">
                 <Avatar
@@ -595,7 +826,13 @@ const ReelsPage = () => {
                   </AvatarFallback>
                 </Avatar>
                 {!isOwnReel(reel.user_id) && (
-                  <button className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center">
+                  <button
+                    type="button"
+                    onClick={() => void handleFollowCreator(reel)}
+                    disabled={followActions.has(reel.user_id)}
+                    aria-label={pendingFollowingIds.has(reel.user_id) ? 'Cancel follow request' : followingIds.has(reel.user_id) ? 'Unfollow creator' : 'Follow creator'}
+                    className="absolute -bottom-2 left-1/2 flex h-7 w-7 -translate-x-1/2 items-center justify-center rounded-full bg-red-500 shadow-md disabled:opacity-60"
+                  >
                     <Plus className="h-3 w-3 text-white" />
                   </button>
                 )}
@@ -603,7 +840,8 @@ const ReelsPage = () => {
 
               {/* Like */}
               <button
-                onClick={() => handleLike(reel.id)}
+                onClick={() => void handleLike(reel.id)}
+                aria-label={reel.is_liked ? 'Unlike reel' : 'Like reel'}
                 disabled={likingReels.has(reel.id)}
                 className={cn(
                   "flex flex-col items-center gap-1 transition-transform",
@@ -625,7 +863,8 @@ const ReelsPage = () => {
 
               {/* Comment */}
               <button
-                onClick={() => handleOpenComments(reel.id)}
+                onClick={() => void handleOpenComments(reel.id)}
+                aria-label="Open comments"
                 className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
               >
                 <MessageCircle className="h-7 w-7 text-white drop-shadow-lg" />
@@ -636,7 +875,8 @@ const ReelsPage = () => {
 
               {/* Share */}
               <button
-                onClick={() => handleShare(reel)}
+                onClick={() => void handleShare(reel)}
+                aria-label="Share reel"
                 className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
               >
                 <Share2 className="h-6 w-6 text-white drop-shadow-lg" />
@@ -645,13 +885,14 @@ const ReelsPage = () => {
 
               {/* Save */}
               <button
-                onClick={() => handleSave(reel.id)}
+                onClick={() => void handleSave(reel.id)}
+                aria-label={savedReelIds.has(reel.id) ? 'Remove saved reel' : 'Save reel'}
                 className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
               >
                 <Bookmark
                   className={cn(
                     "h-6 w-6 transition-all drop-shadow-lg",
-                    savedReels.has(reel.id) ? "fill-white text-white" : "text-white"
+                    savedReelIds.has(reel.id) ? "fill-white text-white" : "text-white"
                   )}
                 />
               </button>
@@ -659,7 +900,7 @@ const ReelsPage = () => {
               {/* More Options */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="active:scale-90 transition-transform">
+                  <button type="button" aria-label="More reel actions" className="min-h-11 min-w-11 active:scale-90 transition-transform">
                     <MoreHorizontal className="h-6 w-6 text-white drop-shadow-lg" />
                   </button>
                 </DropdownMenuTrigger>
@@ -680,11 +921,17 @@ const ReelsPage = () => {
                     </>
                   ) : (
                     <>
-                      <DropdownMenuItem className="flex items-center gap-2">
+                      <DropdownMenuItem className="flex items-center gap-2" onClick={() => void handleFollowCreator(reel)}>
                         <UserPlus className="h-4 w-4" />
-                        <span>Follow {reel.creator_name}</span>
+                        <span>
+                          {pendingFollowingIds.has(reel.user_id)
+                            ? 'Cancel follow request'
+                            : followingIds.has(reel.user_id)
+                              ? `Unfollow ${reel.creator_name}`
+                              : `Follow ${reel.creator_name}`}
+                        </span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="flex items-center gap-2">
+                      <DropdownMenuItem className="flex items-center gap-2" onClick={() => setReportingUser(reel)}>
                         <Flag className="h-4 w-4" />
                         <span>Report</span>
                       </DropdownMenuItem>
@@ -695,7 +942,10 @@ const ReelsPage = () => {
             </div>
 
             {/* Bottom Info */}
-            <div className="absolute left-4 right-20 bottom-8 z-20 text-white">
+            <div
+              className="absolute left-4 right-20 z-20 text-white"
+              style={{ bottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}
+            >
               {/* Creator Info */}
               <div className="flex items-center gap-2 mb-3">
                 <span
@@ -708,7 +958,14 @@ const ReelsPage = () => {
                 {!isOwnReel(reel.user_id) && (
                   <>
                     <span className="text-white/60">·</span>
-                    <button className="text-sm font-semibold hover:opacity-80 transition-opacity">Follow</button>
+                    <button
+                      type="button"
+                      onClick={() => void handleFollowCreator(reel)}
+                      disabled={followActions.has(reel.user_id)}
+                      className="min-h-11 px-2 text-sm font-semibold hover:opacity-80 transition-opacity disabled:opacity-60"
+                    >
+                      {pendingFollowingIds.has(reel.user_id) ? 'Requested' : followingIds.has(reel.user_id) ? 'Following' : 'Follow'}
+                    </button>
                   </>
                 )}
                 {isOwnReel(reel.user_id) && (
@@ -751,7 +1008,9 @@ const ReelsPage = () => {
             {/* Mute Button */}
             <button
               onClick={toggleMute}
-              className="absolute right-3 bottom-8 z-20 h-8 w-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center active:scale-90 transition-transform"
+              aria-label={isMuted ? 'Unmute reel' : 'Mute reel'}
+              className="absolute right-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/30 backdrop-blur-sm active:scale-90 transition-transform"
+              style={{ bottom: 'max(env(safe-area-inset-bottom, 0px), 1rem)' }}
             >
               {isMuted ? (
                 <VolumeX className="h-4 w-4 text-white" />
@@ -763,7 +1022,7 @@ const ReelsPage = () => {
         ))}
 
         {loading && (
-          <div className="h-screen flex items-center justify-center bg-black">
+          <div className="h-[100dvh] flex items-center justify-center bg-black">
             <Loader2 className="h-8 w-8 animate-spin text-white" />
           </div>
         )}
@@ -775,6 +1034,14 @@ const ReelsPage = () => {
         onOpenChange={setCreateDialogOpen}
         onReelCreated={handleReelCreated}
       />
+      {reportingUser && (
+        <ReportUserDialog
+          userId={reportingUser.user_id}
+          userName={reportingUser.creator_name || 'this creator'}
+          open={!!reportingUser}
+          onOpenChange={(open) => { if (!open) setReportingUser(null); }}
+        />
+      )}
 
       {/* Comments Sheet */}
       <Sheet open={commentsOpen} onOpenChange={setCommentsOpen}>
@@ -842,7 +1109,7 @@ const ReelsPage = () => {
                             />
                             <span>{commentLikes[comment.id] || 0}</span>
                           </button>
-                          {isOwnReel(reels[currentIndex]?.user_id) && (
+                          {isOwnReel(visibleReels[currentIndex]?.user_id) && (
                             <button
                               onClick={() => handlePinComment(comment.id)}
                               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"

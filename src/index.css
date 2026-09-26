@@ -14,6 +14,17 @@ body,
   background: hsl(var(--background));
 }
 
+.text-muted-foreground {
+  color: color-mix(in srgb, hsl(var(--muted-foreground)) 76%, hsl(var(--foreground)) 24%);
+  transition: color 180ms ease;
+}
+
+.settings-page .text-muted-foreground,
+.chat-settings-page .text-muted-foreground {
+  color: hsl(var(--foreground) / 0.82);
+  transition: color 180ms ease;
+}
+
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }
@@ -848,39 +859,6 @@ html.dark[data-contrast='dim'] {
   --border: 169 14% 20%;
   --input: 169 14% 20%;
   --muted-foreground: 162 12% 70%;
-}
-
-/* Curious Blue (#2092E9) background with clean white text */
-[data-color-theme="curious-blue"] {
-  --background: 206 81% 52%;
-  --foreground: 80 11% 96%;
-  --card: 206 81% 56%;
-  --card-foreground: 80 11% 96%;
-  --popover: 206 81% 56%;
-  --popover-foreground: 80 11% 96%;
-  --primary: 80 11% 96%;
-  --primary-foreground: 206 81% 52%;
-  --primary-hover: 80 11% 90%;
-  --secondary: 206 75% 60%;
-  --secondary-foreground: 80 11% 96%;
-  --muted: 206 70% 58%;
-  --muted-foreground: 80 11% 88%;
-  --accent: 80 11% 96%;
-  --accent-foreground: 206 81% 52%;
-  --border: 206 70% 64%;
-  --input: 206 70% 64%;
-  --ring: 80 11% 96%;
-  --gradient-primary: linear-gradient(135deg, hsl(80 11% 96%) 0%, hsl(80 11% 92%) 100%);
-  --gradient-card: linear-gradient(to bottom, hsl(206 81% 56%), hsl(206 75% 60%));
-  --shadow-glow: 0 0 40px hsl(80 11% 96% / 0.3);
-}
-
-[data-color-theme="curious-blue"].dark {
-  --background: 206 85% 48%;
-  --card: 206 81% 52%;
-  --primary: 80 11% 96%;
-  --border: 206 75% 60%;
-  --input: 206 75% 60%;
 }
 
 /* Mulled Wine (#614D70) background with clean white text */
@@ -2271,39 +2249,6 @@ html.dark[data-contrast='dim'] {
   --border: 169 14% 20%;
   --input: 169 14% 20%;
   --muted-foreground: 162 12% 70%;
-}
-
-/* Curious Blue (#2092E9) background with clean white text */
-[data-color-theme="curious-blue"] {
-  --background: 206 81% 52%;
-  --foreground: 80 11% 96%;
-  --card: 206 81% 56%;
-  --card-foreground: 80 11% 96%;
-  --popover: 206 81% 56%;
-  --popover-foreground: 80 11% 96%;
-  --primary: 80 11% 96%;
-  --primary-foreground: 206 81% 52%;
-  --primary-hover: 80 11% 90%;
-  --secondary: 206 75% 60%;
-  --secondary-foreground: 80 11% 96%;
-  --muted: 206 70% 58%;
-  --muted-foreground: 80 11% 88%;
-  --accent: 80 11% 96%;
-  --accent-foreground: 206 81% 52%;
-  --border: 206 70% 64%;
-  --input: 206 70% 64%;
-  --ring: 80 11% 96%;
-  --gradient-primary: linear-gradient(135deg, hsl(80 11% 96%) 0%, hsl(80 11% 92%) 100%);
-  --gradient-card: linear-gradient(to bottom, hsl(206 81% 56%), hsl(206 75% 60%));
-  --shadow-glow: 0 0 40px hsl(80 11% 96% / 0.3);
-}
-
-[data-color-theme="curious-blue"].dark {
-  --background: 206 85% 48%;
-  --card: 206 81% 52%;
-  --primary: 80 11% 96%;
-  --border: 206 75% 60%;
-  --input: 206 75% 60%;
 }
 
 /* Mulled Wine (#614D70) background with clean white text */
@@ -3432,6 +3377,10 @@ html[data-skin="fb26"] .animate-message-receive {
   opacity: var(--peek-opacity, 0);
   pointer-events: none;
   color: hsl(var(--muted-foreground));
+}
+
+.msg-bubble {
+  transition: background-color 240ms ease, color 180ms ease;
 }
 
 .msg-bubble[data-first-of-group='false'] {

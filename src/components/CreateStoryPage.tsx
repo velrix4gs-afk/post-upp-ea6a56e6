@@ -144,13 +144,10 @@ const CreateStoryPage = () => {
 
     setUploading(true);
     try {
-      if (mode === 'media' && mediaFile) {
-        await createStory(undefined, mediaFile);
-      } else {
-        await createStory(text, undefined);
-      }
-      toast({ title: 'Story posted! 🎉' });
-      navigate('/');
+      const success = mode === 'media' && mediaFile
+        ? await createStory(undefined, mediaFile, audience)
+        : await createStory(text, undefined, audience);
+      if (success) navigate('/');
     } catch (error) {
       console.error('Story creation error:', error);
       toast({ title: 'Failed to post story', variant: 'destructive' });

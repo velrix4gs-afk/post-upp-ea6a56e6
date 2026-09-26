@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,30 +22,15 @@ interface ClearChatDialogProps {
 
 export const ClearChatDialog = ({ chatId, open, onOpenChange, onCleared }: ClearChatDialogProps) => {
   const { user } = useAuth();
+  const [clearing, setClearing] = useState(false);
 
   const handleClear = async () => {
-    if (!user) return;
+    if (!user || clearing) return;
 
+    setClearing(true);
     try {
-      // Soft delete: add user to deleted_for array
-      const { data: messages } = await supabase
-        .from('messages')
-        .select('id, deleted_for')
-        .eq('chat_id', chatId);
-
-      if (messages) {
-        for (const message of messages) {
-          const deletedFor = message.deleted_for || [];
-          if (!deletedFor.includes(user.id)) {
-            await supabase
-              .from('messages')
-              .update({
-                deleted_for: [...deletedFor, user.id],
-              })
-              .eq('id', message.id);
-          }
-        }
-      }
+      const { error } = await supabase.rpc('clear_chat_for_user', { p_chat_id: chatId });
+      if (error) throw error;
 
       toast({ title: 'Chat history cleared' });
       onCleared();
@@ -52,6 +38,8 @@ export const ClearChatDialog = ({ chatId, open, onOpenChange, onCleared }: Clear
     } catch (error) {
       console.error('Error clearing chat:', error);
       toast({ title: 'Failed to clear chat', variant: 'destructive' });
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -65,9 +53,9 @@ export const ClearChatDialog = ({ chatId, open, onOpenChange, onCleared }: Clear
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleClear} className="bg-destructive text-destructive-foreground">
-            Clear Chat
+          <AlertDialogCancel disabled={clearing}>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleClear} disabled={clearing} className="bg-destructive text-destructive-foreground">
+            {clearing ? 'Clearing…' : 'Clear Chat'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

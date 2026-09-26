@@ -1,69 +1,105 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Video, FileText, Link as LinkIcon } from 'lucide-react';
+import { Image, Video, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from '@/hooks/use-toast';
+import type { Database } from '@/integrations/supabase/types';
+
+type ChatMediaMessage = Pick<
+  Database['public']['Tables']['messages']['Row'],
+  'id' | 'content' | 'media_url' | 'media_type' | 'created_at'
+>;
+type ChatLink = ChatMediaMessage & { link: string };
 
 interface ChatMediaTabProps {
   chatId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const ChatMediaTab = ({ chatId }: ChatMediaTabProps) => {
-  const [media, setMedia] = useState<{ images: any[]; videos: any[]; files: any[]; links: any[] }>({
+export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) => {
+  const [loading, setLoading] = useState(false);
+  const [media, setMedia] = useState<{
+    images: ChatMediaMessage[];
+    videos: ChatMediaMessage[];
+    files: ChatMediaMessage[];
+    links: ChatLink[];
+  }>({
     images: [],
     videos: [],
     files: [],
     links: [],
   });
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    fetchChatMedia();
-  }, [chatId]);
+    if (!open) return;
+    let cancelled = false;
+    const fetchChatMedia = async () => {
+      setLoading(true);
+      setLoadError(false);
+      try {
+        const { data: messages, error } = await supabase
+          .from('messages')
+          .select('id, content, media_url, media_type, created_at')
+          .eq('chat_id', chatId)
+          .order('created_at', { ascending: false })
+          .limit(500);
 
-  const fetchChatMedia = async () => {
-    try {
-      const { data: messages, error } = await supabase
-        .from('messages')
-        .select('id, content, media_url, media_type, created_at')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (cancelled) return;
 
-      if (error) throw error;
+        const images: ChatMediaMessage[] = [];
+        const videos: ChatMediaMessage[] = [];
+        const files: ChatMediaMessage[] = [];
+        const links: ChatLink[] = [];
 
-      const images: any[] = [];
-      const videos: any[] = [];
-      const files: any[] = [];
-      const links: any[] = [];
+        messages?.forEach((msg) => {
+          if (msg.media_url) {
+          if (msg.media_type === 'image') {
+            images.push(msg);
+          } else if (msg.media_type === 'video') {
+            videos.push(msg);
+          } else if (msg.media_type && msg.media_type !== 'audio') {
+            files.push(msg);
+          }
+          }
 
-      messages?.forEach((msg) => {
-        if (msg.media_type === 'image') {
-          images.push(msg);
-        } else if (msg.media_type === 'video') {
-          videos.push(msg);
-        } else if (msg.media_type && msg.media_type !== 'audio') {
-          files.push(msg);
+          const foundLinks = msg.content?.match(/https?:\/\/[^\s]+/g);
+          foundLinks?.forEach((link) => links.push({ ...msg, link }));
+        });
+
+        setMedia({ images, videos, files, links });
+      } catch (error) {
+        console.error('Error fetching chat media:', error);
+        if (!cancelled) {
+          setLoadError(true);
+          toast({ title: 'Could not load shared media', variant: 'destructive' });
         }
-
-        // Extract links from content
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const foundLinks = msg.content?.match(urlRegex);
-        if (foundLinks) {
-          foundLinks.forEach((link) => {
-            links.push({ ...msg, link });
-          });
-        }
-      });
-
-      setMedia({ images, videos, files, links });
-    } catch (error) {
-      console.error('Error fetching chat media:', error);
-    }
-  };
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void fetchChatMedia();
+    return () => { cancelled = true; };
+  }, [chatId, open]);
 
   return (
-    <Card className="p-4">
-      <Tabs defaultValue="images" className="w-full">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[85dvh] flex-col sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Shared media</DialogTitle>
+          <DialogDescription>Photos, videos, files, and links shared in this chat.</DialogDescription>
+        </DialogHeader>
+        <Tabs defaultValue="images" className="flex min-h-0 w-full flex-1 flex-col">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="images">
             <Image className="h-4 w-4 mr-2" />
@@ -83,64 +119,85 @@ export const ChatMediaTab = ({ chatId }: ChatMediaTabProps) => {
           </TabsTrigger>
         </TabsList>
 
+        {loading ? (
+          <div className="flex h-64 items-center justify-center text-muted-foreground">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Loading shared media…
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="flex h-64 items-center justify-center text-sm text-destructive">
+            Shared media could not be loaded. Close and reopen this panel to try again.
+          </div>
+        ) : (
+          <>
         <TabsContent value="images">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[min(400px,55dvh)]">
             <div className="grid grid-cols-3 gap-2">
               {media.images.map((item) => (
-                <div key={item.id} className="aspect-square rounded-lg overflow-hidden">
+                <a
+                  key={item.id}
+                  href={item.media_url || undefined}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="aspect-square overflow-hidden rounded-lg"
+                  aria-label="Open shared photo"
+                >
                   <img
-                    src={item.media_url}
+                    src={item.media_url || undefined}
                     alt="Chat media"
                     className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                   />
-                </div>
+                </a>
               ))}
             </div>
+            {media.images.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No photos shared yet.</p>}
           </ScrollArea>
         </TabsContent>
 
         <TabsContent value="videos">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[min(400px,55dvh)]">
             <div className="grid grid-cols-2 gap-2">
               {media.videos.map((item) => (
                 <div key={item.id} className="aspect-video rounded-lg overflow-hidden">
                   <video
-                    src={item.media_url}
+                    src={item.media_url || undefined}
                     controls
                     className="w-full h-full object-cover"
                   />
                 </div>
               ))}
             </div>
+            {media.videos.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No videos shared yet.</p>}
           </ScrollArea>
         </TabsContent>
 
         <TabsContent value="files">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[min(400px,55dvh)]">
             <div className="space-y-2">
               {media.files.map((item) => (
                 <a
                   key={item.id}
-                  href={item.media_url}
+                  href={item.media_url || undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-accent transition-colors"
                 >
                   <FileText className="h-8 w-8 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.media_url.split('/').pop()}</p>
+                    <p className="font-medium truncate">{item.media_url?.split('/').pop() || 'Shared file'}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(item.created_at).toLocaleDateString()}
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                     </p>
                   </div>
                 </a>
               ))}
             </div>
+            {media.files.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No files shared yet.</p>}
           </ScrollArea>
         </TabsContent>
 
         <TabsContent value="links">
-          <ScrollArea className="h-[400px]">
+          <ScrollArea className="h-[min(400px,55dvh)]">
             <div className="space-y-2">
               {media.links.map((item, idx) => (
                 <a
@@ -154,15 +211,19 @@ export const ChatMediaTab = ({ chatId }: ChatMediaTabProps) => {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm truncate text-primary">{item.link}</p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(item.created_at).toLocaleDateString()}
+                      {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                     </p>
                   </div>
                 </a>
               ))}
             </div>
+            {media.links.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No links shared yet.</p>}
           </ScrollArea>
         </TabsContent>
+          </>
+        )}
       </Tabs>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };

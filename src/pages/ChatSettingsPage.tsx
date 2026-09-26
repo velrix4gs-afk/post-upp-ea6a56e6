@@ -100,7 +100,7 @@ const ChatSettingsPage = () => {
       <Navigation />
       <BackNavigation title="Chat Settings" />
       
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
+      <main className="chat-settings-page container mx-auto px-4 py-6 max-w-2xl">
         <div className="space-y-6">
           {/* Notifications */}
           <Card className="p-6">

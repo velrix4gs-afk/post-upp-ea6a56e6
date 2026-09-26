@@ -14,10 +14,12 @@ interface TypingEvent {
 }
 
 const FADE_MS = 260;
+const STALE_TYPING_MS = 4500;
 
 const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
   const { user } = useAuth();
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [typingUsers, setTypingUsers] = useState<Array<{ id: string; name: string }>>([]);
+  const typingTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   // Keeps the bubble mounted through the fade-out so it never snap-vanishes.
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -26,6 +28,7 @@ const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
   useEffect(() => {
     if (!chatId || !user) return;
 
+    const timers = typingTimers.current;
     const channel = supabase
       .channel(`typing:${chatId}`)
       .on('broadcast', { event: 'typing' }, (payload) => {
@@ -33,21 +36,37 @@ const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
 
         if (event.user_id !== user.id) {
           if (event.is_typing) {
-            setTypingUsers((prev) => [...new Set([...prev, event.display_name])]);
+            const previousTimer = timers.get(event.user_id);
+            if (previousTimer) clearTimeout(previousTimer);
+            timers.set(event.user_id, setTimeout(() => {
+              timers.delete(event.user_id);
+              setTypingUsers((previous) => previous.filter((typingUser) => typingUser.id !== event.user_id));
+            }, STALE_TYPING_MS));
+            setTypingUsers((prev) => [
+              ...prev.filter((typingUser) => typingUser.id !== event.user_id),
+              { id: event.user_id, name: event.display_name || 'Someone' },
+            ]);
           } else {
-            setTypingUsers((prev) => prev.filter((name) => name !== event.display_name));
+            const previousTimer = timers.get(event.user_id);
+            if (previousTimer) clearTimeout(previousTimer);
+            timers.delete(event.user_id);
+            setTypingUsers((prev) => prev.filter((typingUser) => typingUser.id !== event.user_id));
           }
         }
       })
       .subscribe();
 
     return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
       supabase.removeChannel(channel);
     };
   }, [chatId, user]);
 
   // Reset when switching conversations so a stale bubble never carries over.
   useEffect(() => {
+    typingTimers.current.forEach(clearTimeout);
+    typingTimers.current.clear();
     setTypingUsers([]);
   }, [chatId]);
 
@@ -78,8 +97,8 @@ const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
     typingUsers.length === 0
       ? ''
       : typingUsers.length === 1
-      ? `${typingUsers[0]} is typing`
-      : `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} are typing`;
+      ? `${typingUsers[0].name} is typing`
+      : `${typingUsers.slice(0, 2).map((typingUser) => typingUser.name).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} are typing`;
 
   return (
     <div

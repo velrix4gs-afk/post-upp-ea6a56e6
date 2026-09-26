@@ -49,6 +49,30 @@ export type Database = {
           },
         ]
       }
+      ai_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       blocked_users: {
         Row: {
           blocked_user_id: string
@@ -442,6 +466,7 @@ export type Database = {
           chat_id: string
           created_at: string | null
           id: string
+          is_archived: boolean
           is_muted: boolean | null
           is_pinned: boolean | null
           muted_until: string | null
@@ -456,6 +481,7 @@ export type Database = {
           chat_id: string
           created_at?: string | null
           id?: string
+          is_archived?: boolean
           is_muted?: boolean | null
           is_pinned?: boolean | null
           muted_until?: string | null
@@ -470,6 +496,7 @@ export type Database = {
           chat_id?: string
           created_at?: string | null
           id?: string
+          is_archived?: boolean
           is_muted?: boolean | null
           is_pinned?: boolean | null
           muted_until?: string | null
@@ -3022,6 +3049,78 @@ export type Database = {
           },
         ]
       }
+      reel_comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "reel_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reel_comment_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reel_comment_pins: {
+        Row: {
+          comment_id: string
+          created_at: string
+          reel_id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          reel_id: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          reel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_comment_pins_comment_reel_fkey"
+            columns: ["comment_id", "reel_id"]
+            isOneToOne: false
+            referencedRelation: "reel_comments"
+            referencedColumns: ["id", "reel_id"]
+          },
+          {
+            foreignKeyName: "reel_comment_pins_reel_id_fkey"
+            columns: ["reel_id"]
+            isOneToOne: true
+            referencedRelation: "reels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reel_reactions: {
         Row: {
           created_at: string | null
@@ -3066,6 +3165,42 @@ export type Database = {
             referencedRelation: "profiles_view"
             referencedColumns: ["id"]
           },
+        ]
+      }
+      reel_saves: {
+        Row: {
+          created_at: string
+          id: string
+          reel_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reel_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reel_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reel_saves_reel_id_fkey"
+            columns: ["reel_id"]
+            isOneToOne: false
+            referencedRelation: "reels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reel_saves_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
         ]
       }
       reel_views: {
@@ -3529,6 +3664,7 @@ export type Database = {
       }
       stories: {
         Row: {
+          audience: "public" | "followers" | "only-me"
           content: string | null
           created_at: string | null
           expires_at: string | null
@@ -3539,6 +3675,7 @@ export type Database = {
           views_count: number | null
         }
         Insert: {
+          audience?: "public" | "followers" | "only-me"
           content?: string | null
           created_at?: string | null
           expires_at?: string | null
@@ -3549,6 +3686,7 @@ export type Database = {
           views_count?: number | null
         }
         Update: {
+          audience?: "public" | "followers" | "only-me"
           content?: string | null
           created_at?: string | null
           expires_at?: string | null
@@ -4938,6 +5076,7 @@ export type Database = {
       }
     }
     Functions: {
+      clear_chat_for_user: { Args: { p_chat_id: string }; Returns: undefined }
       chat_messages_latest: {
         Args: { p_chat_id: string }
         Returns: {
@@ -5116,6 +5255,10 @@ export type Database = {
           video_url: string
           views_count: number
         }[]
+      }
+      purge_expired_messages: {
+        Args: { p_chat_id: string }
+        Returns: undefined
       }
       handle_post_visibility: { Args: never; Returns: undefined }
       has_role: {

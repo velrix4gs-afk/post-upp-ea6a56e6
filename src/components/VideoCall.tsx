@@ -85,7 +85,7 @@ export const VideoCall = ({
   }, [client, callId, retryCount]);
 
   useEffect(() => {
-    if (!isInitiator || !user) return;
+    if (!isInitiator || !user || !call) return;
 
     // Notifies the other participant via IncomingCallOverlay (which
     // listens on call_signals) that a call is coming in. This was missing
@@ -147,7 +147,7 @@ export const VideoCall = ({
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitiator, user, chatId, callId, retryCount]);
+  }, [isInitiator, user, chatId, callId, call, retryCount]);
 
   const retry = () => {
     setCallError(null);

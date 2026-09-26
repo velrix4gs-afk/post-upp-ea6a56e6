@@ -90,7 +90,7 @@ interface AIAssistantChatProps {
 export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProps) => {
   const [inputValue, setInputValue] = useState('');
   // isAdmin is now validated server-side - client just uses it for UI display
-  const { messages, isLoading, streamingContent, sendMessage, clearHistory } = useAIChat();
+  const { messages, historyLoading, isLoading, streamingContent, sendMessage, clearHistory } = useAIChat();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -199,6 +199,7 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
             variant="ghost"
             size="icon"
             onClick={clearHistory}
+            disabled={isLoading}
             className="shrink-0 text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="h-4 w-4" />
@@ -211,16 +212,18 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
         {messages.length === 0 && !streamingContent && (
           <div className="flex flex-col items-center justify-center h-full text-center py-12">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-              <Sparkles className="h-8 w-8 text-primary" />
+              {historyLoading
+                ? <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                : <Sparkles className="h-8 w-8 text-primary" />}
             </div>
             <h3 className="font-semibold text-lg text-foreground mb-2">
-              {isAdmin ? 'Admin AI Assistant' : 'Hi there! 👋'}
+              {historyLoading ? 'Loading your conversation…' : isAdmin ? 'Admin AI Assistant' : 'Hi there! 👋'}
             </h3>
-            <p className="text-sm text-muted-foreground max-w-xs">
+            {!historyLoading && <p className="text-sm text-muted-foreground max-w-xs">
               {isAdmin
                 ? 'I can help you summarize user feedback, analyze reports, and identify trends.'
                 : "I'm here to help you navigate Post Up. Ask me anything!"}
-            </p>
+            </p>}
           </div>
         )}
 
@@ -271,12 +274,12 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder={isAdmin ? 'Ask about user feedback...' : 'Ask me anything...'}
-            disabled={isLoading}
+            disabled={historyLoading || isLoading}
             className="flex-1 text-[16px]"
           />
           <Button
             onClick={handleSend}
-            disabled={!inputValue.trim() || isLoading}
+            disabled={!inputValue.trim() || historyLoading || isLoading}
             size="icon"
             className="shrink-0"
           >

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from './useAuth';
 
 export interface AIMessage {
   id: string;
@@ -19,54 +20,171 @@ const loadHistory = (userId: string | null): AIMessage[] => {
     const raw = localStorage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Omit<AIMessage, 'timestamp'> & { timestamp: string }>;
-    return parsed.map((m) => ({ ...m, timestamp: new Date(m.timestamp) }));
+    return parsed
+      .filter((message) =>
+        typeof message.id === 'string' &&
+        (message.role === 'user' || message.role === 'assistant') &&
+        typeof message.content === 'string' &&
+        typeof message.timestamp === 'string' &&
+        Number.isFinite(new Date(message.timestamp).getTime())
+      )
+      .map((message) => ({ ...message, timestamp: new Date(message.timestamp) }));
   } catch {
     return [];
   }
 };
 
-const saveHistory = (userId: string | null, messages: AIMessage[]) => {
+const saveHistory = (userId: string | null, messages: AIMessage[]): boolean => {
   try {
     const key = `${HISTORY_KEY_PREFIX}${userId || 'anon'}`;
     const trimmed = messages.slice(-HISTORY_LIMIT);
     localStorage.setItem(key, JSON.stringify(trimmed));
+    return true;
   } catch {
-    // Storage full or unavailable — silently ignore
+    return false;
   }
 };
 
 export const useAIChat = () => {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<AIMessage[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
-  const userIdRef = useRef<string | null>(null);
-  const hydratedRef = useRef(false);
+  const userId = user?.id || null;
+  const userIdRef = useRef<string | null>(userId);
+  const messagesRef = useRef<AIMessage[]>([]);
+  const hydratedUserIdRef = useRef<string | null | undefined>(undefined);
 
-  // Hydrate from localStorage on mount (per-user)
+  // The database is the source of truth; local history is an offline fallback
+  // and is migrated once when a user's server-side history is still empty.
   useEffect(() => {
     let cancelled = false;
+    setHistoryLoading(true);
+    userIdRef.current = userId;
+    hydratedUserIdRef.current = undefined;
+
     (async () => {
-      const { data } = await supabase.auth.getUser();
-      const uid = data.user?.id || null;
+      const localHistory = loadHistory(userId);
+      if (!userId) {
+        if (!cancelled) {
+          messagesRef.current = localHistory;
+          setMessages(localHistory);
+          hydratedUserIdRef.current = null;
+          setHistoryLoading(false);
+        }
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('ai_chat_messages')
+        .select('id, role, content, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(HISTORY_LIMIT);
+
       if (cancelled) return;
-      userIdRef.current = uid;
-      const history = loadHistory(uid);
-      if (history.length > 0) setMessages(history);
-      hydratedRef.current = true;
+      if (error) {
+        console.error('Could not load AI chat history:', error);
+        toast({
+          title: 'AI history could not sync',
+          description: 'Showing history saved on this device.',
+          variant: 'destructive',
+        });
+        messagesRef.current = localHistory;
+        setMessages(localHistory);
+        hydratedUserIdRef.current = userId;
+        setHistoryLoading(false);
+        return;
+      }
+
+      let history: AIMessage[] = [...(data || [])].reverse().map((message) => ({
+        id: message.id,
+        role: message.role as AIMessage['role'],
+        content: message.content,
+        timestamp: new Date(message.created_at),
+      }));
+
+      if (history.length === 0 && localHistory.length > 0) {
+        const { data: migrated, error: migrationError } = await supabase
+          .from('ai_chat_messages')
+          .insert(localHistory.map(({ role, content, timestamp }) => ({
+            user_id: userId,
+            role,
+            content,
+            created_at: timestamp.toISOString(),
+          })))
+          .select('id, role, content, created_at');
+        if (migrationError) {
+          console.error('Could not migrate local AI chat history:', migrationError);
+          toast({
+            title: 'AI history could not sync',
+            description: 'Your previous conversation remains available on this device.',
+            variant: 'destructive',
+          });
+          history = localHistory;
+        } else {
+          history = (migrated || []).map((message) => ({
+            id: message.id,
+            role: message.role as AIMessage['role'],
+            content: message.content,
+            timestamp: new Date(message.created_at),
+          }));
+        }
+      }
+
+      if (!cancelled) {
+        messagesRef.current = history;
+        setMessages(history);
+        hydratedUserIdRef.current = userId;
+        setHistoryLoading(false);
+      }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
 
-  // Persist on every change (after hydration)
+  // Keep an offline copy so history remains usable through temporary outages.
   useEffect(() => {
-    if (!hydratedRef.current) return;
-    saveHistory(userIdRef.current, messages);
-  }, [messages]);
+    if (hydratedUserIdRef.current !== userId) return;
+    messagesRef.current = messages;
+    if (!saveHistory(userId, messages)) {
+      console.error('Could not save AI chat history to this device.');
+    }
+  }, [messages, userId]);
+
+  const persistMessage = useCallback(async (message: AIMessage) => {
+    if (!userIdRef.current) return;
+    try {
+      const { error } = await supabase.from('ai_chat_messages').insert({
+        user_id: userIdRef.current,
+        role: message.role,
+        content: message.content,
+        created_at: message.timestamp.toISOString(),
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error('Could not save AI chat history to the server:', error);
+      toast({
+        title: 'AI history is only saved on this device',
+        description: 'Reconnect or try again later to sync this conversation.',
+        variant: 'destructive',
+      });
+    }
+  }, []);
 
   const sendMessage = useCallback(async (userMessage: string) => {
     if (!userMessage.trim()) return;
+    if (historyLoading || !userIdRef.current) {
+      toast({
+        title: 'Sign in to use AI chat',
+        description: 'Your conversation history is saved to your account.',
+        variant: 'destructive',
+      });
+      return;
+    }
 
     const userMsg: AIMessage = {
       id: crypto.randomUUID(),
@@ -75,7 +193,13 @@ export const useAIChat = () => {
       timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    const chatHistory = messagesRef.current.map(({ role, content }) => ({ role, content }));
+    setMessages((prev) => {
+      const next = [...prev, userMsg].slice(-HISTORY_LIMIT);
+      messagesRef.current = next;
+      return next;
+    });
+    void persistMessage(userMsg);
     setIsLoading(true);
     setStreamingContent('');
 
@@ -86,11 +210,6 @@ export const useAIChat = () => {
       if (!session?.access_token) {
         throw new Error('Please sign in to use AI chat');
       }
-
-      const chatHistory = messages.map(m => ({
-        role: m.role,
-        content: m.content,
-      }));
 
       const response = await fetch(AI_CHAT_URL, {
         method: 'POST',
@@ -166,7 +285,12 @@ export const useAIChat = () => {
         timestamp: new Date(),
       };
 
-      setMessages(prev => [...prev, assistantMsg]);
+      setMessages((prev) => {
+        const next = [...prev, assistantMsg].slice(-HISTORY_LIMIT);
+        messagesRef.current = next;
+        return next;
+      });
+      void persistMessage(assistantMsg);
       setStreamingContent('');
     } catch (error) {
       console.error('AI chat error:', error);
@@ -178,21 +302,35 @@ export const useAIChat = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [messages]);
+  }, [historyLoading, persistMessage]);
 
-  const clearHistory = useCallback(() => {
+  const clearHistory = useCallback(async () => {
+    if (isLoading) return;
+    const currentUserId = userIdRef.current;
+    if (currentUserId) {
+      const { error } = await supabase
+        .from('ai_chat_messages')
+        .delete()
+        .eq('user_id', currentUserId);
+      if (error) {
+        console.error('Could not clear AI chat history:', error);
+        toast({ title: 'Could not clear AI history', variant: 'destructive' });
+        return;
+      }
+    }
+    messagesRef.current = [];
     setMessages([]);
     setStreamingContent('');
     try {
-      const key = `${HISTORY_KEY_PREFIX}${userIdRef.current || 'anon'}`;
-      localStorage.removeItem(key);
-    } catch {
-      // ignore
+      localStorage.removeItem(`${HISTORY_KEY_PREFIX}${currentUserId || 'anon'}`);
+    } catch (error) {
+      console.error('Could not clear local AI chat history:', error);
     }
-  }, []);
+  }, [isLoading]);
 
   return {
     messages,
+    historyLoading,
     isLoading,
     streamingContent,
     sendMessage,

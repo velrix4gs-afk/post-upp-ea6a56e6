@@ -20,10 +20,21 @@ export const DisappearingMessagesDialog = ({ isOpen, onClose, chatId }: Disappea
     if (!isOpen) return;
     let cancelled = false;
     const loadSettings = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error loading current user for disappearing-message settings:', userError);
+        toast({ title: 'Could not load disappearing-message settings', variant: 'destructive' });
+        return;
+      }
+      if (!user) {
+        toast({ title: 'Sign in to view chat settings', variant: 'destructive' });
+        return;
+      }
       const { data, error } = await supabase
         .from('chat_settings')
         .select('auto_delete_duration')
         .eq('chat_id', chatId)
+        .eq('user_id', user.id)
         .maybeSingle();
       if (error) {
         console.error('Error loading disappearing-message settings:', error);
@@ -66,11 +77,14 @@ export const DisappearingMessagesDialog = ({ isOpen, onClose, chatId }: Disappea
         throw error;
       }
 
+      window.dispatchEvent(new CustomEvent('chat-settings-updated', {
+        detail: { chatId, updates: { auto_delete_duration: autoDurationSeconds } },
+      }));
       toast({
         title: duration === 'off' ? 'Disappearing messages disabled' : 'Disappearing messages enabled',
-        description: duration === 'off' 
-          ? 'Messages will not auto-delete' 
-          : `Messages will auto-delete after ${duration} minutes`,
+        description: duration === 'off'
+          ? 'New messages you send will not auto-delete'
+          : `New messages you send will disappear for everyone after ${duration} minutes`,
       });
       onClose();
     } catch (error) {
@@ -91,7 +105,7 @@ export const DisappearingMessagesDialog = ({ isOpen, onClose, chatId }: Disappea
         <DialogHeader>
           <DialogTitle>Disappearing Messages</DialogTitle>
           <DialogDescription>
-            Set messages to auto-delete after a specific time
+            New messages you send will disappear for everyone after the selected time. Other participants’ messages follow their own settings.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">

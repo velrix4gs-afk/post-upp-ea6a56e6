@@ -11,7 +11,7 @@ let cachedUserId: string | null = null;
 export function describeStreamCallError(error: unknown, action: string): string {
   const message = error instanceof Error ? error.message : String(error || '');
   if (/not authorized|unauthori[sz]ed|permission denied|\b40[13]\b/i.test(message)) {
-    return `Stream did not authorize this ${action}. Verify the Stream API key and secret belong to the same app and that the deployed token function uses that secret. (${message})`;
+    return `Stream did not authorize this ${action}. Verify this deployment's origin is enabled for the Stream app and that the signed-in user has call permissions. (${message})`;
   }
   return message || `Could not ${action}.`;
 }

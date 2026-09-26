@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -10,6 +10,7 @@ export interface Story {
   content?: string;
   media_url?: string;
   media_type?: string;
+  audience?: 'public' | 'followers' | 'only-me';
   views_count: number;
   created_at: string;
   expires_at: string;
@@ -20,10 +21,67 @@ export interface Story {
   };
 }
 
+export const storyObjectPath = (mediaUrl: string): string | null => {
+  const marker = '/storage/v1/object/public/stories/';
+  const signedMarker = '/storage/v1/object/sign/stories/';
+  const pathMarker = mediaUrl.includes(marker) ? marker : mediaUrl.includes(signedMarker) ? signedMarker : null;
+  if (pathMarker) {
+    try {
+      return decodeURIComponent(mediaUrl.split(pathMarker)[1].split('?')[0]);
+    } catch {
+      return null;
+    }
+  }
+  return mediaUrl.startsWith('http') ? null : mediaUrl;
+};
+
+export const resolveStoryMediaUrl = async (mediaUrl?: string | null): Promise<string | undefined> => {
+  if (!mediaUrl) return undefined;
+  const path = storyObjectPath(mediaUrl);
+  if (!path) return mediaUrl;
+  const { data, error } = await supabase.storage.from('stories').createSignedUrl(path, 60 * 60);
+  if (error) throw error;
+  return data.signedUrl;
+};
+
 export const useStories = () => {
   const { user } = useAuth();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchStories = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stories')
+        .select(`
+          *,
+          profiles (
+            username,
+            display_name,
+            avatar_url
+          )
+        `)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      const storiesData = await Promise.all((data || []).map(async (story) => ({
+        ...story,
+        media_url: await resolveStoryMediaUrl(story.media_url),
+      })));
+      setStories(storiesData);
+      await CacheHelper.saveStories(storiesData);
+    } catch (err) {
+      console.error('Error loading stories:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load stories',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -44,34 +102,15 @@ export const useStories = () => {
           event: 'INSERT',
           schema: 'public',
           table: 'stories'
-        }, async (payload) => {
-          const newStory = payload.new as any;
-          
-          // Fetch profile for the new story
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('username, display_name, avatar_url')
-            .eq('id', newStory.user_id)
-            .single();
-
-          const storyWithProfile: Story = {
-            ...newStory,
-            profiles: profile || { username: 'unknown', display_name: 'Unknown' }
-          };
-
-          setStories(prev => {
-            if (prev.some(s => s.id === storyWithProfile.id)) return prev;
-            const updated = [storyWithProfile, ...prev];
-            CacheHelper.saveStories(updated);
-            return updated;
-          });
+        }, () => {
+          void fetchStories();
         })
         .on('postgres_changes', {
           event: 'DELETE',
           schema: 'public',
           table: 'stories'
         }, (payload) => {
-          const deletedId = (payload.old as any).id;
+          const deletedId = payload.old.id as string;
           setStories(prev => {
             const filtered = prev.filter(s => s.id !== deletedId);
             CacheHelper.saveStories(filtered);
@@ -82,13 +121,8 @@ export const useStories = () => {
           event: 'UPDATE',
           schema: 'public',
           table: 'stories'
-        }, (payload) => {
-          const updated = payload.new as any;
-          setStories(prev => {
-            const newStories = prev.map(s => s.id === updated.id ? { ...s, ...updated } : s);
-            CacheHelper.saveStories(newStories);
-            return newStories;
-          });
+        }, () => {
+          void fetchStories();
         })
         .subscribe();
 
@@ -96,53 +130,28 @@ export const useStories = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user]);
+  }, [user, fetchStories]);
 
-  const fetchStories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('stories')
-        .select(`
-          *,
-          profiles (
-            username,
-            display_name,
-            avatar_url
-          )
-        `)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false });
+  const createStory = async (
+    content?: string,
+    mediaFile?: File,
+    audience: Story['audience'] = 'public',
+  ): Promise<boolean> => {
+    if (!user || (!content && !mediaFile)) return false;
 
-      if (error) throw error;
-      const storiesData = data || [];
-      setStories(storiesData);
-      CacheHelper.saveStories(storiesData);
-    } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load stories',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createStory = async (content?: string, mediaFile?: File) => {
-    if (!user || (!content && !mediaFile)) return;
-
+    let uploadedPath: string | null = null;
     try {
       let media_url = null;
       let media_type = null;
 
       if (mediaFile) {
-        if (mediaFile.size > 10 * 1024 * 1024) {
+        if (mediaFile.size > 50 * 1024 * 1024) {
           toast({
             title: 'File Too Large',
-            description: 'Story media must be less than 10MB',
+            description: 'Story media must be less than 50MB',
             variant: 'destructive'
           });
-          return;
+          return false;
         }
 
         if (!mediaFile.type.startsWith('image/') && !mediaFile.type.startsWith('video/')) {
@@ -151,7 +160,7 @@ export const useStories = () => {
             description: 'Please upload an image or video',
             variant: 'destructive'
           });
-          return;
+          return false;
         }
 
         const fileExt = mediaFile.name.split('.').pop();
@@ -163,14 +172,10 @@ export const useStories = () => {
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
-          throw new Error('Failed to upload file');
+          throw uploadError;
         }
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('stories')
-          .getPublicUrl(fileName);
-
-        media_url = publicUrl;
+        uploadedPath = fileName;
+        media_url = fileName;
         media_type = mediaFile.type.startsWith('video/') ? 'video' : 'image';
       }
 
@@ -180,23 +185,32 @@ export const useStories = () => {
           user_id: user.id,
           content,
           media_url,
-          media_type
+          media_type,
+          audience,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         });
 
       if (error) throw error;
+      uploadedPath = null;
 
       toast({
         description: 'Story created successfully!',
       });
       
       // Real-time will handle adding to state
-    } catch (err: any) {
+      return true;
+    } catch (err: unknown) {
       console.error('Story creation error:', err);
+      if (uploadedPath) {
+        const { error: cleanupError } = await supabase.storage.from('stories').remove([uploadedPath]);
+        if (cleanupError) console.error('Could not clean up unreferenced story media:', cleanupError);
+      }
       toast({
         title: 'Error',
-        description: 'Failed to create story',
+        description: err instanceof Error ? err.message : 'Failed to create story',
         variant: 'destructive'
       });
+      return false;
     }
   };
 
@@ -212,7 +226,7 @@ export const useStories = () => {
         });
 
       if (error && !error.message.includes('duplicate')) throw error;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to record story view:', err);
     }
   };
@@ -231,10 +245,11 @@ export const useStories = () => {
         description: 'Story deleted successfully!',
       });
       // Real-time will handle removing from state
-    } catch (err: any) {
+    } catch (err: unknown) {
+      console.error('Failed to delete story:', err);
       toast({
         title: 'Error',
-        description: 'Failed to delete story',
+        description: err instanceof Error ? err.message : 'Failed to delete story',
         variant: 'destructive'
       });
     }

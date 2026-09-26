@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ToasterMobile } from "@/components/ui/sonner-mobile";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { lazy, Suspense, Component, ReactNode, useEffect } from "react";
@@ -71,15 +71,74 @@ const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
 const InstructionsPage = lazy(() => import("./pages/InstructionsPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
 
-// Loading fallback component
-const PageLoader = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <div className="text-center space-y-4">
-      <Skeleton className="h-12 w-48 mx-auto" />
-      <Skeleton className="h-8 w-64 mx-auto" />
+const PageLoader = () => {
+  const { pathname } = useLocation();
+  const shell = <Skeleton className="h-12 w-full rounded-xl" />;
+  const personRow = (key: number) => (
+    <div key={key} className="flex items-center gap-3 rounded-2xl border border-border/40 p-4">
+      <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+      <div className="flex-1 space-y-2">
+        <Skeleton className="h-4 w-2/5" />
+        <Skeleton className="h-3 w-1/3" />
+      </div>
+      <Skeleton className="h-9 w-20 rounded-full" />
     </div>
-  </div>
-);
+  );
+  const postCard = (key: number) => (
+    <div key={key} className="space-y-3 rounded-2xl border border-border/40 bg-card p-4">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <div className="space-y-2">
+          <Skeleton className="h-3.5 w-32" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      </div>
+      <Skeleton className="h-4 w-4/5" />
+      <Skeleton className="aspect-[4/3] w-full rounded-xl" />
+      <div className="flex gap-4"><Skeleton className="h-5 w-14" /><Skeleton className="h-5 w-14" /><Skeleton className="h-5 w-14" /></div>
+    </div>
+  );
+
+  let content;
+  if (pathname === '/messages') {
+    content = (
+      <div className="flex h-[calc(100dvh-4rem)] overflow-hidden rounded-2xl border border-border/40">
+        <div className="w-full space-y-2 p-3 md:w-80">{[0, 1, 2, 3, 4, 5].map(personRow)}</div>
+        <div className="hidden flex-1 border-l border-border/40 p-5 md:block">
+          {shell}
+          <div className="mt-8 flex h-3/4 flex-col justify-end gap-4">
+            {[0, 1, 2].map((key) => <Skeleton key={key} className={`h-12 w-3/5 rounded-2xl ${key % 2 ? 'ml-auto' : ''}`} />)}
+          </div>
+          <Skeleton className="mt-5 h-12 w-full rounded-full" />
+        </div>
+      </div>
+    );
+  } else if (pathname === '/feed' || pathname === '/dashboard' || pathname === '/') {
+    content = <><div className="mb-4 flex gap-3 overflow-hidden">{[0, 1, 2, 3, 4].map((key) => <Skeleton key={key} className="h-[68px] w-[68px] shrink-0 rounded-full" />)}</div><div className="mx-auto max-w-2xl space-y-5">{[0, 1].map(postCard)}</div></>;
+  } else if (pathname === '/profile' || pathname.startsWith('/profile/')) {
+    content = <><Skeleton className="h-52 w-full rounded-2xl" /><div className="-mt-12 flex items-end gap-4 px-6"><Skeleton className="h-28 w-28 rounded-full ring-4 ring-background" /><div className="space-y-2 pb-2"><Skeleton className="h-6 w-44" /><Skeleton className="h-4 w-28" /></div></div><div className="mx-auto mt-8 max-w-2xl space-y-5">{[0, 1].map(postCard)}</div></>;
+  } else if (pathname === '/friends') {
+    content = <><Skeleton className="mb-5 h-10 w-56" /><div className="grid gap-3 sm:grid-cols-2">{[0, 1, 2, 3, 4, 5].map(personRow)}</div></>;
+  } else if (pathname === '/search') {
+    content = <><Skeleton className="mb-6 h-12 w-full rounded-full" /><div className="space-y-3">{[0, 1, 2, 3].map(personRow)}</div></>;
+  } else if (pathname === '/explore' || pathname === '/reels') {
+    content = <><Skeleton className="mb-5 h-10 w-52" /><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{[0, 1, 2, 3, 4, 5, 6, 7, 8].map((key) => <Skeleton key={key} className="aspect-[4/5] rounded-xl" />)}</div></>;
+  } else {
+    content = <><Skeleton className="mb-5 h-8 w-48" /><Skeleton className="mb-3 h-24 w-full rounded-2xl" /><Skeleton className="h-64 w-full rounded-2xl" /></>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background px-4 pb-10 pt-4 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6 flex items-center justify-between">
+          <Skeleton className="h-8 w-32" />
+          <div className="flex gap-2"><Skeleton className="h-9 w-9 rounded-full" /><Skeleton className="h-9 w-9 rounded-full" /></div>
+        </div>
+        {content}
+      </div>
+    </div>
+  );
+};
 
 const queryClient = new QueryClient();
 

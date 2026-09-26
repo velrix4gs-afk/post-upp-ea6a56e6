@@ -39,7 +39,7 @@ export interface ChatSettings {
   wallpaper_url?: string;
   theme_color?: string;
   nickname?: string;
-  auto_delete_duration?: number;
+  auto_delete_duration?: number | null;
   notifications_enabled: boolean;
 }
 
@@ -85,6 +85,40 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
         }
     );
   }, [chatId, targetUserId, user]);
+
+  useEffect(() => {
+    if (!user || !chatId) return;
+    const channel = supabase
+      .channel(`chat-settings:${user.id}:${chatId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'chat_settings',
+        filter: `chat_id=eq.${chatId}`,
+      }, (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const removed = payload.old as Partial<ChatSettings>;
+          if (removed.user_id === user.id) setSettings(null);
+          return;
+        }
+        const changed = payload.new as Partial<ChatSettings>;
+        if (changed.user_id !== user.id) return;
+        setSettings((previous) => ({
+          ...changed,
+          chat_id: chatId,
+          user_id: user.id,
+          is_muted: changed.is_muted ?? false,
+          is_pinned: changed.is_pinned ?? false,
+          notifications_enabled: changed.notifications_enabled ?? true,
+          nickname: previous?.nickname,
+        } as ChatSettings));
+      })
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [chatId, user]);
 
   const fetchSettings = useCallback(async () => {
     if (!user || !chatId) return;
@@ -144,8 +178,38 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
     if (user && chatId) void fetchSettings();
   }, [chatId, fetchSettings, user]);
 
-  const updateSettings = async (updates: Partial<ChatSettings>) => {
-    if (!user || !chatId) return;
+  useEffect(() => {
+    if (!chatId) return;
+    const onSettingsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ chatId: string; updates: Partial<ChatSettings> }>).detail;
+      if (detail?.chatId !== chatId) return;
+      setSettings((prev) => prev ? { ...prev, ...detail.updates } : prev);
+    };
+    window.addEventListener('chat-settings-updated', onSettingsUpdated);
+    return () => window.removeEventListener('chat-settings-updated', onSettingsUpdated);
+  }, [chatId]);
+
+  const updateSettings = async (updates: Partial<ChatSettings>): Promise<boolean> => {
+    if (!user || !chatId) {
+      toast({ title: 'Could not update chat settings', description: 'Chat or account is unavailable.', variant: 'destructive' });
+      return false;
+    }
+
+    const previousSettings = settings;
+    const optimisticSettings: ChatSettings = {
+      chat_id: chatId,
+      user_id: user.id,
+      is_muted: false,
+      is_pinned: false,
+      notifications_enabled: true,
+      ...previousSettings,
+      ...updates,
+    };
+    setSettings(optimisticSettings);
+    window.dispatchEvent(new CustomEvent('chat-settings-updated', {
+      detail: { chatId, updates },
+    }));
+    if ('wallpaper_url' in updates) writeCachedWallpaper(chatId, updates.wallpaper_url);
 
     try {
       const { data, error } = await supabase
@@ -161,14 +225,24 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
 
       if (error) throw error;
 
-      setSettings(data);
+      setSettings((previous) => previous ? { ...previous, ...data } : data);
+      window.dispatchEvent(new CustomEvent('chat-settings-updated', {
+        detail: { chatId, updates: { ...updates, ...data } },
+      }));
       if (chatId && 'wallpaper_url' in updates) {
         writeCachedWallpaper(chatId, data?.wallpaper_url);
       }
       toast({ title: 'Settings updated' });
+      return true;
     } catch (error) {
       console.error('Error updating settings:', error);
+      setSettings(previousSettings);
+      window.dispatchEvent(new CustomEvent('chat-settings-updated', {
+        detail: { chatId, updates: previousSettings || {} },
+      }));
+      if ('wallpaper_url' in updates) writeCachedWallpaper(chatId, previousSettings?.wallpaper_url);
       toast({ title: 'Failed to update settings', variant: 'destructive' });
+      return false;
     }
   };
 
@@ -185,17 +259,17 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
     const muted_until = duration
       ? new Date(Date.now() + duration * 60 * 1000).toISOString()
       : null;
-    await updateSettings({ is_muted: true, muted_until });
+    return updateSettings({ is_muted: true, muted_until });
   };
 
   const unmuteChat = async () => {
-    await updateSettings({ is_muted: false, muted_until: null });
+    return updateSettings({ is_muted: false, muted_until: null });
   };
 
-  const setNickname = async (nickname: string, targetId?: string) => {
+  const setNickname = async (nickname: string, targetId?: string): Promise<boolean> => {
     if (!user || !chatId || !targetId) {
       toast({ title: 'Could not set nickname', description: 'Choose a person in this chat first.', variant: 'destructive' });
-      return;
+      return false;
     }
     try {
       const { error } = await supabase.from('chat_nicknames').upsert({
@@ -206,10 +280,15 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
       }, { onConflict: 'chat_id,user_id,target_user_id' });
       if (error) throw error;
       setSettings((prev) => prev ? { ...prev, nickname } : prev);
+      window.dispatchEvent(new CustomEvent('chat-settings-updated', {
+        detail: { chatId, updates: { nickname } },
+      }));
       toast({ description: 'Nickname set' });
+      return true;
     } catch (error) {
       console.error('Error setting chat nickname:', error);
       toast({ title: 'Failed to set nickname', variant: 'destructive' });
+      return false;
     }
   };
 

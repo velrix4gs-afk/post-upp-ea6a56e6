@@ -29,6 +29,9 @@ export interface ReelComment {
   content: string;
   parent_id?: string;
   created_at: string;
+  likes_count?: number;
+  is_liked?: boolean;
+  is_pinned?: boolean;
   user?: {
     display_name: string;
     avatar_url?: string;
@@ -41,6 +44,31 @@ export const useReels = () => {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
+  const [savedReelIds, setSavedReelIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!user) {
+      setSavedReelIds(new Set());
+      return;
+    }
+
+    const fetchSavedReels = async () => {
+      const { data, error } = await supabase
+        .from('reel_saves')
+        .select('reel_id')
+        .eq('user_id', user.id);
+      if (error) {
+        console.error('Error loading saved reels:', error);
+        toast({ title: 'Could not load saved reels', variant: 'destructive' });
+        return;
+      }
+      if (!cancelled) setSavedReelIds(new Set(data.map((row) => row.reel_id)));
+    };
+
+    void fetchSavedReels();
+    return () => { cancelled = true; };
+  }, [user]);
 
   const fetchReels = async (reset = false) => {
     if (!user || loading) return;
@@ -77,7 +105,7 @@ export const useReels = () => {
 
       if (data && data.length > 0) {
         // Check which reels user has liked
-        const reelIds = data.map((r: any) => r.id);
+        const reelIds = data.map((reel) => reel.id);
         const { data: likedReels } = await supabase
           .from('reel_reactions')
           .select('reel_id')
@@ -86,9 +114,9 @@ export const useReels = () => {
 
         const likedSet = new Set(likedReels?.map(r => r.reel_id) || []);
 
-        const reelsWithLikes = data.map((r: any) => ({
-          ...r,
-          is_liked: likedSet.has(r.id)
+        const reelsWithLikes = data.map((reel) => ({
+          ...reel,
+          is_liked: likedSet.has(reel.id)
         }));
 
         // Cache the results
@@ -126,11 +154,11 @@ export const useReels = () => {
       } else {
         setHasMore(false);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching reels:', error);
       toast({
         title: 'Failed to load reels',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -196,11 +224,11 @@ export const useReels = () => {
       });
 
       return reel;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error creating reel:', error);
       toast({
         title: 'Failed to create reel',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive'
       });
       return null;
@@ -268,22 +296,24 @@ export const useReels = () => {
     try {
       if (wasLiked) {
         // Unlike
-        await supabase
+        const { error } = await supabase
           .from('reel_reactions')
           .delete()
           .eq('reel_id', reelId)
           .eq('user_id', user.id);
+        if (error) throw error;
       } else {
         // Like - use upsert to prevent duplicates
-        await supabase.from('reel_reactions').upsert({
+        const { error } = await supabase.from('reel_reactions').upsert({
           reel_id: reelId,
           user_id: user.id,
           reaction_type: 'like'
         }, {
           onConflict: 'reel_id,user_id'
         });
+        if (error) throw error;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Revert optimistic update on error
       setReels(prev => prev.map(r =>
         r.id === reelId
@@ -293,9 +323,43 @@ export const useReels = () => {
       console.error('Error toggling like:', error);
       toast({
         title: 'Failed to like reel',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive'
       });
+    }
+  };
+
+  const toggleSaveReel = async (reelId: string) => {
+    if (!user) {
+      toast({ title: 'Sign in to save reels', variant: 'destructive' });
+      return false;
+    }
+
+    const wasSaved = savedReelIds.has(reelId);
+    setSavedReelIds((previous) => {
+      const next = new Set(previous);
+      if (wasSaved) next.delete(reelId);
+      else next.add(reelId);
+      return next;
+    });
+
+    try {
+      const result = wasSaved
+        ? await supabase.from('reel_saves').delete().eq('reel_id', reelId).eq('user_id', user.id)
+        : await supabase.from('reel_saves').insert({ reel_id: reelId, user_id: user.id });
+      if (result.error) throw result.error;
+      toast({ title: wasSaved ? 'Removed from saved reels' : 'Saved reel' });
+      return true;
+    } catch (error) {
+      setSavedReelIds((previous) => {
+        const next = new Set(previous);
+        if (wasSaved) next.add(reelId);
+        else next.delete(reelId);
+        return next;
+      });
+      console.error('Error saving reel:', error);
+      toast({ title: 'Could not update saved reels', variant: 'destructive' });
+      return false;
     }
   };
 
@@ -311,9 +375,34 @@ export const useReels = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data as ReelComment[];
-    } catch (error: any) {
+      const comments = data || [];
+      const commentIds = comments.map((comment) => comment.id);
+      const [{ data: likeRows, error: likesError }, { data: pinRow, error: pinError }] = await Promise.all([
+        commentIds.length
+          ? supabase.from('reel_comment_likes').select('comment_id, user_id').in('comment_id', commentIds)
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from('reel_comment_pins').select('comment_id').eq('reel_id', reelId).maybeSingle(),
+      ]);
+      if (likesError) throw likesError;
+      if (pinError) throw pinError;
+
+      const likesByComment = new Map<string, { count: number; likedByUser: boolean }>();
+      (likeRows || []).forEach((like) => {
+        const current = likesByComment.get(like.comment_id) || { count: 0, likedByUser: false };
+        current.count += 1;
+        if (like.user_id === user?.id) current.likedByUser = true;
+        likesByComment.set(like.comment_id, current);
+      });
+
+      return comments.map((comment) => ({
+        ...comment,
+        likes_count: likesByComment.get(comment.id)?.count || 0,
+        is_liked: likesByComment.get(comment.id)?.likedByUser || false,
+        is_pinned: pinRow?.comment_id === comment.id,
+      })) as ReelComment[];
+    } catch (error: unknown) {
       console.error('Error fetching comments:', error);
+      toast({ title: 'Could not load comments', variant: 'destructive' });
       return [];
     }
   };
@@ -341,11 +430,11 @@ export const useReels = () => {
       ));
 
       return data;
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error adding comment:', error);
       toast({
         title: 'Failed to add comment',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive'
       });
       return null;
@@ -362,11 +451,13 @@ export const useReels = () => {
       // Delete from storage
       const path = reel.video_url.split('/reels/')[1];
       if (path) {
-        await supabase.storage.from('reels').remove([path]);
+        const { error: storageError } = await supabase.storage.from('reels').remove([path]);
+        if (storageError) throw storageError;
       }
 
       // Delete from database
-      await supabase.from('reels').delete().eq('id', reelId);
+      const { error: deleteError } = await supabase.from('reels').delete().eq('id', reelId);
+      if (deleteError) throw deleteError;
 
       setReels(prev => prev.filter(r => r.id !== reelId));
 
@@ -374,25 +465,34 @@ export const useReels = () => {
         title: 'Reel deleted',
         description: 'Your reel has been removed'
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error deleting reel:', error);
       toast({
         title: 'Failed to delete reel',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'Please try again.',
         variant: 'destructive'
       });
     }
   };
 
   const getVideoDuration = (file: File): Promise<number> => {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
+      const objectUrl = URL.createObjectURL(file);
       video.onloadedmetadata = () => {
-        window.URL.revokeObjectURL(video.src);
+        URL.revokeObjectURL(objectUrl);
+        if (!Number.isFinite(video.duration)) {
+          reject(new Error('Could not read reel duration.'));
+          return;
+        }
         resolve(video.duration);
       };
-      video.src = URL.createObjectURL(file);
+      video.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Could not read the selected video.'));
+      };
+      video.src = objectUrl;
     });
   };
 
@@ -406,10 +506,12 @@ export const useReels = () => {
     reels,
     loading,
     hasMore,
+    savedReelIds,
     fetchReels,
     createReel,
     viewReel,
     likeReel,
+    toggleSaveReel,
     fetchComments,
     addComment,
     deleteReel

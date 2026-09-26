@@ -93,7 +93,7 @@ export const VoiceCall = ({
   // This bridge didn't exist before -- Stream connected the call on its own
   // servers but the other person was never told anything was happening.
   useEffect(() => {
-    if (!isInitiator || !user) return;
+    if (!isInitiator || !user || !call) return;
 
     const signalKey = `${user.id}:${chatId}:${callId}`;
     if (signaledCallRef.current !== signalKey) {
@@ -151,7 +151,7 @@ export const VoiceCall = ({
       clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isInitiator, user, chatId, callId, retryCount]);
+  }, [isInitiator, user, chatId, callId, call, retryCount]);
 
   const retry = () => {
     setCallError(null);
@@ -316,15 +316,6 @@ const VoiceCallInner = ({
         aria-label={!isMute ? 'Mute' : 'Unmute'}
       >
         {!isMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
-      </Button>
-      <Button
-        size="icon"
-        variant="secondary"
-        disabled
-        className="h-14 w-14 rounded-full touch-manipulation opacity-60"
-        aria-label="Switch to video"
-      >
-        <Video className="h-5 w-5" />
       </Button>
       <Button
         size="icon"

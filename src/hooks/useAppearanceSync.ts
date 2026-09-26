@@ -30,7 +30,11 @@ export const useAppearanceSync = () => {
     const fontSize = localStorage.getItem('app_font_size') || 'medium';
     const layout = localStorage.getItem('app_layout_mode') || 'spacious';
     const accent = localStorage.getItem('app_accent_color') || 'blue';
-    const colorTheme = localStorage.getItem('colorTheme') || 'fb-twitter';
+    const savedColorTheme = localStorage.getItem('colorTheme');
+    const colorTheme = savedColorTheme === 'curious-blue' ? 'fb-twitter' : savedColorTheme || 'fb-twitter';
+    if (savedColorTheme === 'curious-blue') {
+      localStorage.setItem('colorTheme', colorTheme);
+    }
     const contrast = localStorage.getItem('contrastMode') || 'normal';
     root.setAttribute('data-font-size', fontSize);
     root.setAttribute('data-layout', layout);
@@ -91,7 +95,9 @@ export const useAppearanceSync = () => {
                   newValue: data.theme_preference,
                 })
               );
-            } catch {}
+            } catch (error) {
+              console.warn('[useAppearanceSync] Failed to notify local theme subscribers', error);
+            }
           } else {
             applyThemeClass(data.theme_preference);
           }
