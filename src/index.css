@@ -564,6 +564,7 @@ html.dark[data-contrast='dim'] {
 .post-card-float {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
 }
+
 .dark .post-card-float {
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
 }
@@ -573,11 +574,13 @@ html.dark[data-contrast='dim'] {
   transition: transform 180ms cubic-bezier(0.16, 1.2, 0.3, 1);
   will-change: transform;
 }
+
 .press-elastic:active {
   transform: scale(0.97);
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .press-elastic,
   .msg-row,
   .header-morph {
@@ -587,9 +590,20 @@ html.dark[data-contrast='dim'] {
 
 /* Typing bubble dots */
 @keyframes typing-dot {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
-  30% { transform: translateY(-4px); opacity: 1; }
+
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
 }
+
 .typing-dot {
   animation: typing-dot 1.2s infinite ease-in-out;
 }
@@ -3230,6 +3244,7 @@ html[data-skin="fb26"] .animate-message-send,
 html[data-skin="fb26"] .animate-message-receive {
   animation-timing-function: var(--fb-spring) !important;
 }
+
 /* ============================================================
    POST-UPP UI/UX polish layer (theme fixes)
    Purely presentational: tokens, radii, depth, motion.
@@ -3245,6 +3260,7 @@ html[data-skin="fb26"] .animate-message-receive {
 .post-card {
   border-radius: var(--radius-card);
 }
+
 .post-card .post-media {
   border-radius: var(--radius-nested);
   overflow: hidden;
@@ -3252,6 +3268,7 @@ html[data-skin="fb26"] .animate-message-receive {
 
 /* Continuous (squircle) corner smoothing where the engine supports it */
 @supports (corner-shape: squircle) {
+
   .post-card,
   .post-card .post-media {
     corner-shape: squircle;
@@ -3264,10 +3281,12 @@ html[data-skin="fb26"] .animate-message-receive {
     padding-left: 0;
     padding-right: 0;
   }
-  .feed-stack > * {
+
+  .feed-stack>* {
     margin-bottom: 0;
   }
-  .feed-stack > :not([hidden]) ~ :not([hidden]) {
+
+  .feed-stack> :not([hidden])~ :not([hidden]) {
     margin-top: 20px;
   }
 }
@@ -3277,6 +3296,7 @@ html[data-skin="fb26"] .animate-message-receive {
   border: 1px solid transparent;
   box-shadow: inset 0 1px 0 0 var(--rim-light);
 }
+
 .dark .surface-rim {
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
 }
@@ -3290,9 +3310,10 @@ html[data-skin="fb26"] .animate-message-receive {
 
 /* 5. Progressive backdrop blur — 0px at the bottom edge, 24px at the top */
 .progressive-blur {
-  position: relative;
+  position: relative !important;
   isolation: isolate;
 }
+
 .progressive-blur::before {
   content: "";
   position: absolute;
@@ -3314,19 +3335,39 @@ html[data-skin="fb26"] .animate-message-receive {
 
 /* 7. Seamless skeleton → content settle */
 @keyframes content-settle {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
+
 .settle-in {
   animation: content-settle 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* 8. Inline reactions float upward with a light spin */
 @keyframes reaction-float-up {
-  0% { opacity: 0; transform: translateY(10px) scale(0.6) rotate(-12deg); }
-  60% { opacity: 1; transform: translateY(-3px) scale(1.08) rotate(4deg); }
-  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.6) rotate(-12deg);
+  }
+
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.08) rotate(4deg);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
 }
+
 .reaction-float {
   animation: reaction-float-up 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -3343,10 +3384,22 @@ html[data-skin="fb26"] .animate-message-receive {
 
 /* Velocity-aware media drop: physics bounce on arrival */
 @keyframes media-drop-in {
-  0% { opacity: 0; transform: translateY(14px) scale(0.94); }
-  62% { opacity: 1; transform: translateY(-4px) scale(1.02); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+
+  62% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.02);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
+
 .media-drop {
   animation: media-drop-in 420ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
@@ -3358,14 +3411,17 @@ html[data-skin="fb26"] .animate-message-receive {
   --peek-opacity: 0;
   --bubble-skew: 0deg;
 }
+
 .msg-row {
   transform: translateX(var(--peek-x, 0px)) skewY(var(--bubble-skew, 0deg));
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }
+
 .msg-row.msg-dragging {
   transition: none;
 }
+
 .msg-peek-time {
   position: absolute;
   right: 0;
@@ -3387,14 +3443,17 @@ html[data-skin="fb26"] .animate-message-receive {
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
 }
+
 .msg-bubble[data-last-of-group='false'] {
   border-bottom-left-radius: 8px;
   border-bottom-right-radius: 8px;
 }
+
 [dir='rtl'] .msg-bubble[data-first-of-group='false'] {
   border-top-left-radius: 18px;
   border-top-right-radius: 8px;
 }
+
 [dir='rtl'] .msg-bubble[data-last-of-group='false'] {
   border-bottom-left-radius: 18px;
   border-bottom-right-radius: 8px;
@@ -3409,6 +3468,7 @@ html[data-skin="fb26"] .animate-message-receive {
 .magnet-target {
   transition: transform 140ms cubic-bezier(0.34, 1.56, 0.64, 1), background-color 140ms ease-out, scale 140ms ease-out;
 }
+
 .magnet-target[data-magnetized='true'] {
   transform: scale(1.25);
   background-color: hsl(var(--destructive) / 0.9);
@@ -3422,6 +3482,7 @@ html[data-skin="fb26"] .animate-message-receive {
     width 320ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 320ms ease-out;
 }
+
 .header-morph[data-condensed='true'] {
   width: auto;
   margin: 6px auto;
@@ -3452,12 +3513,18 @@ html[data-skin="fb26"] .animate-message-receive {
   box-shadow: 0 0 0 9999px hsl(var(--background) / 0.55);
   border-radius: 9999px;
 }
+
 .crop-ring-rect {
   box-shadow: 0 0 0 9999px hsl(var(--background) / 0.5);
   border-radius: 12px;
 }
 
 @keyframes story-progress {
-  from { width: 0; }
-  to { width: 100%; }
+  from {
+    width: 0;
+  }
+
+  to {
+    width: 100%;
+  }
 }
