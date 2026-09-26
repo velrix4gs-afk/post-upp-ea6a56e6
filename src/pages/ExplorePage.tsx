@@ -92,7 +92,7 @@ const ExplorePage = () => {
     .slice(0, 10);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="contrast-boost-page min-h-screen bg-background">
       <Navigation />
       
       <main className="container mx-auto p-4 max-w-7xl">

@@ -19,6 +19,7 @@ import { GlobalProfilePopupHost } from "@/components/GlobalProfilePopupHost";
 import { NavHistoryRecorder } from "@/components/NavHistoryRecorder";
 import { AppTour } from "@/components/AppTour";
 import { CallSessionProvider } from "@/components/calls/CallSessionProvider";
+import { StreamVideoClientProvider } from "@/hooks/useStreamVideoClient";
 import { AppSwipeNavigation } from "@/hooks/useAppSwipeNavigation";
 
 // Eager-load core pages for instant navigation
@@ -271,7 +272,8 @@ const App = () => (
             <GlobalProfilePopupHost />
             <AppTour />
             <AppSwipeNavigation />
-            <CallSessionProvider>
+            <StreamVideoClientProvider>
+              <CallSessionProvider>
               <Suspense fallback={<PageLoader />}>
                 <PageTransition>
                   <Routes>
@@ -498,7 +500,8 @@ const App = () => (
                   </Routes>
                 </PageTransition>
               </Suspense>
-            </CallSessionProvider>
+              </CallSessionProvider>
+            </StreamVideoClientProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>

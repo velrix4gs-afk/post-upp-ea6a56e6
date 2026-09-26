@@ -84,6 +84,7 @@ const CreateStoryPage = () => {
   // UI
   const [activeTool, setActiveTool] = useState<Tool>(null);
   const [uploading, setUploading] = useState(false);
+  const [preparingCrop, setPreparingCrop] = useState(false);
 
   // File select
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -165,15 +166,29 @@ const CreateStoryPage = () => {
     setActiveTool(null);
   };
 
-  const onCropSave = (url: string) => {
-    setMediaPreview(url);
-    fetch(url).then(r => r.blob()).then(b => setMediaFile(new File([b], 'cropped.jpg', { type: 'image/jpeg' })));
-    setActiveTool(null);
+  const onCropSave = async (url: string) => {
+    setPreparingCrop(true);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Could not prepare the cropped image.');
+      const blob = await response.blob();
+      if (!blob.type.startsWith('image/')) throw new Error('The crop did not produce a valid image.');
+      const croppedFile = new File([blob], 'cropped.jpg', { type: 'image/jpeg' });
+      setMediaFile(croppedFile);
+      setMediaPreview(url);
+      setActiveTool(null);
+    } catch (err) {
+      console.error('Story crop preparation failed:', err);
+      toast({ title: 'Could not save crop', description: err instanceof Error ? err.message : 'Please try cropping again.', variant: 'destructive' });
+    } finally {
+      setPreparingCrop(false);
+    }
   };
 
   // Composite image+filters+overlays into a single File for upload
-  const compositeImage = async (): Promise<File | null> => {
-    if (mediaType !== 'image' || !mediaPreview) return mediaFile;
+  const compositeImage = async (): Promise<File> => {
+    if (mediaType !== 'image') throw new Error('Image composition is only available for photo stories.');
+    if (!mediaPreview) throw new Error('Could not load the story image for editing.');
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image();
@@ -187,7 +202,7 @@ const CreateStoryPage = () => {
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return mediaFile;
+      if (!ctx) throw new Error('Could not create an image editing canvas.');
       if (filterCss !== 'none') ctx.filter = filterCss;
       ctx.drawImage(img, 0, 0, W, H);
       ctx.filter = 'none';
@@ -254,15 +269,16 @@ const CreateStoryPage = () => {
         }
       });
 
-      return await new Promise<File | null>(resolve => {
-        canvas.toBlob(b => {
-          if (!b) return resolve(mediaFile);
-          resolve(new File([b], 'story.jpg', { type: 'image/jpeg' }));
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(result => {
+          if (result) resolve(result);
+          else reject(new Error('Could not export the edited image.'));
         }, 'image/jpeg', 0.92);
       });
+      return new File([blob], 'story.jpg', { type: 'image/jpeg' });
     } catch (err) {
-      console.warn('Composite failed, using original', err);
-      return mediaFile;
+      console.error('Story image composition failed:', err);
+      throw new Error('Could not prepare your edited story image. Please try again.');
     }
   };
 
@@ -288,7 +304,7 @@ const CreateStoryPage = () => {
         content = storyText;
       } else {
         const fileToUpload = mediaType === 'image' ? await compositeImage() : mediaFile;
-        if (!fileToUpload) throw new Error('No file');
+        if (!fileToUpload) throw new Error('Could not prepare the story media. Please try again.');
         const ext = (fileToUpload.name.split('.').pop() || 'jpg').toLowerCase();
         const path = `${user.id}/${Date.now()}.${ext}`;
         const { error: upErr } = await supabase.storage.from('stories').upload(path, fileToUpload, {
@@ -556,12 +572,15 @@ const CreateStoryPage = () => {
               <button
                 key={f.id}
                 onClick={() => setSelectedFilter(f.id)}
-                className="flex flex-col items-center gap-1.5 flex-shrink-0 active:scale-95 transition-transform"
+                type="button"
+                aria-pressed={selectedFilter === f.id}
+                aria-label={`Apply ${f.name} filter`}
+                className="flex flex-col items-center gap-1.5 flex-shrink-0 active:scale-95 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg"
               >
                 <div
                   className={cn(
-                    'h-16 w-12 rounded-lg overflow-hidden border-2 bg-black/40',
-                    selectedFilter === f.id ? 'border-primary' : 'border-transparent'
+                    'h-20 w-14 rounded-lg overflow-hidden border-2 bg-black/40 transition-all',
+                    selectedFilter === f.id ? 'border-primary ring-2 ring-primary/40 scale-105' : 'border-white/20'
                   )}
                 >
                   {mediaType === 'image' ? (
@@ -570,8 +589,8 @@ const CreateStoryPage = () => {
                     <video src={mediaPreview!} className="w-full h-full object-cover" style={{ filter: f.css }} muted playsInline />
                   )}
                 </div>
-                <span className={cn('text-[10px]', selectedFilter === f.id ? 'text-primary font-semibold' : 'text-white/70')}>
-                  {f.name}
+                <span className={cn('text-[11px]', selectedFilter === f.id ? 'text-primary font-semibold' : 'text-white/70')}>
+                  {f.name}{selectedFilter === f.id ? ' (Selected)' : ''}
                 </span>
               </button>
             ))}
@@ -626,10 +645,10 @@ const CreateStoryPage = () => {
             </button>
             <button
               onClick={handleShare}
-              disabled={uploading}
+              disabled={uploading || preparingCrop}
               className="flex-1 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-50 active:scale-[0.98] transition-transform"
             >
-              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Share story</>}
+              {uploading || preparingCrop ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Share story</>}
             </button>
           </div>
         )}

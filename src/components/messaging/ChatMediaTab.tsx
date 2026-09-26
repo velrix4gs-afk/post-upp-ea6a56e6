@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Image, Video, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
@@ -39,6 +40,7 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
     links: [],
   });
   const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     if (!open) return;
@@ -90,7 +92,7 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
     };
     void fetchChatMedia();
     return () => { cancelled = true; };
-  }, [chatId, open]);
+  }, [chatId, open, retryCount]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -125,8 +127,9 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
             Loading shared media…
           </div>
         ) : loadError ? (
-          <div role="alert" className="flex h-64 items-center justify-center text-sm text-destructive">
-            Shared media could not be loaded. Close and reopen this panel to try again.
+          <div role="alert" className="flex h-64 flex-col items-center justify-center gap-3 text-sm text-destructive">
+            <p>Shared media could not be loaded. Check your connection and try again.</p>
+            <Button variant="outline" onClick={() => setRetryCount((count) => count + 1)}>Retry</Button>
           </div>
         ) : (
           <>

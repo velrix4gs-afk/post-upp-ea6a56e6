@@ -29,6 +29,7 @@ import { SearchInChatDialog } from './messaging/SearchInChatDialog';
 import { ClearChatDialog } from './messaging/ClearChatDialog';
 import { ReportUserDialog } from './messaging/ReportUserDialog';
 import { SharedMediaGallery } from './messaging/SharedMediaGallery';
+import { DisappearingMessagesDialog } from './messaging/DisappearingMessagesDialog';
 import { StarredMessagesDialog } from './messaging/StarredMessagesDialog';
 import { WallpaperDialog } from './messaging/WallpaperDialog';
 import { FileUploadDialog } from './messaging/FileUploadDialog';
@@ -53,6 +54,7 @@ const MessagingSystem = () => {
   const [showClearDialog, setShowClearDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showMediaGallery, setShowMediaGallery] = useState(false);
+  const [showDisappearingDialog, setShowDisappearingDialog] = useState(false);
   const [showStarredDialog, setShowStarredDialog] = useState(false);
   const [showForwardDialog, setShowForwardDialog] = useState(false);
   const [showWallpaperDialog, setShowWallpaperDialog] = useState(false);
@@ -484,6 +486,7 @@ const MessagingSystem = () => {
                   onSearchInChat={() => setShowSearchDialog(true)}
                   onViewStarred={() => setShowStarredDialog(true)}
                   onWallpaperChange={() => setShowWallpaperDialog(true)}
+                  onDisappearingMessages={() => setShowDisappearingDialog(true)}
                 />
               )}
             </div>
@@ -670,6 +673,11 @@ const MessagingSystem = () => {
             userName={getOtherParticipants(selectedChat)[0]?.profiles.display_name || 'User'}
             open={showReportDialog}
             onOpenChange={setShowReportDialog}
+          />
+          <DisappearingMessagesDialog
+            chatId={selectedChat.id}
+            isOpen={showDisappearingDialog}
+            onClose={() => setShowDisappearingDialog(false)}
           />
           <SharedMediaGallery
             chatId={selectedChat.id}

@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useChatMedia } from '@/hooks/useChatMedia';
 import { Image, Video, Music, File } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface SharedMediaGalleryProps {
@@ -11,17 +12,22 @@ interface SharedMediaGalleryProps {
 }
 
 export const SharedMediaGallery = ({ chatId, open, onOpenChange }: SharedMediaGalleryProps) => {
-  const { media, getImageMedia, getVideoMedia, getAudioMedia, getDocumentMedia, loading } = useChatMedia(chatId);
+  const { media, getImageMedia, getVideoMedia, getAudioMedia, getDocumentMedia, loading, error, refetch } = useChatMedia(chatId);
 
-  if (loading) {
+  if (loading || error) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Shared Media</DialogTitle>
           </DialogHeader>
-          <div className="flex items-center justify-center h-64">
-            <p className="text-muted-foreground">Loading...</p>
+          <div className="flex flex-col items-center justify-center gap-3 h-64" role={error ? 'alert' : undefined}>
+            {error ? (
+              <>
+                <p className="text-destructive">Could not load shared media: {error}</p>
+                <Button onClick={() => void refetch()}>Retry</Button>
+              </>
+            ) : <p className="text-muted-foreground">Loading...</p>}
           </div>
         </DialogContent>
       </Dialog>

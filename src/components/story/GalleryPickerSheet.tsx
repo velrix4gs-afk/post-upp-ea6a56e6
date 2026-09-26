@@ -427,8 +427,7 @@ export const GalleryPickerSheet = ({
           <input
             ref={inputRef}
             type="file"
-            // No longer locked to image/video — lets people pick documents,
-            // audio, or anything else from the device's file browser too.
+            accept="image/*,video/*"
             multiple={multiple}
             className="hidden"
             onChange={(e) => {
@@ -441,6 +440,7 @@ export const GalleryPickerSheet = ({
           <input
             ref={folderInputRef}
             type="file"
+            accept="image/*,video/*"
             multiple
             className="hidden"
             onChange={(e) => {

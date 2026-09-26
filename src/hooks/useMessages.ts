@@ -9,6 +9,30 @@ import { ensurePrivateChat } from '@/lib/chatCreation';
 // In-memory profile cache to avoid repeated fetches during real-time updates
 const profileCache = new Map<string, { username: string; display_name: string; avatar_url?: string; fetchedAt: number }>();
 const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const purgeExpiredMessages = async (chatId: string, context: string) => {
+  try {
+    const { error } = await supabase.rpc('purge_expired_messages', { p_chat_id: chatId });
+    if (!error) return;
+
+    console.error(`Could not purge expired messages (${context}):`, error);
+    const errorDetails = `${error.message} ${error.details || ''} ${error.hint || ''}`;
+    const schemaCacheIssue = /purge_expired_messages|schema cache|PGRST202/i.test(errorDetails);
+    toast({
+      title: 'Expired messages could not be removed from the server',
+      description: schemaCacheIssue
+        ? 'The server may be missing the purge_expired_messages migration or need its API schema cache refreshed. Messages will still load.'
+        : error.message,
+      variant: 'destructive',
+    });
+  } catch (error) {
+    console.error(`Could not call purge_expired_messages (${context}):`, error);
+    toast({
+      title: 'Expired messages could not be removed from the server',
+      description: 'The cleanup request failed. Messages will still load; check your connection and try again.',
+      variant: 'destructive',
+    });
+  }
+};
 
 const getCachedProfile = async (userId: string) => {
   const cached = profileCache.get(userId);
@@ -184,9 +208,7 @@ export const useMessages = (chatId?: string) => {
         }, async (payload) => {
           const newMessage = payload.new as any;
           if (newMessage.expires_at && new Date(newMessage.expires_at).getTime() <= Date.now()) {
-            void supabase.rpc('purge_expired_messages', { p_chat_id: chatId }).then(({ error }) => {
-              if (error) console.error('Could not purge an expired chat message:', error);
-            });
+            void purgeExpiredMessages(chatId, 'realtime expired message');
             return;
           }
 
@@ -296,11 +318,7 @@ export const useMessages = (chatId?: string) => {
       setMessages((previous) => previous.filter((message) =>
         !message.expires_at || new Date(message.expires_at).getTime() > Date.now()
       ));
-      const { error } = await supabase.rpc('purge_expired_messages', { p_chat_id: chatId });
-      if (error) {
-        console.error('Could not purge expired messages:', error);
-        toast({ title: 'Expired messages could not be removed from the server', variant: 'destructive' });
-      }
+      await purgeExpiredMessages(chatId, 'expiry timer');
     }, Math.max(0, nextExpiry - Date.now()) + 25);
 
     return () => window.clearTimeout(timeout);
@@ -419,8 +437,7 @@ export const useMessages = (chatId?: string) => {
       setMessagesLoading(true);
       console.log('[useMessages] Fetching messages for chat:', fetchingFor);
 
-      const { error: purgeError } = await supabase.rpc('purge_expired_messages', { p_chat_id: fetchingFor });
-      if (purgeError) throw purgeError;
+      await purgeExpiredMessages(fetchingFor, 'chat opening');
 
       const { data: messagesData, error } = await supabase
         .from('messages')

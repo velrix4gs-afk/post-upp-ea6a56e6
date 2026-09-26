@@ -4,7 +4,7 @@ import { X, Check, RotateCw, FlipHorizontal, FlipVertical } from 'lucide-react';
 
 interface StoryCropToolProps {
   imageUrl: string;
-  onSave: (croppedUrl: string) => void;
+  onSave: (croppedUrl: string) => void | Promise<void>;
   onClose: () => void;
 }
 
@@ -22,8 +22,10 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
   const [rotation, setRotation] = useState(0);
   const [flipH, setFlipH] = useState(false);
   const [flipV, setFlipV] = useState(false);
-  const [selectedRatio, setSelectedRatio] = useState('9:16');
+  const [selectedRatio, setSelectedRatio] = useState('free');
   const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     const img = new Image();
@@ -67,38 +69,45 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
   const handleFlipH = () => setFlipH((f) => !f);
   const handleFlipV = () => setFlipV((f) => !f);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !loaded || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const ratio = aspectRatios.find((r) => r.id === selectedRatio)?.value;
+      if (!ratio) {
+        await onSave(canvas.toDataURL('image/jpeg', 0.92));
+        return;
+      }
 
-    const ratio = aspectRatios.find((r) => r.id === selectedRatio)?.value;
-    if (!ratio) {
-      onSave(canvas.toDataURL('image/jpeg', 0.92));
-      return;
+      const outCanvas = document.createElement('canvas');
+      const ctx = outCanvas.getContext('2d');
+      if (!ctx) throw new Error('Could not create a crop canvas.');
+
+      let cropW = canvas.width;
+      let cropH = canvas.height;
+      let cropX = 0;
+      let cropY = 0;
+
+      if (canvas.width / canvas.height > ratio) {
+        cropW = canvas.height * ratio;
+        cropX = (canvas.width - cropW) / 2;
+      } else {
+        cropH = canvas.width / ratio;
+        cropY = (canvas.height - cropH) / 2;
+      }
+
+      outCanvas.width = cropW;
+      outCanvas.height = cropH;
+      ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+      await onSave(outCanvas.toDataURL('image/jpeg', 0.92));
+    } catch (err) {
+      console.error('Story crop export failed:', err);
+      setSaveError(err instanceof Error ? err.message : 'Could not export the crop. Please try again.');
+    } finally {
+      setSaving(false);
     }
-
-    const outCanvas = document.createElement('canvas');
-    const ctx = outCanvas.getContext('2d');
-    if (!ctx) return;
-
-    let cropW = canvas.width;
-    let cropH = canvas.height;
-    let cropX = 0;
-    let cropY = 0;
-
-    if (canvas.width / canvas.height > ratio) {
-      cropW = canvas.height * ratio;
-      cropX = (canvas.width - cropW) / 2;
-    } else {
-      cropH = canvas.width / ratio;
-      cropY = (canvas.height - cropH) / 2;
-    }
-
-    outCanvas.width = cropW;
-    outCanvas.height = cropH;
-    ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-    onSave(outCanvas.toDataURL('image/jpeg', 0.92));
   };
 
   return (
@@ -108,7 +117,7 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
           <X className="h-6 w-6 text-white" />
         </Button>
         <span className="text-white font-medium">Crop</span>
-        <Button variant="ghost" size="icon" onClick={handleSave}>
+        <Button variant="ghost" size="icon" onClick={handleSave} disabled={!loaded || saving} aria-label="Save crop">
           <Check className="h-6 w-6 text-white" />
         </Button>
       </div>
@@ -122,14 +131,15 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
       </div>
 
       <div className="p-4 space-y-4">
+        {saveError && <p role="alert" className="text-center text-sm text-red-400">{saveError}</p>}
         <div className="flex justify-center gap-6">
-          <Button variant="ghost" size="icon" onClick={handleRotate} className="text-white">
+          <Button variant="ghost" size="icon" onClick={handleRotate} className="text-white" disabled={!loaded || saving}>
             <RotateCw className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleFlipH} className="text-white">
+          <Button variant="ghost" size="icon" onClick={handleFlipH} className="text-white" disabled={!loaded || saving}>
             <FlipHorizontal className="h-5 w-5" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={handleFlipV} className="text-white">
+          <Button variant="ghost" size="icon" onClick={handleFlipV} className="text-white" disabled={!loaded || saving}>
             <FlipVertical className="h-5 w-5" />
           </Button>
         </div>
@@ -141,6 +151,8 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
               variant={selectedRatio === r.id ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setSelectedRatio(r.id)}
+              aria-pressed={selectedRatio === r.id}
+              disabled={!loaded || saving}
               className={selectedRatio !== r.id ? 'text-white/70' : ''}
             >
               {r.label}

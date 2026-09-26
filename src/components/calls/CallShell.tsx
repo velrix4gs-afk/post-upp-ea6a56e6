@@ -48,9 +48,10 @@ export const CallShell = ({
   const [chromeVisible, setChromeVisible] = useState(true);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const minimizeTouch = useRef<{ x: number; y: number } | null>(null);
+  const restoreTouch = useRef<{ x: number; y: number } | null>(null);
 
   const onCallTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    if ((event.target as Element).closest('button, input, [role="button"]')) {
+    if ((event.target as Element).closest('[data-call-gesture-ignore]')) {
       minimizeTouch.current = null;
       return;
     }
@@ -66,6 +67,25 @@ export const CallShell = ({
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
     if (dy > 88 && dy > Math.abs(dx) * 1.2) onMinimize();
+  };
+
+  const onCompactTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    if ((event.target as Element).closest('[data-call-gesture-ignore]')) {
+      restoreTouch.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    if (touch) restoreTouch.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const onCompactTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = restoreTouch.current;
+    restoreTouch.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (dy < -72 && Math.abs(dy) > Math.abs(dx) * 1.2) onRestore();
   };
 
   useEffect(() => {
@@ -95,6 +115,9 @@ export const CallShell = ({
         kind === 'video' ? (
           <div
             data-no-app-swipe
+            onTouchStart={onCompactTouchStart}
+            onTouchEnd={onCompactTouchEnd}
+            onTouchCancel={() => { restoreTouch.current = null; }}
             className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] h-44 w-64 overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/20 animate-in fade-in zoom-in-95"
           >
             <button type="button" onClick={onRestore} className="absolute inset-0 h-full w-full" aria-label="Return to video call">
@@ -116,6 +139,7 @@ export const CallShell = ({
                 variant="destructive"
                 className="h-9 w-9 shrink-0 rounded-full shadow-lg"
                 onClick={onEnd}
+                data-call-gesture-ignore
                 aria-label="End call"
               >
                 <PhoneOff className="h-4 w-4" />
@@ -123,7 +147,7 @@ export const CallShell = ({
             </div>
           </div>
         ) : (
-          <div data-no-app-swipe className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] flex items-center gap-2 rounded-full bg-background/95 p-1.5 text-foreground shadow-2xl ring-1 ring-border/70 backdrop-blur-xl touch-manipulation animate-in fade-in slide-in-from-bottom-2">
+          <div data-no-app-swipe onTouchStart={onCompactTouchStart} onTouchEnd={onCompactTouchEnd} onTouchCancel={() => { restoreTouch.current = null; }} className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] flex items-center gap-2 rounded-full bg-background/95 p-1.5 text-foreground shadow-2xl ring-1 ring-border/70 backdrop-blur-xl touch-manipulation animate-in fade-in slide-in-from-bottom-2">
             <button
               type="button"
               onClick={onRestore}
@@ -143,6 +167,7 @@ export const CallShell = ({
               variant="destructive"
               className="h-10 w-10 rounded-full"
               onClick={onEnd}
+              data-call-gesture-ignore
               aria-label="End call"
             >
               <PhoneOff className="h-4 w-4" />
@@ -195,6 +220,7 @@ export const CallShell = ({
               chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
             )}
             onClick={(e) => e.stopPropagation()}
+            data-call-gesture-ignore
           >
             <Button
               variant="ghost"
@@ -246,6 +272,7 @@ export const CallShell = ({
                 chromeVisible ? 'opacity-100' : 'opacity-70',
               )}
               onClick={(e) => e.stopPropagation()}
+              data-call-gesture-ignore
             >
               {localPip}
             </div>
@@ -259,6 +286,7 @@ export const CallShell = ({
               chromeVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none',
             )}
             onClick={(e) => e.stopPropagation()}
+            data-call-gesture-ignore
           >
             {controls}
           </div>
