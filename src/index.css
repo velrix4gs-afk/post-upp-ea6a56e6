@@ -136,28 +136,6 @@ html[data-skin="fb26"].dark,
   transform: scale(0.96);
 }
 
-/* Page transition: fade + subtle scale spring (GPU only) */
-@keyframes fb-page-in {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 6px, 0) scale(0.992);
-  }
-
-  60% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-}
-
-.fb-page-enter {
-  animation: fb-page-in 320ms var(--fb-glide) both;
-  will-change: transform, opacity;
-}
-
 /* Right-side slide-in panel */
 @keyframes fb-slide-in-right {
   from {
@@ -209,7 +187,6 @@ html[data-skin="fb26"].dark,
 
 @media (prefers-reduced-motion: reduce) {
 
-  .fb-page-enter,
   .fb-panel-in,
   .fb-panel-out,
   .fb-spring,
