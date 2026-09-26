@@ -15,29 +15,14 @@ body,
 }
 
 .text-muted-foreground {
-  color: color-mix(in srgb, hsl(var(--muted-foreground)) 25%, hsl(var(--foreground)) 75%);
+  color: color-mix(in srgb, hsl(var(--muted-foreground)) 76%, hsl(var(--foreground)) 24%);
+  transition: color 180ms ease;
 }
 
-.settings-page,
-.contrast-boost-page {
-  --foreground: 222 47% 11%;
-  --card-foreground: 222 47% 11%;
-  --popover-foreground: 222 47% 11%;
-  --secondary-foreground: 222 47% 11%;
-  --muted-foreground: 215 16% 30%;
-}
-
-.dark .settings-page,
-.dark .contrast-boost-page {
-  --foreground: 0 0% 96%;
-  --card-foreground: 0 0% 96%;
-  --popover-foreground: 0 0% 96%;
-  --secondary-foreground: 0 0% 93%;
-  --muted-foreground: 0 0% 82%;
-}
-
+.settings-page .text-muted-foreground,
 .chat-settings-page .text-muted-foreground {
-  color: color-mix(in srgb, hsl(var(--muted-foreground)) 20%, hsl(var(--foreground)) 80%);
+  color: hsl(var(--foreground) / 0.82);
+  transition: color 180ms ease;
 }
 
 .safe-top {
