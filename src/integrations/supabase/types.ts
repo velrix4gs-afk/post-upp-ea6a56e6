@@ -442,9 +442,10 @@ export type Database = {
           chat_id: string
           created_at: string | null
           id: string
+          is_archived: boolean
           is_muted: boolean | null
           is_pinned: boolean | null
-          muted_until: string | null
+          nickname: string | null
           notifications_enabled: boolean | null
           theme_color: string | null
           updated_at: string | null
@@ -456,9 +457,10 @@ export type Database = {
           chat_id: string
           created_at?: string | null
           id?: string
+          is_archived?: boolean
           is_muted?: boolean | null
           is_pinned?: boolean | null
-          muted_until?: string | null
+          nickname?: string | null
           notifications_enabled?: boolean | null
           theme_color?: string | null
           updated_at?: string | null
@@ -470,9 +472,10 @@ export type Database = {
           chat_id?: string
           created_at?: string | null
           id?: string
+          is_archived?: boolean
           is_muted?: boolean | null
           is_pinned?: boolean | null
-          muted_until?: string | null
+          nickname?: string | null
           notifications_enabled?: boolean | null
           theme_color?: string | null
           updated_at?: string | null
@@ -2727,6 +2730,45 @@ export type Database = {
           },
         ]
       }
+      premium_plans: {
+        Row: {
+          created_at: string
+          features: Json
+          id: string
+          interval: string
+          is_active: boolean
+          name: string
+          price_ngn_kobo: number
+          price_usd_display: number | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          features?: Json
+          id: string
+          interval?: string
+          is_active?: boolean
+          name: string
+          price_ngn_kobo: number
+          price_usd_display?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          features?: Json
+          id?: string
+          interval?: string
+          is_active?: boolean
+          name?: string
+          price_ngn_kobo?: number
+          price_usd_display?: number | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profile_views: {
         Row: {
           id: string
@@ -3696,6 +3738,51 @@ export type Database = {
           },
         ]
       }
+      support_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          status: string
+          subject: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          message: string
+          status?: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          status?: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       typing_status: {
         Row: {
           chat_id: string | null
@@ -4039,6 +4126,61 @@ export type Database = {
           },
           {
             foreignKeyName: "user_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles_view"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          granted_by: string
+          paystack_reference: string | null
+          plan_id: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          granted_by?: string
+          paystack_reference?: string | null
+          plan_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          granted_by?: string
+          paystack_reference?: string | null
+          plan_id?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "premium_plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_subscriptions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles_view"
@@ -5029,28 +5171,6 @@ export type Database = {
           unread_count: number
         }[]
       }
-      get_profile_card: {
-        Args: { p_id: string }
-        Returns: {
-          avatar_url: string | null
-          bio: string | null
-          can_view_full: boolean
-          cover_url: string | null
-          created_at: string | null
-          display_name: string | null
-          id: string
-          is_private: boolean | null
-          is_verified: boolean | null
-          location: string | null
-          relationship_status: string | null
-          theme_color: string | null
-          updated_at: string | null
-          username: string | null
-          verification_type: string | null
-          verified_at: string | null
-          website: string | null
-        }[]
-      }
       get_my_sensitive_profile: {
         Args: never
         Returns: {
@@ -5149,6 +5269,10 @@ export type Database = {
       is_user_blocked: {
         Args: { by_user_id: string; check_user_id: string }
         Returns: boolean
+      }
+      mark_chat_messages_read: {
+        Args: { p_chat_id: string }
+        Returns: undefined
       }
       safe_error_message: { Args: { error_text: string }; Returns: string }
       send_message: {
