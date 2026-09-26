@@ -14,17 +14,6 @@ body,
   background: hsl(var(--background));
 }
 
-.text-muted-foreground {
-  color: color-mix(in srgb, hsl(var(--muted-foreground)) 76%, hsl(var(--foreground)) 24%);
-  transition: color 180ms ease;
-}
-
-.settings-page .text-muted-foreground,
-.chat-settings-page .text-muted-foreground {
-  color: hsl(var(--foreground) / 0.82);
-  transition: color 180ms ease;
-}
-
 .safe-top {
   padding-top: env(safe-area-inset-top);
 }
