@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const ALLOWED_ORIGINS = [
+  'https://post-upp.vercel.app',
   'https://post-upp.lovable.app',
   'http://localhost:5173',
   'http://localhost:5174',
