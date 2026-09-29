@@ -4,6 +4,7 @@ import { useChatMedia } from '@/hooks/useChatMedia';
 import { Image, Video, Music, File } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { getChatMediaFileName } from '@/lib/chatMedia';
 
 interface SharedMediaGalleryProps {
   chatId: string;
@@ -127,7 +128,7 @@ export const SharedMediaGallery = ({ chatId, open, onOpenChange }: SharedMediaGa
                   >
                     <File className="h-8 w-8 text-muted-foreground" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">Document</p>
+                      <p className="font-medium truncate">{getChatMediaFileName(item.media_url)}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(item.created_at).toLocaleDateString()}
                       </p>

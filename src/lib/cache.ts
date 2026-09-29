@@ -4,7 +4,6 @@ const DB_VERSION = 1;
 const STORES = {
   POSTS: 'posts',
   PROFILES: 'profiles',
-  REELS: 'reels',
   PAGES: 'pages',
   STORIES: 'stories'
 };

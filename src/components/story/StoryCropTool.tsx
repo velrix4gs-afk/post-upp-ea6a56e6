@@ -28,14 +28,25 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    setLoaded(false);
+    setSaveError(null);
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
+      if (cancelled) return;
       imgRef.current = img;
       setLoaded(true);
-      drawImage(img, rotation, flipH, flipV);
+    };
+    img.onerror = () => {
+      if (cancelled) return;
+      setSaveError('Could not load this image for cropping.');
     };
     img.src = imageUrl;
+    return () => {
+      cancelled = true;
+      imgRef.current = null;
+    };
   }, [imageUrl]);
 
   useEffect(() => {
@@ -75,9 +86,18 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
     setSaving(true);
     setSaveError(null);
     try {
+      const exportCanvas = (target: HTMLCanvasElement) => new Promise<string>((resolve, reject) => {
+        target.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('Could not export the crop.'));
+            return;
+          }
+          resolve(URL.createObjectURL(blob));
+        }, 'image/jpeg', 0.92);
+      });
       const ratio = aspectRatios.find((r) => r.id === selectedRatio)?.value;
       if (!ratio) {
-        await onSave(canvas.toDataURL('image/jpeg', 0.92));
+        await onSave(await exportCanvas(canvas));
         return;
       }
 
@@ -101,7 +121,7 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
       outCanvas.width = cropW;
       outCanvas.height = cropH;
       ctx.drawImage(canvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-      await onSave(outCanvas.toDataURL('image/jpeg', 0.92));
+      await onSave(await exportCanvas(outCanvas));
     } catch (err) {
       console.error('Story crop export failed:', err);
       setSaveError(err instanceof Error ? err.message : 'Could not export the crop. Please try again.');

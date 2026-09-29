@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Message } from './useMessages';
@@ -8,15 +8,20 @@ export const useChatSearch = (chatId?: string) => {
   const [searchResults, setSearchResults] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const requestIdRef = useRef(0);
 
   const searchMessages = async (query: string) => {
-    if (!user || !chatId || !query.trim()) {
+    const normalizedQuery = query.trim();
+    setSearchQuery(normalizedQuery);
+    const requestId = ++requestIdRef.current;
+
+    if (!user || !chatId || normalizedQuery.length < 3) {
       setSearchResults([]);
+      setLoading(false);
       return;
     }
 
     setLoading(true);
-    setSearchQuery(query);
 
     try {
       const { data, error } = await supabase
@@ -26,12 +31,13 @@ export const useChatSearch = (chatId?: string) => {
           sender:profiles!messages_sender_id_fkey (username, display_name, avatar_url)
         `)
         .eq('chat_id', chatId)
-        .ilike('content', `%${query}%`)
+        .ilike('content', `%${normalizedQuery}%`)
         .not('deleted_for', 'cs', `{${user.id}}`)
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (error) throw error;
+      if (requestId !== requestIdRef.current) return;
 
       // Map the data to match Message interface
       const mappedResults = (data || []).map(msg => ({
@@ -43,15 +49,17 @@ export const useChatSearch = (chatId?: string) => {
       setSearchResults(mappedResults);
     } catch (error) {
       console.error('Error searching messages:', error);
-      setSearchResults([]);
+      if (requestId === requestIdRef.current) setSearchResults([]);
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) setLoading(false);
     }
   };
 
   const clearSearch = () => {
+    requestIdRef.current += 1;
     setSearchResults([]);
     setSearchQuery('');
+    setLoading(false);
   };
 
   return {

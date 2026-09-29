@@ -33,19 +33,38 @@ const StoryViewer = ({
   const [imageFailed, setImageFailed] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const resumeVideoAfterPress = useRef(false);
+  const remainingImageDuration = useRef(IMAGE_DURATION_MS);
+  const onNextRef = useRef(onNext);
   const currentStory = stories[currentIndex];
   const currentStoryId = currentStory?.id;
   const currentStoryMediaType = currentStory?.media_type;
 
   useEffect(() => {
+    onNextRef.current = onNext;
+  }, [onNext]);
+
+  useEffect(() => {
     setImageFailed(false);
+    remainingImageDuration.current = IMAGE_DURATION_MS;
   }, [currentStoryId]);
 
   useEffect(() => {
     if (!currentStoryId || paused || currentStoryMediaType === 'video') return;
-    const timer = window.setTimeout(onNext, IMAGE_DURATION_MS);
-    return () => window.clearTimeout(timer);
-  }, [currentStoryId, currentStoryMediaType, onNext, paused]);
+    const startedAt = Date.now();
+    const timer = window.setTimeout(() => {
+      remainingImageDuration.current = IMAGE_DURATION_MS;
+      onNextRef.current();
+    }, remainingImageDuration.current);
+    return () => {
+      window.clearTimeout(timer);
+      remainingImageDuration.current = Math.max(
+        0,
+        remainingImageDuration.current - (Date.now() - startedAt),
+      );
+    };
+  }, [currentStoryId, currentStoryMediaType, paused]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -83,6 +102,23 @@ const StoryViewer = ({
     setTouchStart(null);
   };
 
+  const handlePressStart = (event: React.PointerEvent) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest('button, input, textarea')) return;
+    setPaused(true);
+    const video = videoRef.current;
+    resumeVideoAfterPress.current = !!video && !video.paused;
+    video?.pause();
+  };
+
+  const handlePressEnd = () => {
+    if (resumeVideoAfterPress.current) {
+      void videoRef.current?.play().catch(() => setPaused(false));
+    }
+    resumeVideoAfterPress.current = false;
+    setPaused(false);
+  };
+
   const storyName = currentStory.profiles.display_name || currentStory.profiles.username || 'User';
 
   return (
@@ -98,6 +134,10 @@ const StoryViewer = ({
             y: event.touches[0].clientY,
           })}
           onTouchEnd={handleTouchEnd}
+          onPointerDown={handlePressStart}
+          onPointerUp={handlePressEnd}
+          onPointerCancel={handlePressEnd}
+          onLostPointerCapture={handlePressEnd}
         >
           {currentStory.media_url && currentStory.media_type !== 'video' && (
             <div
@@ -114,7 +154,8 @@ const StoryViewer = ({
                 <div key={story.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/30">
                   <div
                     key={`${story.id}-${index === currentIndex ? 'current' : 'static'}`}
-                    className={`h-full bg-white ${index < currentIndex ? 'w-full' : index > currentIndex ? 'w-0' : paused ? 'w-1/3' : 'w-full animate-[story-progress_5s_linear_forwards]'}`}
+                    className={`h-full bg-white ${index < currentIndex ? 'w-full' : index > currentIndex ? 'w-0' : 'w-full animate-[story-progress_5s_linear_forwards]'}`}
+                    style={{ animationPlayState: index === currentIndex && paused ? 'paused' : 'running' }}
                   />
                 </div>
               ))}
@@ -147,18 +188,17 @@ const StoryViewer = ({
               {currentStory.media_url ? currentStory.media_type === 'video' ? (
                 <video
                   key={currentStory.id}
+                  ref={videoRef}
                   src={currentStory.media_url}
                   className="h-full w-full object-contain"
                   autoPlay
+                  muted
                   playsInline
+                  preload="auto"
                   onPlay={() => setPaused(false)}
                   onPause={() => setPaused(true)}
                   onEnded={onNext}
-                  onClick={(event) => {
-                    const video = event.currentTarget;
-                    if (video.paused) void video.play();
-                    else video.pause();
-                  }}
+                  onError={() => setImageFailed(true)}
                 />
               ) : (
                 <img
@@ -176,7 +216,7 @@ const StoryViewer = ({
               )}
               {imageFailed && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 px-8 text-center text-sm text-white/80">
-                  This story image could not be loaded.
+                  This story {currentStory.media_type === 'video' ? 'video' : 'image'} could not be loaded.
                 </div>
               )}
 

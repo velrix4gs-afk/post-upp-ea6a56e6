@@ -58,14 +58,12 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const PremiumPage = lazy(() => import("./pages/PremiumPage"));
 const HelpSupportPage = lazy(() => import("./pages/HelpSupportPage"));
 const PagesDirectory = lazy(() => import("./pages/PagesDirectory"));
-const ReelsPage = lazy(() => import("./pages/ReelsPage"));
 const PagesPage = lazy(() => import("./pages/PagesPage"));
 const PurchaseHistoryPage = lazy(() => import("./pages/PurchaseHistoryPage"));
 const StarredMessagesPage = lazy(() => import("./pages/StarredMessagesPage"));
 const ChatMediaPage = lazy(() => import("./pages/ChatMediaPage"));
 const ChatSettingsPage = lazy(() => import("./pages/ChatSettingsPage"));
 const CreateStoryPage = lazy(() => import("./pages/CreateStoryPage"));
-const CreateReelPage = lazy(() => import("./pages/CreateReelPage"));
 const CreatePagePage = lazy(() => import("./pages/CreatePagePage"));
 const EditPagePage = lazy(() => import("./pages/EditPagePage"));
 const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
@@ -122,7 +120,7 @@ const PageLoader = () => {
     content = <><Skeleton className="mb-5 h-10 w-56" /><div className="grid gap-3 sm:grid-cols-2">{[0, 1, 2, 3, 4, 5].map(personRow)}</div></>;
   } else if (pathname === '/search') {
     content = <><Skeleton className="mb-6 h-12 w-full rounded-full" /><div className="space-y-3">{[0, 1, 2, 3].map(personRow)}</div></>;
-  } else if (pathname === '/explore' || pathname === '/reels') {
+  } else if (pathname === '/explore') {
     content = <><Skeleton className="mb-5 h-10 w-52" /><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{[0, 1, 2, 3, 4, 5, 6, 7, 8].map((key) => <Skeleton key={key} className="aspect-[4/5] rounded-xl" />)}</div></>;
   } else {
     content = <><Skeleton className="mb-5 h-8 w-48" /><Skeleton className="mb-3 h-24 w-full rounded-2xl" /><Skeleton className="h-64 w-full rounded-2xl" /></>;
@@ -151,7 +149,6 @@ const usePagePrefetch = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       const prefetch = () => {
-        import("./pages/ReelsPage");
         import("./pages/BookmarksPage");
         import("./pages/SettingsPage");
         import("./pages/ExplorePage");
@@ -438,14 +435,6 @@ const App = () => (
                       </ProtectedRoute>
                     }
                   />
-                  <Route
-                    path="/reels"
-                    element={
-                      <ProtectedRoute>
-                        <ReelsPage />
-                      </ProtectedRoute>
-                    }
-                  />
                   <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
                   <Route path="/help-support" element={<ProtectedRoute><HelpSupportPage /></ProtectedRoute>} />
                   <Route path="/purchases" element={<ProtectedRoute><PurchaseHistoryPage /></ProtectedRoute>} />
@@ -458,13 +447,6 @@ const App = () => (
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
                         <CreateStoryPage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/create/reel" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <CreateReelPage />
                       </Suspense>
                     </ProtectedRoute>
                   } />

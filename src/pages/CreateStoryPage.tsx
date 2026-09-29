@@ -61,6 +61,7 @@ const CreateStoryPage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const uploadGuardRef = useRef(false);
 
   // Source
   const [mediaFile, setMediaFile] = useState<File | null>(null);
@@ -89,6 +90,7 @@ const CreateStoryPage = () => {
   // File select
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
+    e.target.value = '';
     if (!f) return;
     acceptFile(f);
   };
@@ -105,6 +107,11 @@ const CreateStoryPage = () => {
     setMediaFile(f);
     setMediaPreview(URL.createObjectURL(f));
     setMediaType(f.type.startsWith('video/') ? 'video' : 'image');
+    setSelectedFilter('none');
+    setAdjustments(defaultAdjustments);
+    setTextOverlays([]);
+    setStickers([]);
+    setDrawingUrl(null);
   };
 
   // Cleanup blob url
@@ -179,6 +186,7 @@ const CreateStoryPage = () => {
       setActiveTool(null);
     } catch (err) {
       console.error('Story crop preparation failed:', err);
+      URL.revokeObjectURL(url);
       toast({ title: 'Could not save crop', description: err instanceof Error ? err.message : 'Please try cropping again.', variant: 'destructive' });
     } finally {
       setPreparingCrop(false);
@@ -283,7 +291,7 @@ const CreateStoryPage = () => {
   };
 
   const handleShare = async () => {
-    if (!user) return;
+    if (!user || uploadGuardRef.current) return;
     if (mediaType === 'text' && !storyText.trim()) {
       toast({ title: 'Type something first', variant: 'destructive' });
       return;
@@ -293,6 +301,7 @@ const CreateStoryPage = () => {
       return;
     }
 
+    uploadGuardRef.current = true;
     setUploading(true);
     let uploadedPath: string | null = null;
     try {
@@ -305,10 +314,14 @@ const CreateStoryPage = () => {
       } else {
         const fileToUpload = mediaType === 'image' ? await compositeImage() : mediaFile;
         if (!fileToUpload) throw new Error('Could not prepare the story media. Please try again.');
-        const ext = (fileToUpload.name.split('.').pop() || 'jpg').toLowerCase();
-        const path = `${user.id}/${Date.now()}.${ext}`;
+        if (!fileToUpload.type.startsWith('image/') && !fileToUpload.type.startsWith('video/')) {
+          throw new Error('Choose a valid image or video for your story.');
+        }
+        const ext = fileToUpload.type.split('/')[1]?.split(';')[0]?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
+        const uploadId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const path = `${user.id}/${uploadId}.${ext}`;
         const { error: upErr } = await supabase.storage.from('stories').upload(path, fileToUpload, {
-          cacheControl: '3600', upsert: false,
+          cacheControl: '3600', upsert: false, contentType: fileToUpload.type,
         });
         if (upErr) throw upErr;
         uploadedPath = path;
@@ -324,7 +337,28 @@ const CreateStoryPage = () => {
         audience,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       });
-      if (insErr) throw insErr;
+      if (insErr) {
+        if (uploadedPath) {
+          const { data: confirmedStory, error: confirmationError } = await supabase
+            .from('stories')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('media_url', uploadedPath)
+            .maybeSingle();
+          if (!confirmationError && confirmedStory) {
+            uploadedPath = null;
+          } else if (confirmationError) {
+            console.error('Could not confirm whether the story insert completed:', confirmationError);
+            // Keep the uploaded object if the insert outcome cannot be verified.
+            uploadedPath = null;
+            throw insErr;
+          } else {
+            throw insErr;
+          }
+        } else {
+          throw insErr;
+        }
+      }
       uploadedPath = null;
 
       toast({ title: 'Story shared 🎉' });
@@ -332,8 +366,12 @@ const CreateStoryPage = () => {
     } catch (err) {
       console.error('Share story error', err);
       if (uploadedPath) {
-        const { error: cleanupError } = await supabase.storage.from('stories').remove([uploadedPath]);
-        if (cleanupError) console.error('Could not clean up unreferenced story media:', cleanupError);
+        try {
+          const { error: cleanupError } = await supabase.storage.from('stories').remove([uploadedPath]);
+          if (cleanupError) console.error('Could not clean up unreferenced story media:', cleanupError);
+        } catch (cleanupError) {
+          console.error('Could not clean up unreferenced story media:', cleanupError);
+        }
       }
       toast({
         title: 'Failed to share story',
@@ -341,6 +379,7 @@ const CreateStoryPage = () => {
         variant: 'destructive',
       });
     } finally {
+      uploadGuardRef.current = false;
       setUploading(false);
     }
   };
@@ -428,14 +467,14 @@ const CreateStoryPage = () => {
           mediaType === 'video' ? (
             <video
               src={mediaPreview!}
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain"
               autoPlay loop muted playsInline
             />
           ) : (
             <img
               src={mediaPreview!}
               alt=""
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-contain"
               style={{ filter: filterCss }}
               draggable={false}
             />

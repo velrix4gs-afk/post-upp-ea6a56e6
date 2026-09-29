@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useStories, type Story } from '@/hooks/useStories';
@@ -18,8 +18,30 @@ const Stories = () => {
   const { stories, viewStory, deleteStory } = useStories();
   const navigate = useNavigate();
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
+  const storyGroups = useMemo(() => {
+    const groups = new Map<string, Story[]>();
+    stories.forEach((story) => {
+      const group = groups.get(story.user_id) ?? [];
+      group.push(story);
+      groups.set(story.user_id, group);
+    });
+
+    return [...groups.entries()]
+      .map(([userId, userStories]) => ({
+        userId,
+        stories: userStories.sort(
+          (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime(),
+        ),
+      }))
+      .sort((left, right) => {
+        const leftLatest = left.stories[left.stories.length - 1];
+        const rightLatest = right.stories[right.stories.length - 1];
+        return new Date(rightLatest.created_at).getTime() - new Date(leftLatest.created_at).getTime();
+      });
+  }, [stories]);
+  const viewerStories = useMemo(() => storyGroups.flatMap((group) => group.stories), [storyGroups]);
   const selectedStoryIndex = selectedStoryId
-    ? stories.findIndex((story) => story.id === selectedStoryId)
+    ? viewerStories.findIndex((story) => story.id === selectedStoryId)
     : -1;
 
   const handleStoryClick = (story: Story) => {
@@ -66,12 +88,12 @@ const Stories = () => {
       setSelectedStoryId(null);
       return;
     }
-    if (index >= stories.length) {
+    if (index >= viewerStories.length) {
       setSelectedStoryId(null);
       return;
     }
-    setSelectedStoryId(stories[index].id);
-    void viewStory(stories[index].id);
+    setSelectedStoryId(viewerStories[index].id);
+    void viewStory(viewerStories[index].id);
   };
 
   return <>
@@ -106,42 +128,59 @@ const Stories = () => {
           </div>
 
           {/* Story Items - Floating circles */}
-          {stories.map(story => <div key={story.id} className="flex-shrink-0 w-[72px] text-center cursor-pointer snap-start relative group tap-scale" onClick={() => handleStoryClick(story)}>
-              <ProfileHoverCard userId={story.user_id}>
-                <div className="w-[68px] h-[68px] mx-auto relative">
-                  {/* Gradient ring */}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[3px]">
-                    <div className="w-full h-full rounded-full bg-background p-[2px]">
-                      <Avatar className="w-full h-full">
-                        <AvatarImage src={story.profiles.avatar_url} className="object-cover" />
-                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                          {story.profiles.display_name[0]}
-                        </AvatarFallback>
-                      </Avatar>
+          {storyGroups.map(({ userId, stories: userStories }) => {
+            const story = userStories[0];
+            const latestStory = userStories[userStories.length - 1];
+            const isOwnStory = userId === user?.id;
+            const displayName = story.profiles.display_name || story.profiles.username || 'User';
+            return (
+              <div
+                key={userId}
+                className="flex-shrink-0 w-[72px] text-center cursor-pointer snap-start relative group tap-scale"
+                onClick={() => handleStoryClick(story)}
+                aria-label={`${displayName}, ${userStories.length} active ${userStories.length === 1 ? 'story' : 'stories'}`}
+              >
+                <ProfileHoverCard userId={userId}>
+                  <div className="w-[68px] h-[68px] mx-auto relative">
+                    <div className={`absolute inset-0 rounded-full p-[3px] ${isOwnStory ? 'bg-primary' : 'bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600'}`}>
+                      <div className="w-full h-full rounded-full bg-background p-[2px]">
+                        <Avatar className="w-full h-full">
+                          <AvatarImage src={story.profiles.avatar_url} className="object-cover" />
+                          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                            {displayName[0]?.toUpperCase() || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
                     </div>
-                  </div>
-                  {story.user_id === user?.id && <Button size="sm" variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={e => handleDeleteStory(story.id, e)}>
+                    {userStories.length > 1 && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full bg-background px-1.5 text-[9px] font-semibold leading-4 text-foreground shadow">
+                        {userStories.length}
+                      </span>
+                    )}
+                    {isOwnStory && <Button size="sm" variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-10" onClick={e => handleDeleteStory(latestStory.id, e)} aria-label="Delete latest story">
                       <X className="h-3 w-3" />
                     </Button>}
-                </div>
-              </ProfileHoverCard>
-              <p className="text-[11px] mt-1.5 w-[72px] truncate font-medium">
-                {story.profiles.display_name.split(' ')[0]}
-              </p>
-            </div>)}
+                  </div>
+                </ProfileHoverCard>
+                <p className="text-[11px] mt-1.5 w-[72px] truncate font-medium">
+                  {displayName.split(' ')[0]}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
 
       {/* Story Viewer */}
       {selectedStoryId && selectedStoryIndex >= 0 && (
         <StoryViewer
-          stories={stories}
+          stories={viewerStories}
           currentIndex={selectedStoryIndex}
           onClose={() => setSelectedStoryId(null)}
           onNext={() => goToStory(selectedStoryIndex + 1)}
           onPrevious={() => goToStory(selectedStoryIndex - 1)}
           onReply={handleReply}
-          canReply={stories[selectedStoryIndex].user_id !== user?.id}
+          canReply={viewerStories[selectedStoryIndex].user_id !== user?.id}
         />
       )}
     </>;

@@ -11,9 +11,9 @@ import { useNavigate } from 'react-router-dom';
 
 /** Routes the assistant is allowed to link to (must exist in App.tsx). */
 const STATIC_ROUTES = [
-  '/feed', '/explore', '/search', '/reels', '/messages', '/friends', '/bookmarks',
+  '/feed', '/explore', '/search', '/messages', '/friends', '/bookmarks',
   '/pages', '/premium', '/purchases', '/settings', '/onboarding',
-  '/create/story', '/create/reel', '/create/page', '/verification', '/analytics',
+  '/create/story', '/create/page', '/verification', '/analytics',
   '/starred-messages', '/chat-media', '/chat-settings', '/instructions', '/dashboard', '/help-support',
 ];
 const DYNAMIC_ROUTES = [/^\/profile\/[^/]+$/, /^\/post\/[^/]+$/, /^\/hashtag\/[^/]+$/, /^\/page\/[^/]+$/, /^\/creator\/[^/]+$/];

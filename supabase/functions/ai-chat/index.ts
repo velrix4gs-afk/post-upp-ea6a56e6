@@ -33,10 +33,9 @@ POST UP is a mobile-first social app (web + Android/iOS via Capacitor).
 This guide describes the current UI and supersedes older descriptions or assumptions. Do not direct users to removed controls or claim an action is complete when you can only explain how to do it.
 
 ### Screens and routes
-- /feed — main feed with two tabs: "For You" (discovery mix) and "Following" (only accounts the user follows). Stories sit at the top. Use the + button in the header to open the create menu for posts, reels, and stories.
+- /feed — main feed with two tabs: "For You" (discovery mix) and "Following" (only accounts the user follows). Stories sit at the top. Use the + button in the header to open the create menu for posts and stories.
 - /explore — search and discovery of people, posts and hashtags.
 - /search — dedicated search page (people, posts, hashtags).
-- /reels — vertical short videos. /create/reel to make one.
 - /create/story — story editor: gallery picker, filters, crop, adjustments, text, stickers, drawing, audience selector. (Camera capture is intentionally not available.)
 - /messages — chats: text, photos, videos, voice notes, reactions, replies, wallpapers, themes, favorites (pinned chats), archive, disappearing messages, and live typing indicators. Voice and video calls start from the chat header.
 - Notifications live inside the bell panel (no standalone route) — follows, likes, comments, mentions, friend and follow requests (requests can be accepted right in the panel).

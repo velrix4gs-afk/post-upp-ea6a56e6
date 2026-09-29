@@ -105,22 +105,6 @@ export const useCallNotifications = () => {
           setIncomingCall(callInfo);
           setRinging(true);
 
-          // Show browser notification
-          if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(`Incoming ${callType} call`, {
-              body: `${callInfo.caller_name} is calling you`,
-              icon: callInfo.caller_avatar || '/favicon.ico',
-              tag: `call-${callInfo.call_id}`,
-            });
-          }
-
-          // Show toast notification
-          toast({
-            title: `Incoming ${callType} call`,
-            description: `${callInfo.caller_name} is calling you`,
-            duration: 30000, // 30 seconds
-          });
-
         }
       })
       .subscribe();

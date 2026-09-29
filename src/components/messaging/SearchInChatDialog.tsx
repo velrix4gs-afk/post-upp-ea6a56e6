@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -33,57 +33,80 @@ export const SearchInChatDialog = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const requestIdRef = useRef(0);
+  const normalizedQuery = searchQuery.trim();
 
   useEffect(() => {
-    if (searchQuery.length > 2) {
-      searchMessages();
-    } else {
+    const requestId = ++requestIdRef.current;
+    if (!open || normalizedQuery.length < 3) {
       setResults([]);
+      setLoading(false);
+      return;
     }
-  }, [searchQuery]);
 
-  const searchMessages = async () => {
-    setLoading(true);
-    try {
-      const { data: messages, error } = await supabase
-        .from('messages')
-        .select('id, content, created_at, sender_id')
-        .eq('chat_id', chatId)
-        .ilike('content', `%${searchQuery}%`)
-        .order('created_at', { ascending: false })
-        .limit(50);
+    let cancelled = false;
+    const searchMessages = async () => {
+      setLoading(true);
+      try {
+        const { data: messages, error } = await supabase
+          .from('messages')
+          .select('id, content, created_at, sender_id')
+          .eq('chat_id', chatId)
+          .ilike('content', `%${normalizedQuery}%`)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Fetch sender profiles
-      if (messages && messages.length > 0) {
-        const senderIds = [...new Set(messages.map(m => m.sender_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, display_name, avatar_url')
-          .in('id', senderIds);
+        // Fetch sender profiles
+        if (messages && messages.length > 0) {
+          const senderIds = [...new Set(messages.map(m => m.sender_id))];
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, display_name, avatar_url')
+            .in('id', senderIds);
 
-        const messagesWithSender = messages.map(msg => ({
-          id: msg.id,
-          content: msg.content,
-          created_at: msg.created_at,
-          sender: profiles?.find(p => p.id === msg.sender_id) || {
-            display_name: 'Unknown',
-            avatar_url: undefined,
-          },
-        }));
+          if (cancelled || requestId !== requestIdRef.current) return;
+          const messagesWithSender = messages.map(msg => ({
+            id: msg.id,
+            content: msg.content,
+            created_at: msg.created_at,
+            sender: profiles?.find(p => p.id === msg.sender_id) || {
+              display_name: 'Unknown',
+              avatar_url: undefined,
+            },
+          }));
 
-        setResults(messagesWithSender);
+          setResults(messagesWithSender);
+        } else {
+          setResults([]);
+        }
+      } catch (error) {
+        console.error('Error searching messages:', error);
+        if (!cancelled && requestId === requestIdRef.current) setResults([]);
+      } finally {
+        if (!cancelled && requestId === requestIdRef.current) setLoading(false);
       }
-    } catch (error) {
-      console.error('Error searching messages:', error);
-    } finally {
+    };
+
+    void searchMessages();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId, normalizedQuery, open]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!nextOpen) {
+      requestIdRef.current += 1;
+      setSearchQuery('');
+      setResults([]);
       setLoading(false);
     }
+    onOpenChange(nextOpen);
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Search in Chat</DialogTitle>
@@ -101,11 +124,11 @@ export const SearchInChatDialog = ({
           </div>
 
           <ScrollArea className="h-[400px]">
-            {results.length === 0 && searchQuery.length > 2 && !loading && (
+            {results.length === 0 && normalizedQuery.length >= 3 && !loading && (
               <p className="text-center text-muted-foreground py-8">No messages found</p>
             )}
             
-            {results.length === 0 && searchQuery.length <= 2 && (
+            {results.length === 0 && normalizedQuery.length < 3 && (
               <p className="text-center text-muted-foreground py-8">
                 Type at least 3 characters to search
               </p>

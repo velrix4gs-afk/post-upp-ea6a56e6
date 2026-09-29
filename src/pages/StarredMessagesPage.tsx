@@ -32,75 +32,86 @@ const StarredMessagesPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStarredMessages();
-  }, [user]);
+    if (!user) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
 
-  const fetchStarredMessages = async () => {
-    if (!user) return;
+    let cancelled = false;
+    const fetchStarredMessages = async () => {
+      try {
+        setLoading(true);
+        const { data: starredRows, error: starredError } = await supabase
+          .from('starred_messages')
+          .select('message_id')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        if (starredError) throw starredError;
 
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('message_bookmarks')
-        .select(`
-          message_id,
-          messages (
-            id,
-            content,
-            media_url,
-            media_type,
-            created_at,
-            chat_id,
-            sender_id
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        const messageIds = (starredRows || []).map((row) => row.message_id);
+        if (messageIds.length === 0) {
+          if (!cancelled) setMessages([]);
+          return;
+        }
 
-      if (error) throw error;
+        const { data: messageRows, error: messagesError } = await supabase
+          .from('messages')
+          .select('id, content, media_url, media_type, created_at, chat_id, sender_id')
+          .in('id', messageIds);
+        if (messagesError) throw messagesError;
 
-      // Fetch sender profiles and chat names
-      const enrichedMessages = await Promise.all(
-        (data || []).map(async (item: any) => {
-          const msg = item.messages;
-          
-          // Get sender profile
-          const { data: senderProfile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_url')
-            .eq('id', msg.sender_id)
-            .single();
+        const rows = messageRows || [];
+        const senderIds = [...new Set(rows.map((message) => message.sender_id))];
+        const chatIds = [...new Set(rows.map((message) => message.chat_id))];
+        const [{ data: profiles, error: profilesError }, { data: chats, error: chatsError }] = await Promise.all([
+          senderIds.length
+            ? supabase.from('profiles').select('id, display_name, avatar_url').in('id', senderIds)
+            : Promise.resolve({ data: [], error: null }),
+          chatIds.length
+            ? supabase.from('chats').select('id, name').in('id', chatIds)
+            : Promise.resolve({ data: [], error: null }),
+        ]);
+        if (profilesError) throw profilesError;
+        if (chatsError) throw chatsError;
+        if (cancelled) return;
 
-          // Get chat name
-          const { data: chat } = await supabase
-            .from('chats')
-            .select('name')
-            .eq('id', msg.chat_id)
-            .single();
-
-          return {
-            id: msg.id,
-            content: msg.content,
-            media_url: msg.media_url,
-            media_type: msg.media_type,
-            created_at: msg.created_at,
-            chat_id: msg.chat_id,
+        const profilesById = new Map((profiles || []).map((profile) => [profile.id, profile]));
+        const chatNamesById = new Map((chats || []).map((chat) => [chat.id, chat.name]));
+        const messagesById = new Map(rows.map((message) => [message.id, message]));
+        setMessages(messageIds.flatMap((id) => {
+          const message = messagesById.get(id);
+          if (!message) return [];
+          const senderProfile = profilesById.get(message.sender_id);
+          return [{
+            id: message.id,
+            content: message.content || '',
+            media_url: message.media_url || undefined,
+            media_type: message.media_type || undefined,
+            created_at: message.created_at,
+            chat_id: message.chat_id,
             sender: {
               display_name: senderProfile?.display_name || 'User',
-              avatar_url: senderProfile?.avatar_url
+              avatar_url: senderProfile?.avatar_url || undefined,
             },
-            chat_name: chat?.name
-          };
-        })
-      );
+            chat_name: chatNamesById.get(message.chat_id) || undefined,
+          }];
+        }));
+      } catch (error) {
+        console.error('Error fetching starred messages:', error);
+        if (!cancelled) {
+          setMessages([]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
 
-      setMessages(enrichedMessages);
-    } catch (error) {
-      console.error('Error fetching starred messages:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    void fetchStarredMessages();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const handleMessageClick = (chatId: string) => {
     navigate(`/messages?chat=${chatId}`);

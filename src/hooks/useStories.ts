@@ -137,7 +137,7 @@ export const useStories = () => {
     mediaFile?: File,
     audience: Story['audience'] = 'public',
   ): Promise<boolean> => {
-    if (!user || (!content && !mediaFile)) return false;
+    if (!user || (!content?.trim() && !mediaFile)) return false;
 
     let uploadedPath: string | null = null;
     try {
@@ -163,12 +163,13 @@ export const useStories = () => {
           return false;
         }
 
-        const fileExt = mediaFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        const fileExt = mediaFile.type.split('/')[1]?.split(';')[0]?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
+        const uploadId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const fileName = `${user.id}/${uploadId}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('stories')
-          .upload(fileName, mediaFile, { upsert: false, contentType: mediaFile.type });
+          .upload(fileName, mediaFile, { upsert: false, contentType: mediaFile.type, cacheControl: '3600' });
 
         if (uploadError) {
           console.error('Upload error:', uploadError);
@@ -183,14 +184,34 @@ export const useStories = () => {
         .from('stories')
         .insert({
           user_id: user.id,
-          content,
+          content: content?.trim() || null,
           media_url,
           media_type,
           audience,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         });
 
-      if (error) throw error;
+      if (error) {
+        if (uploadedPath) {
+          const { data: confirmedStory, error: confirmationError } = await supabase
+            .from('stories')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('media_url', uploadedPath)
+            .maybeSingle();
+          if (!confirmationError && confirmedStory) {
+            uploadedPath = null;
+          } else if (confirmationError) {
+            console.error('Could not confirm whether the story insert completed:', confirmationError);
+            uploadedPath = null;
+            throw error;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
+      }
       uploadedPath = null;
 
       toast({

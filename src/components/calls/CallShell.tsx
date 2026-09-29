@@ -131,7 +131,7 @@ export const CallShell = ({
               </div>
             )}
             <div className="absolute left-2 right-2 top-2 z-20 flex items-center justify-between gap-2">
-              <span className="max-w-40 truncate rounded-full bg-black/60 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+              <span className="max-w-40 truncate rounded-full bg-black/80 px-2.5 py-1 text-xs font-medium text-white">
                 {participantName} · {statusText}
               </span>
               <Button
@@ -147,7 +147,7 @@ export const CallShell = ({
             </div>
           </div>
         ) : (
-          <div data-no-app-swipe onTouchStart={onCompactTouchStart} onTouchEnd={onCompactTouchEnd} onTouchCancel={() => { restoreTouch.current = null; }} className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] flex items-center gap-2 rounded-full bg-background/95 p-1.5 text-foreground shadow-2xl ring-1 ring-border/70 backdrop-blur-xl touch-manipulation animate-in fade-in slide-in-from-bottom-2">
+          <div data-no-app-swipe onTouchStart={onCompactTouchStart} onTouchEnd={onCompactTouchEnd} onTouchCancel={() => { restoreTouch.current = null; }} className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] flex items-center gap-2 rounded-full border border-border bg-background p-1.5 text-foreground shadow-2xl touch-manipulation animate-in fade-in slide-in-from-bottom-2">
             <button
               type="button"
               onClick={onRestore}
@@ -181,7 +181,7 @@ export const CallShell = ({
             'fixed inset-0 z-[200] h-[100dvh] w-screen text-foreground',
             kind === 'video'
               ? 'bg-black text-white'
-              : 'bg-gradient-to-b from-primary/15 via-background to-background',
+              : 'bg-[#101827] text-white',
           )}
           onClick={() => autoHideControls && setChromeVisible((v) => !v)}
           onTouchStart={onCallTouchStart}
@@ -198,7 +198,7 @@ export const CallShell = ({
           {setupError && (
             <div
               role="alert"
-              className="absolute inset-x-6 top-1/2 z-20 mx-auto max-w-sm -translate-y-1/2 rounded-2xl border border-destructive/20 bg-background/95 p-5 text-center shadow-2xl backdrop-blur"
+              className="absolute inset-x-6 top-1/2 z-20 mx-auto max-w-sm -translate-y-1/2 rounded-2xl border border-destructive/30 bg-[#101827] p-5 text-center text-white shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
@@ -216,7 +216,7 @@ export const CallShell = ({
           <div
             className={cn(
               'absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-3 transition-opacity duration-300',
-              kind === 'video' && 'bg-gradient-to-b from-black/60 to-transparent',
+              kind === 'video' && 'bg-gradient-to-b from-black/70 to-transparent',
               chromeVisible ? 'opacity-100' : 'opacity-0 pointer-events-none',
             )}
             onClick={(e) => e.stopPropagation()}
@@ -241,7 +241,7 @@ export const CallShell = ({
               <div
                 className={cn(
                   'text-xs leading-tight',
-                  kind === 'video' ? 'text-white/80' : 'text-muted-foreground',
+                  'text-white/70',
                 )}
               >
                 {statusText}
@@ -252,15 +252,16 @@ export const CallShell = ({
 
           {/* Voice-call hero (avatar + name) */}
           {kind === 'voice' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
-              <Avatar className="h-36 w-36 ring-4 ring-primary/20 shadow-2xl">
+            <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-8 text-center">
+              <div className="pointer-events-none absolute h-[30rem] w-[30rem] rounded-full bg-primary/15 blur-3xl" />
+              <Avatar className="relative h-36 w-36 ring-4 ring-primary/50 shadow-[0_0_60px_rgba(59,130,246,0.2)]">
                 <AvatarImage src={participantAvatar} />
-                <AvatarFallback className="text-5xl bg-primary/10">
+                <AvatarFallback className="bg-slate-800 text-5xl text-white">
                   {participantName[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <h2 className="mt-8 text-3xl font-semibold tracking-tight">{participantName}</h2>
-              <p className="mt-2 text-base text-muted-foreground">{statusText}</p>
+              <h2 className="relative mt-8 text-3xl font-semibold tracking-tight">{participantName}</h2>
+              <p className="relative mt-2 text-base text-white/70">{statusText}</p>
             </div>
           )}
 
@@ -282,13 +283,15 @@ export const CallShell = ({
           <div
             className={cn(
               'absolute bottom-0 left-0 right-0 z-10 px-6 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-6 transition-all duration-300',
-              kind === 'video' && 'bg-gradient-to-t from-black/70 via-black/40 to-transparent',
+              'bg-gradient-to-t from-black/85 via-black/35 to-transparent',
               chromeVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none',
             )}
             onClick={(e) => e.stopPropagation()}
             data-call-gesture-ignore
           >
-            {controls}
+            <div className="mx-auto w-fit max-w-full rounded-[2rem] border border-white/10 bg-slate-950/80 p-2 shadow-2xl">
+              {controls}
+            </div>
           </div>
         </div>
       )}

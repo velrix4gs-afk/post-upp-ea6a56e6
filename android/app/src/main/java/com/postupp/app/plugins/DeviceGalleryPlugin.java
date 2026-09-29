@@ -36,15 +36,23 @@ import java.util.concurrent.Executors;
     name = "DeviceGallery",
     permissions = {
         @Permission(
-            alias = "galleryLegacy",
-            strings = { Manifest.permission.READ_EXTERNAL_STORAGE }
-        ),
-        @Permission(
             alias = "galleryModern",
             strings = {
                 Manifest.permission.READ_MEDIA_IMAGES,
                 Manifest.permission.READ_MEDIA_VIDEO
             }
+        ),
+        @Permission(
+            alias = "galleryLegacy",
+            strings = { Manifest.permission.READ_EXTERNAL_STORAGE }
+        ),
+        @Permission(
+            alias = "camera",
+            strings = { Manifest.permission.CAMERA }
+        ),
+        @Permission(
+            alias = "microphone",
+            strings = { Manifest.permission.RECORD_AUDIO }
         )
     }
 )
@@ -73,6 +81,56 @@ public class DeviceGalleryPlugin extends Plugin {
     private void onGalleryPermission(PluginCall call) {
         JSObject ret = new JSObject();
         ret.put("granted", isGranted());
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void checkCameraAccess(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", hasPermission(Manifest.permission.CAMERA));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestCameraAccess(PluginCall call) {
+        if (hasPermission(Manifest.permission.CAMERA)) {
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+            return;
+        }
+        requestPermissionForAlias("camera", call, "onCameraPermission");
+    }
+
+    @PermissionCallback
+    private void onCameraPermission(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", hasPermission(Manifest.permission.CAMERA));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void checkMicrophoneAccess(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", hasPermission(Manifest.permission.RECORD_AUDIO));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void requestMicrophoneAccess(PluginCall call) {
+        if (hasPermission(Manifest.permission.RECORD_AUDIO)) {
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+            return;
+        }
+        requestPermissionForAlias("microphone", call, "onMicrophonePermission");
+    }
+
+    @PermissionCallback
+    private void onMicrophonePermission(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", hasPermission(Manifest.permission.RECORD_AUDIO));
         call.resolve(ret);
     }
 

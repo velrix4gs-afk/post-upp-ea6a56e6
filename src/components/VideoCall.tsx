@@ -4,7 +4,7 @@ import { Video, VideoOff, Mic, MicOff, PhoneOff, RefreshCw, Loader2 } from 'luci
 import {
   StreamVideo,
   StreamCall,
-  SpeakerLayout,
+  ParticipantView,
   useCallStateHooks,
   type Call,
   CallingState,
@@ -87,28 +87,9 @@ export const VideoCall = ({
   useEffect(() => {
     if (!isInitiator || !user || !call) return;
 
-    // Notifies the other participant via IncomingCallOverlay (which
-    // listens on call_signals) that a call is coming in. This was missing
-    // entirely -- Stream connected the call on its own servers but nothing
-    // ever told the other person's app a call was happening.
     const signalKey = `${user.id}:${chatId}:${callId}`;
-    if (signaledCallRef.current !== signalKey) {
-      signaledCallRef.current = signalKey;
-      void supabase.from('call_signals').insert({
-        call_id: chatId,
-        sender_id: user.id,
-        signal_type: 'offer',
-        signal_data: { video: true },
-      }).then(({ error }) => {
-        if (error) {
-          signaledCallRef.current = null;
-          setSignalError('Could not notify the other person. Check that the call migrations are deployed, then retry.');
-          console.error('[VideoCall] failed to send call offer', error);
-        } else {
-          setSignalError(null);
-        }
-      });
-    }
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     const channel = supabase
       .channel(`call-outcome-${chatId}-${callId}`)
@@ -123,28 +104,50 @@ export const VideoCall = ({
           }
         },
       )
-      .subscribe();
-
-    const timeout = setTimeout(() => {
-      if (!hasConnectedRef.current) {
-        void supabase.from('call_signals').insert({
-          call_id: chatId,
-          sender_id: user.id,
-          signal_type: 'cancel',
-          signal_data: {},
-        }).then(({ error }) => {
-          if (error) {
-            setSignalError('The call could not be cancelled for the other person.');
-            console.error('[VideoCall] failed to cancel timed-out call', error);
-          }
-        });
-        finish('unanswered');
-      }
-    }, RING_TIMEOUT_MS);
+      .subscribe((status) => {
+        if (cancelled) return;
+        if (status === 'SUBSCRIBED' && signaledCallRef.current !== signalKey) {
+          signaledCallRef.current = signalKey;
+          void supabase.from('call_signals').insert({
+            call_id: chatId,
+            sender_id: user.id,
+            signal_type: 'offer',
+            signal_data: { video: true },
+          }).then(({ error }) => {
+            if (cancelled) return;
+            if (error) {
+              signaledCallRef.current = null;
+              setSignalError('Could not notify the other person. Check that the call migrations are deployed, then retry.');
+              console.error('[VideoCall] failed to send call offer', error);
+              return;
+            }
+            setSignalError(null);
+            timeout = setTimeout(() => {
+              if (!hasConnectedRef.current) {
+                void supabase.from('call_signals').insert({
+                  call_id: chatId,
+                  sender_id: user.id,
+                  signal_type: 'cancel',
+                  signal_data: {},
+                }).then(({ error: cancelError }) => {
+                  if (cancelError) {
+                    setSignalError('The call could not be cancelled for the other person.');
+                    console.error('[VideoCall] failed to cancel timed-out call', cancelError);
+                  }
+                });
+                finish('unanswered');
+              }
+            }, RING_TIMEOUT_MS);
+          });
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setSignalError('Could not connect to call signaling. Check your connection and retry.');
+        }
+      });
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInitiator, user, chatId, callId, call, retryCount]);
@@ -217,6 +220,7 @@ export const VideoCall = ({
           setMinimized={setMinimized}
           participantName={participantName}
           participantAvatar={participantAvatar}
+          isInitiator={isInitiator}
           hasConnectedRef={hasConnectedRef}
           durationRef={durationRef}
           setupError={signalError || undefined}
@@ -233,6 +237,7 @@ interface InnerProps {
   setMinimized: (v: boolean) => void;
   participantName: string;
   participantAvatar?: string;
+  isInitiator: boolean;
   hasConnectedRef: React.MutableRefObject<boolean>;
   durationRef: React.MutableRefObject<number>;
   setupError?: string;
@@ -245,6 +250,7 @@ const VideoCallInner = ({
   setMinimized,
   participantName,
   participantAvatar,
+  isInitiator,
   hasConnectedRef,
   durationRef,
   setupError,
@@ -306,7 +312,7 @@ const VideoCallInner = ({
         size="icon"
         variant="secondary"
         onClick={flipCam}
-        className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 touch-manipulation"
+        className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation"
         aria-label="Flip camera"
       >
         <RefreshCw className="h-5 w-5" />
@@ -315,7 +321,7 @@ const VideoCallInner = ({
         size="icon"
         variant="secondary"
         onClick={toggleCam}
-        className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 touch-manipulation"
+        className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation"
         aria-label={!camMute ? 'Turn off camera' : 'Turn on camera'}
       >
         {!camMute ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
@@ -324,7 +330,7 @@ const VideoCallInner = ({
         size="icon"
         variant="secondary"
         onClick={toggleMic}
-        className="h-14 w-14 rounded-full bg-white/15 hover:bg-white/25 text-white border-0 touch-manipulation"
+        className={`h-14 w-14 rounded-full touch-manipulation ${micMute ? 'bg-red-600 text-white hover:bg-red-700' : 'border border-white/10 bg-white/10 text-white hover:bg-white/20'}`}
         aria-label={!micMute ? 'Mute' : 'Unmute'}
       >
         {!micMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
@@ -346,14 +352,18 @@ const VideoCallInner = ({
       kind="video"
       participantName={participantName}
       participantAvatar={participantAvatar}
-      statusText={statusText}
+      statusText={connected ? statusText : isInitiator ? 'Ringing…' : 'Connecting…'}
       minimized={minimized}
       onMinimize={() => setMinimized(true)}
       onRestore={() => setMinimized(false)}
       onEnd={onEnd}
       remoteVideo={
         connected ? (
-          <SpeakerLayout participantsBarPosition="bottom" />
+          <ParticipantView
+            participant={remoteParticipants[0]}
+            ParticipantViewUI={null}
+            className="h-full w-full"
+          />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-white/80">
             <Loader2 className="h-6 w-6 animate-spin" />

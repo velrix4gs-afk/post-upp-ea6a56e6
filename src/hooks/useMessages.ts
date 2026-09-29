@@ -89,6 +89,9 @@ export interface Chat {
   updated_at: string;
   last_message?: string;
   last_message_at?: string;
+  last_message_id?: string;
+  last_message_status?: 'sent' | 'delivered' | 'read';
+  last_message_sender_id?: string;
   unread_count?: number;
   participants: {
     user_id: string;
@@ -154,6 +157,7 @@ export const useMessages = (chatId?: string) => {
       fetchChats();
 
       // Set up real-time subscription for chats
+      let refreshTimeout: ReturnType<typeof setTimeout> | undefined;
       const chatsChannel = supabase
         .channel('chats-changes')
         .on(
@@ -179,9 +183,22 @@ export const useMessages = (chatId?: string) => {
             fetchChats();
           }
         )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'message_reads',
+          },
+          () => {
+            if (refreshTimeout) clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(() => fetchChats(), 150);
+          }
+        )
         .subscribe();
 
       return () => {
+        if (refreshTimeout) clearTimeout(refreshTimeout);
         supabase.removeChannel(chatsChannel);
       };
     }
@@ -290,6 +307,19 @@ export const useMessages = (chatId?: string) => {
         }, (payload) => {
           setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
         })
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'message_reads',
+        }, (payload) => {
+          const read = payload.new as { message_id: string; user_id: string };
+          if (read.user_id === user?.id) return;
+          setMessages((previous) => previous.map((message) =>
+            message.id === read.message_id && message.sender_id === user?.id
+              ? { ...message, status: 'read' }
+              : message
+          ));
+        })
         .subscribe();
 
       return () => {
@@ -355,6 +385,15 @@ export const useMessages = (chatId?: string) => {
         return true;
       });
 
+      const lastMessageIds = dedupedList
+        .map((chat) => chat.last_message_id)
+        .filter((id): id is string => Boolean(id));
+      const { data: lastMessages, error: lastMessagesError } = lastMessageIds.length
+        ? await supabase.from('messages').select('id, sender_id').in('id', lastMessageIds)
+        : { data: [], error: null };
+      if (lastMessagesError) throw lastMessagesError;
+      const lastMessageSenders = new Map((lastMessages || []).map((message) => [message.id, message.sender_id]));
+
       // Map RPC results to the Chat interface shape
       const validChats: Chat[] = dedupedList.map((row: any) => ({
         id: row.chat_id,
@@ -365,6 +404,13 @@ export const useMessages = (chatId?: string) => {
         updated_at: row.last_message_at || row.chat_created_at,
         last_message: row.last_message || undefined,
         last_message_at: row.last_message_at || undefined,
+        last_message_id: row.last_message_id || undefined,
+        last_message_sender_id: row.last_message_id
+          ? lastMessageSenders.get(row.last_message_id)
+          : undefined,
+        last_message_status: row.last_message_status === 'read' || row.last_message_status === 'delivered'
+          ? row.last_message_status
+          : row.last_message_id ? 'sent' : undefined,
         unread_count: row.unread_count || 0,
         participants: row.other_user_id ? [
           {
@@ -450,6 +496,17 @@ export const useMessages = (chatId?: string) => {
       freshFetchAppliedRef.current = true;
 
       const rows = messagesData || [];
+      const messageIds = rows.map((message) => message.id);
+      const { data: readRows, error: readsError } = messageIds.length && user
+        ? await supabase
+          .from('message_reads')
+          .select('message_id')
+          .in('message_id', messageIds)
+          .neq('user_id', user.id)
+        : { data: [], error: null };
+      if (readsError) throw readsError;
+      if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
+      const readMessageIds = new Set((readRows || []).map((read) => read.message_id));
       const fetchedMessageIds = new Set(rows.map((message) => message.id));
       fetchedMessageIds.forEach((id) => locallySentMessageIdsRef.current.delete(id));
       const replyIds = [...new Set(rows.flatMap((message) => message.reply_to ? [message.reply_to] : []))];
@@ -475,7 +532,9 @@ export const useMessages = (chatId?: string) => {
 
         return {
           ...msg,
-          status: (msg.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
+          status: (msg.sender_id === user?.id && readMessageIds.has(msg.id)
+            ? 'read'
+            : msg.status || 'sent') as 'sending' | 'sent' | 'delivered' | 'read' | 'failed',
           sender: {
             username: senderProfile?.username || 'Unknown',
             display_name: senderProfile?.display_name || 'Unknown User',
@@ -928,6 +987,10 @@ export const useMessages = (chatId?: string) => {
     try {
       const { error } = await supabase.rpc('mark_chat_messages_read', { p_chat_id: targetChatId });
       if (error) throw error;
+      setChats((previous) => previous.map((chat) =>
+        chat.id === targetChatId ? { ...chat, unread_count: 0 } : chat
+      ));
+      await fetchChats();
     } catch (err) {
       console.error('[markChatAsRead] failed:', err);
     }
@@ -953,11 +1016,11 @@ export const useMessages = (chatId?: string) => {
   };
 
   const refetchChats = () => {
-    fetchChats();
+    return fetchChats();
   };
 
   const refetchMessages = () => {
-    if (chatId) fetchMessages();
+    return chatId ? fetchMessages() : Promise.resolve();
   };
 
   return {

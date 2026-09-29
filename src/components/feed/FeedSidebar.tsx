@@ -20,7 +20,6 @@ import {
   BadgeCheck,
   Crown,
   FileText,
-  Star,
   TrendingUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -85,7 +84,6 @@ export const FeedSidebar = () => {
 
   const moreItems = [
     { icon: FileText, label: 'Pages', path: '/pages' },
-    { icon: Star, label: 'Reels', path: '/reels' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 

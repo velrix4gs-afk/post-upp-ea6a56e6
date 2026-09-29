@@ -8,11 +8,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Image, Video, FileText, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Image, Video, FileText, Link as LinkIcon, Loader2, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from '@/hooks/use-toast';
 import type { Database } from '@/integrations/supabase/types';
+import { getChatMediaCategory, getChatMediaFileName } from '@/lib/chatMedia';
 
 type ChatMediaMessage = Pick<
   Database['public']['Tables']['messages']['Row'],
@@ -31,11 +32,13 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
   const [media, setMedia] = useState<{
     images: ChatMediaMessage[];
     videos: ChatMediaMessage[];
+    audio: ChatMediaMessage[];
     files: ChatMediaMessage[];
     links: ChatLink[];
   }>({
     images: [],
     videos: [],
+    audio: [],
     files: [],
     links: [],
   });
@@ -61,25 +64,24 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
 
         const images: ChatMediaMessage[] = [];
         const videos: ChatMediaMessage[] = [];
+        const audio: ChatMediaMessage[] = [];
         const files: ChatMediaMessage[] = [];
         const links: ChatLink[] = [];
 
         messages?.forEach((msg) => {
           if (msg.media_url) {
-          if (msg.media_type === 'image') {
-            images.push(msg);
-          } else if (msg.media_type === 'video') {
-            videos.push(msg);
-          } else if (msg.media_type && msg.media_type !== 'audio') {
-            files.push(msg);
-          }
+            const category = getChatMediaCategory(msg.media_type);
+            if (category === 'image') images.push(msg);
+            else if (category === 'video') videos.push(msg);
+            else if (category === 'audio') audio.push(msg);
+            else files.push(msg);
           }
 
           const foundLinks = msg.content?.match(/https?:\/\/[^\s]+/g);
           foundLinks?.forEach((link) => links.push({ ...msg, link }));
         });
 
-        setMedia({ images, videos, files, links });
+        setMedia({ images, videos, audio, files, links });
       } catch (error) {
         console.error('Error fetching chat media:', error);
         if (!cancelled) {
@@ -102,7 +104,7 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
           <DialogDescription>Photos, videos, files, and links shared in this chat.</DialogDescription>
         </DialogHeader>
         <Tabs defaultValue="images" className="flex min-h-0 w-full flex-1 flex-col">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="images">
             <Image className="h-4 w-4 mr-2" />
             Photos
@@ -110,6 +112,10 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
           <TabsTrigger value="videos">
             <Video className="h-4 w-4 mr-2" />
             Videos
+          </TabsTrigger>
+          <TabsTrigger value="audio">
+            <Music className="h-4 w-4 mr-2" />
+            Audio
           </TabsTrigger>
           <TabsTrigger value="files">
             <FileText className="h-4 w-4 mr-2" />
@@ -174,6 +180,19 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
           </ScrollArea>
         </TabsContent>
 
+        <TabsContent value="audio">
+          <ScrollArea className="h-[min(400px,55dvh)]">
+            <div className="space-y-2">
+              {media.audio.map((item) => (
+                <div key={item.id} className="rounded-lg bg-muted p-3">
+                  <audio src={item.media_url || undefined} controls className="w-full" />
+                </div>
+              ))}
+            </div>
+            {media.audio.length === 0 && <p className="py-10 text-center text-sm text-muted-foreground">No audio shared yet.</p>}
+          </ScrollArea>
+        </TabsContent>
+
         <TabsContent value="files">
           <ScrollArea className="h-[min(400px,55dvh)]">
             <div className="space-y-2">
@@ -187,7 +206,7 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
                 >
                   <FileText className="h-8 w-8 text-muted-foreground" />
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{item.media_url?.split('/').pop() || 'Shared file'}</p>
+                    <p className="font-medium truncate">{getChatMediaFileName(item.media_url)}</p>
                     <p className="text-sm text-muted-foreground">
                       {item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}
                     </p>

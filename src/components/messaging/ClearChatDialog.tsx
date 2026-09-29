@@ -17,7 +17,7 @@ interface ClearChatDialogProps {
   chatId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCleared: () => void;
+  onCleared: () => void | Promise<void>;
 }
 
 export const ClearChatDialog = ({ chatId, open, onOpenChange, onCleared }: ClearChatDialogProps) => {
@@ -33,11 +33,23 @@ export const ClearChatDialog = ({ chatId, open, onOpenChange, onCleared }: Clear
       if (error) throw error;
 
       toast({ title: 'Chat history cleared' });
-      onCleared();
+      await onCleared();
       onOpenChange(false);
     } catch (error) {
       console.error('Error clearing chat:', error);
-      toast({ title: 'Failed to clear chat', variant: 'destructive' });
+      const details = error instanceof Error
+        ? error.message
+        : typeof error === 'object' && error !== null && 'message' in error
+          ? String(error.message)
+          : '';
+      const missingRpc = /clear_chat_for_user|schema cache|PGRST202/i.test(details);
+      toast({
+        title: 'Failed to clear chat',
+        description: missingRpc
+          ? 'The server is missing the clear_chat_for_user database migration. Apply the pending Supabase migrations and try again.'
+          : details || 'Check your connection and try again.',
+        variant: 'destructive',
+      });
     } finally {
       setClearing(false);
     }

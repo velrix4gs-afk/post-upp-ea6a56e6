@@ -1,6 +1,6 @@
 // Offline-first local cache backed by IndexedDB.
 // Separate DB from the existing `postup_cache` so we do not collide with
-// the read-cache used by feed/profile/reels.
+// the read-cache used by feed/profile.
 //
 // SECURITY: This module never talks to Redis directly. All sync goes
 // through `apiGateway.ts` -> Supabase Edge Functions. No external creds.

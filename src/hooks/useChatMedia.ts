@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { getChatMediaCategory } from '@/lib/chatMedia';
 
 interface MediaItem {
   id: string;
@@ -54,14 +55,10 @@ export const useChatMedia = (chatId?: string) => {
     void fetchMedia();
   }, [fetchMedia]);
 
-  const getImageMedia = () => media.filter(m => m.media_type?.startsWith('image'));
-  const getVideoMedia = () => media.filter(m => m.media_type?.startsWith('video'));
-  const getAudioMedia = () => media.filter(m => m.media_type?.startsWith('audio'));
-  const getDocumentMedia = () => media.filter(m =>
-    !m.media_type?.startsWith('image') &&
-    !m.media_type?.startsWith('video') &&
-    !m.media_type?.startsWith('audio')
-  );
+  const getImageMedia = () => media.filter(m => getChatMediaCategory(m.media_type) === 'image');
+  const getVideoMedia = () => media.filter(m => getChatMediaCategory(m.media_type) === 'video');
+  const getAudioMedia = () => media.filter(m => getChatMediaCategory(m.media_type) === 'audio');
+  const getDocumentMedia = () => media.filter(m => getChatMediaCategory(m.media_type) === 'document');
 
   return { media, loading, error, getImageMedia, getVideoMedia, getAudioMedia, getDocumentMedia, refetch: fetchMedia };
 };

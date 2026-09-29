@@ -87,32 +87,14 @@ export const VoiceCall = ({
     };
   }, [client, callId, retryCount]);
 
-  // Notifies the other participant (via IncomingCallOverlay, which listens
-  // on the call_signals table) that a call is coming in, and listens for
-  // their decline so the caller side can end/log the call correctly.
-  // This bridge didn't exist before -- Stream connected the call on its own
-  // servers but the other person was never told anything was happening.
+  // Subscribe before publishing the offer so a quick decline cannot be lost
+  // between sending the invite and attaching the outcome listener.
   useEffect(() => {
     if (!isInitiator || !user || !call) return;
 
     const signalKey = `${user.id}:${chatId}:${callId}`;
-    if (signaledCallRef.current !== signalKey) {
-      signaledCallRef.current = signalKey;
-      void supabase.from('call_signals').insert({
-        call_id: chatId,
-        sender_id: user.id,
-        signal_type: 'offer',
-        signal_data: { video: false },
-      }).then(({ error }) => {
-        if (error) {
-          signaledCallRef.current = null;
-          setSignalError('Could not notify the other person. Check that the call migrations are deployed, then retry.');
-          console.error('[VoiceCall] failed to send call offer', error);
-        } else {
-          setSignalError(null);
-        }
-      });
-    }
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     const channel = supabase
       .channel(`call-outcome-${chatId}-${callId}`)
@@ -127,28 +109,50 @@ export const VoiceCall = ({
           }
         },
       )
-      .subscribe();
-
-    const timeout = setTimeout(() => {
-      if (!hasConnectedRef.current) {
-        void supabase.from('call_signals').insert({
-          call_id: chatId,
-          sender_id: user.id,
-          signal_type: 'cancel',
-          signal_data: {},
-        }).then(({ error }) => {
-          if (error) {
-            setSignalError('The call could not be cancelled for the other person.');
-            console.error('[VoiceCall] failed to cancel timed-out call', error);
-          }
-        });
-        finish('unanswered');
-      }
-    }, RING_TIMEOUT_MS);
+      .subscribe((status) => {
+        if (cancelled) return;
+        if (status === 'SUBSCRIBED' && signaledCallRef.current !== signalKey) {
+          signaledCallRef.current = signalKey;
+          void supabase.from('call_signals').insert({
+            call_id: chatId,
+            sender_id: user.id,
+            signal_type: 'offer',
+            signal_data: { video: false },
+          }).then(({ error }) => {
+            if (cancelled) return;
+            if (error) {
+              signaledCallRef.current = null;
+              setSignalError('Could not notify the other person. Check that the call migrations are deployed, then retry.');
+              console.error('[VoiceCall] failed to send call offer', error);
+              return;
+            }
+            setSignalError(null);
+            timeout = setTimeout(() => {
+              if (!hasConnectedRef.current) {
+                void supabase.from('call_signals').insert({
+                  call_id: chatId,
+                  sender_id: user.id,
+                  signal_type: 'cancel',
+                  signal_data: {},
+                }).then(({ error: cancelError }) => {
+                  if (cancelError) {
+                    setSignalError('The call could not be cancelled for the other person.');
+                    console.error('[VoiceCall] failed to cancel timed-out call', cancelError);
+                  }
+                });
+                finish('unanswered');
+              }
+            }, RING_TIMEOUT_MS);
+          });
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          setSignalError('Could not connect to call signaling. Check your connection and retry.');
+        }
+      });
 
     return () => {
+      cancelled = true;
       supabase.removeChannel(channel);
-      clearTimeout(timeout);
+      if (timeout) clearTimeout(timeout);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInitiator, user, chatId, callId, call, retryCount]);
@@ -216,6 +220,7 @@ export const VoiceCall = ({
           setMinimized={setMinimized}
           participantName={participantName}
           participantAvatar={participantAvatar}
+          isInitiator={isInitiator}
           hasConnectedRef={hasConnectedRef}
           durationRef={durationRef}
           setupError={signalError || undefined}
@@ -232,6 +237,7 @@ interface InnerProps {
   setMinimized: (v: boolean) => void;
   participantName: string;
   participantAvatar?: string;
+  isInitiator: boolean;
   hasConnectedRef: React.MutableRefObject<boolean>;
   durationRef: React.MutableRefObject<number>;
   setupError?: string;
@@ -244,6 +250,7 @@ const VoiceCallInner = ({
   setMinimized,
   participantName,
   participantAvatar,
+  isInitiator,
   hasConnectedRef,
   durationRef,
   setupError,
@@ -293,7 +300,7 @@ const VoiceCallInner = ({
 
   const statusText = isConnected
     ? formatDuration(callDuration)
-    : callingState === CallingState.RINGING
+    : isInitiator && callingState === CallingState.JOINED
       ? 'Ringing…'
       : 'Connecting…';
 
@@ -301,18 +308,18 @@ const VoiceCallInner = ({
     <div className="flex items-center justify-center gap-4 sm:gap-6">
       <Button
         size="icon"
-        variant={speakerOn ? 'secondary' : 'outline'}
+        variant="secondary"
         onClick={toggleSpeaker}
-        className="h-14 w-14 rounded-full touch-manipulation"
+        className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation"
         aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
       >
         {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
       </Button>
       <Button
         size="icon"
-        variant={!isMute ? 'secondary' : 'destructive'}
+        variant="secondary"
         onClick={toggleMic}
-        className="h-14 w-14 rounded-full touch-manipulation"
+        className={`h-14 w-14 rounded-full touch-manipulation ${isMute ? 'bg-red-600 text-white hover:bg-red-700 hover:text-white' : 'border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white'}`}
         aria-label={!isMute ? 'Mute' : 'Unmute'}
       >
         {!isMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}

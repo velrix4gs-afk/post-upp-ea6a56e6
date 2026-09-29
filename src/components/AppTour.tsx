@@ -15,8 +15,8 @@ const STEPS = [
   },
   {
     icon: PlusCircle,
-    title: 'Post, story or reel',
-    body: 'Tap the post bar to share text and photos, or use the create button for a story or a reel. You can add several images to one post.',
+    title: 'Create a post or story',
+    body: 'Tap the post bar to share text and photos, or use the create button to share a story. You can add several images to one post.',
   },
   {
     icon: MessageCircle,

@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Home, MessageCircle, Users, Compass, Bookmark, BarChart3, Settings, Star, Crown, BadgeCheck, FileText, Receipt, HelpCircle, LogOut, ChevronRight, type LucideIcon } from 'lucide-react';
+import { Home, MessageCircle, Users, Compass, Bookmark, BarChart3, Settings, Crown, BadgeCheck, FileText, Receipt, HelpCircle, LogOut, ChevronRight, type LucideIcon } from 'lucide-react';
 interface MenuPanelProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
@@ -92,7 +92,6 @@ export const MenuPanel = ({
         <MenuItem icon={Compass} label="Explore" onClick={() => handleNavigation('/explore')} />
         <MenuItem icon={Bookmark} label="Saved" onClick={() => handleNavigation('/bookmarks')} />
         <MenuItem icon={FileText} label="Pages" onClick={() => handleNavigation('/pages')} />
-        <MenuItem icon={Star} label="Reels" onClick={() => handleNavigation('/reels')} />
         <MenuItem icon={MessageCircle} label="Messages" onClick={() => handleNavigation('/messages')} />
         <MenuItem icon={Users} label="Friends" onClick={() => handleNavigation('/friends')} />
 

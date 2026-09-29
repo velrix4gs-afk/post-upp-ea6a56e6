@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -8,31 +8,26 @@ export const useStarredMessages = (chatId?: string) => {
   const [starredMessages, setStarredMessages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user && chatId) {
-      fetchStarredMessages();
+  const fetchStarredMessages = useCallback(async () => {
+    if (!user || !chatId) {
+      setStarredMessages([]);
+      setLoading(false);
+      return;
     }
-  }, [user, chatId]);
-
-  const fetchStarredMessages = async () => {
-    if (!user || !chatId) return;
-
+    setLoading(true);
     try {
-      // First get all message IDs for this chat
-      const { data: chatMessages } = await supabase
+      const { data: chatMessages, error: messagesError } = await supabase
         .from('messages')
         .select('id')
         .eq('chat_id', chatId);
+      if (messagesError) throw messagesError;
 
-      if (!chatMessages || chatMessages.length === 0) {
+      const messageIds = (chatMessages || []).map((message) => message.id);
+      if (messageIds.length === 0) {
         setStarredMessages([]);
-        setLoading(false);
         return;
       }
 
-      const messageIds = chatMessages.map(m => m.id);
-
-      // Then get starred messages for these IDs
       const { data, error } = await supabase
         .from('starred_messages')
         .select('message_id')
@@ -44,10 +39,15 @@ export const useStarredMessages = (chatId?: string) => {
       setStarredMessages(data?.map(m => m.message_id) || []);
     } catch (error) {
       console.error('Error fetching starred messages:', error);
+      setStarredMessages([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, chatId]);
+
+  useEffect(() => {
+    void fetchStarredMessages();
+  }, [fetchStarredMessages]);
 
   const starMessage = async (messageId: string) => {
     if (!user) return;
@@ -62,7 +62,7 @@ export const useStarredMessages = (chatId?: string) => {
 
       if (error) throw error;
 
-      setStarredMessages([...starredMessages, messageId]);
+      setStarredMessages((previous) => previous.includes(messageId) ? previous : [...previous, messageId]);
       toast({ title: 'Message starred' });
     } catch (error) {
       console.error('Error starring message:', error);
@@ -82,7 +82,7 @@ export const useStarredMessages = (chatId?: string) => {
 
       if (error) throw error;
 
-      setStarredMessages(starredMessages.filter(id => id !== messageId));
+      setStarredMessages((previous) => previous.filter(id => id !== messageId));
       toast({ title: 'Message unstarred' });
     } catch (error) {
       console.error('Error unstarring message:', error);

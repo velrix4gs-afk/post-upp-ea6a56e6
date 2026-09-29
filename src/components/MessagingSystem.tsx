@@ -82,7 +82,9 @@ const MessagingSystem = () => {
     starMessage,
     unstarMessage,
     forwardMessage,
-    markMessageRead
+    markMessageRead,
+    refetchChats,
+    refetchMessages,
   } = useMessages(selectedChatId || undefined);
   
   const { createChat: createChatByUuid } = useChats();
@@ -666,7 +668,10 @@ const MessagingSystem = () => {
             chatId={selectedChat.id}
             open={showClearDialog}
             onOpenChange={setShowClearDialog}
-            onCleared={() => window.location.reload()}
+            onCleared={async () => {
+              await Promise.all([refetchMessages(), refetchChats()]);
+              setShowClearDialog(false);
+            }}
           />
           <ReportUserDialog
             userId={getOtherParticipants(selectedChat)[0]?.user_id || ''}

@@ -905,6 +905,8 @@ const MessagesPage = () => {
                   lastMessage={formatLastMessagePreview(chat.last_message)}
                   lastMessageAt={chat.last_message_at || chat.updated_at}
                   unreadCount={chat.unread_count || 0}
+                  isOwnLastMessage={chat.last_message_sender_id === user?.id}
+                  lastMessageStatus={chat.last_message_status}
                   isOnline={isOnlineUser}
                   isPinned={pinnedChatIds.includes(chat.id)}
                   isGroup={chat.is_group}
@@ -1350,8 +1352,8 @@ const MessagesPage = () => {
           chatId={selectedChatId}
           open={showClearChat}
           onOpenChange={setShowClearChat}
-          onCleared={() => {
-            refetchMessages();
+          onCleared={async () => {
+            await Promise.all([refetchMessages(), refetchChats()]);
             setShowClearChat(false);
           }}
         />
