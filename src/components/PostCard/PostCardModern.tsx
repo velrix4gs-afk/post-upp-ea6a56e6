@@ -37,6 +37,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
+import { useDwellTracker } from "@/hooks/useDwellTracker";
+import { extractHashtags, detectPostFormat } from "@/lib/affinityProfile";
 export interface PostCardModernProps {
   post: {
     id: string;
@@ -176,6 +178,12 @@ export const PostCardModern = ({
   const displayUsername = isPagePost ? post.page_username : post.author_username;
   const displayVerified = isPagePost ? post.page_is_verified : post.is_verified;
   const linkPreview = extractLinkPreview(post.content || '');
+  // Silent interest tracking (docs/FEED_ALGORITHM.md v1) — no visible effect.
+  const dwell = useDwellTracker({
+    authorId: post.author_id,
+    hashtags: extractHashtags(post.content || ''),
+    format: detectPostFormat(post),
+  });
   const handleFollowToggle = async () => {
     if (isFollowingAuthor) {
       await unfollowUser(post.author_id);
@@ -183,6 +191,7 @@ export const PostCardModern = ({
         title: 'Unfollowed'
       });
     } else {
+      dwell.reportFollow();
       await followUser(post.author_id, false);
       toast({
         title: 'Following'
@@ -270,11 +279,21 @@ export const PostCardModern = ({
   const handleLikeWithAnimation = async () => {
     haptic('light');
     setIsLikeAnimating(true);
+    dwell.reportReaction('like');
     await handleReactionToggle('like');
     setTimeout(() => setIsLikeAnimating(false), 300);
   };
   const handleShare = () => {
+    dwell.reportShare();
     setShowShareDialog(true);
+  };
+  const handleBookmarkToggle = () => {
+    dwell.reportBookmark();
+    toggleBookmark(post.id);
+  };
+  const handleCommentsToggle = () => {
+    if (!showComments) dwell.reportCommentExpand();
+    setShowComments(!showComments);
   };
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
