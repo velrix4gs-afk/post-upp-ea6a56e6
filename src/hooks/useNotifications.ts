@@ -40,7 +40,9 @@ export const useNotifications = () => {
       CacheHelper.getNotifications(user.id).then(cached => {
         if (cached && cached.length > 0) {
           setNotifications((current) => {
-            const byId = new Map(cached.map((notification: Notification) => [notification.id, notification]));
+            const byId = new Map<string, Notification>(
+              (cached as Notification[]).map((notification) => [notification.id, notification])
+            );
             current.forEach((notification) => byId.set(notification.id, notification));
             liveNotificationsRef.current.forEach((notification, id) => byId.set(id, notification));
             return [...byId.values()]

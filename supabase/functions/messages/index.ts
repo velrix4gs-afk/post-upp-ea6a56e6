@@ -594,6 +594,19 @@ serve(async (req) => {
         });
       }
 
+      const { data: typingMembership } = await supabaseClient
+        .from('chat_participants')
+        .select('chat_id')
+        .eq('chat_id', parsed.data.chatId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!typingMembership) {
+        return new Response(JSON.stringify({ error: 'Not a participant of this chat' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const { error } = await supabaseClient
         .from('typing_status')
         .upsert({

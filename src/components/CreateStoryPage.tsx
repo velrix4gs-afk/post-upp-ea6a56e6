@@ -267,7 +267,7 @@ const CreateStoryPage = () => {
               className="text-white/80 hover:bg-white/10 text-xs gap-1"
             >
               <Users className="h-4 w-4" />
-              {audience === 'public' ? 'Everyone' : audience === 'followers' ? 'Followers' : audience === 'close-friends' ? 'Close Friends' : 'Only Me'}
+              {audience === 'public' ? 'Everyone' : audience === 'followers' ? 'Followers' : 'Only Me'}
               <ChevronDown className="h-3 w-3" />
             </Button>
           )}

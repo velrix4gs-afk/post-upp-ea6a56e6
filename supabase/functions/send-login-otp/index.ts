@@ -116,11 +116,13 @@ serve(async (req) => {
     // Store OTP in database (expires in 10 minutes)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     
-    // Delete any existing OTPs for this email first
+    // Only clear codes that have already expired. A pending, still-valid code
+    // stays usable so a third party cannot cancel someone else's sign-in code.
     await supabase
       .from('email_otps')
       .delete()
-      .eq('email', sanitizedEmail);
+      .eq('email', sanitizedEmail)
+      .lt('expires_at', new Date().toISOString());
 
     const { error: insertError } = await supabase
       .from('email_otps')
