@@ -74,8 +74,8 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${req.headers.get("origin")}/premium?coins_purchased=${coinsNum}`,
-      cancel_url: `${req.headers.get("origin")}/premium`,
+      success_url: `${appOrigin}/premium?coins_purchased=${coinsNum}`,
+      cancel_url: `${appOrigin}/premium`,
       metadata: {
         user_id: user.id,
         coins: coinsNum.toString(),

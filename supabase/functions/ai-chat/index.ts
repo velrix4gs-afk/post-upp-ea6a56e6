@@ -130,7 +130,7 @@ async function callLovableAI(messages: any[], model: string, systemPrompt: strin
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      messages: [{ role: "system", content: systemPrompt }, ...sanitizeMessages(messages)],
       stream: true,
     }),
   });
@@ -145,7 +145,7 @@ async function callOpenAI(messages: any[], model: string, apiKey: string, system
     },
     body: JSON.stringify({
       model,
-      messages: [{ role: "system", content: systemPrompt }, ...messages],
+      messages: [{ role: "system", content: systemPrompt }, ...sanitizeMessages(messages)],
       stream: true,
     }),
   });
@@ -153,7 +153,7 @@ async function callOpenAI(messages: any[], model: string, apiKey: string, system
 
 async function callAnthropic(messages: any[], model: string, apiKey: string, systemPrompt: string) {
   // Convert messages format for Anthropic
-  const anthropicMessages = messages.map((m: any) => ({
+  const anthropicMessages = sanitizeMessages(messages).map((m: any) => ({
     role: m.role === 'assistant' ? 'assistant' : 'user',
     content: m.content,
   }));
@@ -177,7 +177,7 @@ async function callAnthropic(messages: any[], model: string, apiKey: string, sys
 
 async function callGoogleAI(messages: any[], model: string, apiKey: string, systemPrompt: string) {
   // Convert messages to Gemini format
-  const contents = messages.map((m: any) => ({
+  const contents = sanitizeMessages(messages).map((m: any) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }]
   }));
