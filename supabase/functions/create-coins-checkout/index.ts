@@ -7,10 +7,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Checkout return links may only point at origins we own.
+const ALLOWED_ORIGINS = [
+  "https://post-upp.lovable.app",
+  "https://post-upp.app",
+  "https://id-preview--9a29c09e-0a4f-48ed-8349-6ca57bde389a.lovable.app",
+  "http://localhost:8080",
+];
+const DEFAULT_ORIGIN = "https://post-upp.lovable.app";
+
+const resolveAppOrigin = (origin: string | null): string =>
+  origin && ALLOWED_ORIGINS.includes(origin) ? origin : DEFAULT_ORIGIN;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const appOrigin = resolveAppOrigin(req.headers.get("origin"));
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
