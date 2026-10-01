@@ -29,7 +29,7 @@ export const ClearChatDialog = ({ chatId, open, onOpenChange, onCleared }: Clear
 
     setClearing(true);
     try {
-      const { error } = await supabase.rpc('clear_chat_for_user', { p_chat_id: chatId });
+      const { error } = await (supabase as any).rpc('clear_chat_for_user', { p_chat_id: chatId });
       if (error) throw error;
 
       toast({ title: 'Chat history cleared' });

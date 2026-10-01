@@ -76,7 +76,7 @@ export const useAIChat = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('ai_chat_messages')
         .select('id, role, content, created_at')
         .eq('user_id', userId)
@@ -106,7 +106,7 @@ export const useAIChat = () => {
       }));
 
       if (history.length === 0 && localHistory.length > 0) {
-        const { data: migrated, error: migrationError } = await supabase
+        const { data: migrated, error: migrationError } = await (supabase as any)
           .from('ai_chat_messages')
           .insert(localHistory.map(({ role, content, timestamp }) => ({
             user_id: userId,
@@ -158,7 +158,7 @@ export const useAIChat = () => {
   const persistMessage = useCallback(async (message: AIMessage) => {
     if (!userIdRef.current) return;
     try {
-      const { error } = await supabase.from('ai_chat_messages').insert({
+      const { error } = await (supabase as any).from('ai_chat_messages').insert({
         user_id: userIdRef.current,
         role: message.role,
         content: message.content,
@@ -308,7 +308,7 @@ export const useAIChat = () => {
     if (isLoading) return;
     const currentUserId = userIdRef.current;
     if (currentUserId) {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('ai_chat_messages')
         .delete()
         .eq('user_id', currentUserId);

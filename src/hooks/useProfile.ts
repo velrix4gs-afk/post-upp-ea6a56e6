@@ -91,7 +91,7 @@ export const useProfile = (userId?: string) => {
       // Public card never includes phone / birth_date / gender. The owner
       // loads those separately via get_my_sensitive_profile.
       let data: any = null;
-      const { data: card, error: cardError } = await supabase.rpc('get_profile_card', {
+      const { data: card, error: cardError } = await (supabase as any).rpc('get_profile_card', {
         p_id: targetUserId,
       });
       const cardRow = Array.isArray(card) ? card[0] : card;
