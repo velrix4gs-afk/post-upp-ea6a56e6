@@ -101,6 +101,21 @@ async function getAISettings(): Promise<AISettings> {
   }
 }
 
+/**
+ * Caller-supplied turns may only be user/assistant. Any attempt to inject a
+ * system (or other privileged) role is downgraded to a plain user turn so the
+ * admin-configured system prompt cannot be overridden from the client.
+ */
+function sanitizeMessages(messages: any[]): { role: 'user' | 'assistant'; content: string }[] {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((m) => m && typeof m.content === 'string')
+    .map((m) => ({
+      role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+      content: m.content,
+    }));
+}
+
 async function callLovableAI(messages: any[], model: string, systemPrompt: string) {
   const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
   if (!LOVABLE_API_KEY) {
