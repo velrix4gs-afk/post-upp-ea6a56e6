@@ -24,7 +24,13 @@ export const useSearch = () => {
 
     try {
       setLoading(true);
-      const searchTerm = `%${query}%`;
+      // Escape PostgREST filter metacharacters so a search term cannot alter
+      // the generated filter expression.
+      const escapedQuery = query
+        .replace(/[\\%_]/g, (match) => `\\${match}`)
+        .replace(/[(),.:*"]/g, ' ')
+        .trim();
+      const searchTerm = `%${escapedQuery}%`;
 
       // Search users - only show discoverable profiles
       const { data: users, error: usersError } = await supabase
