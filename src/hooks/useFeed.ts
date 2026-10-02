@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Post } from './usePosts';
 import { CacheHelper } from '@/lib/asyncStorage';
+import { rankFeedPosts } from '@/lib/feedRanking';
+import { startAffinitySession } from '@/lib/affinityProfile';
 
 export type FeedType = 'for-you' | 'following' | 'trending';
 
@@ -108,8 +110,10 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       if (error) throw error;
 
       const newPosts = (data || []) as Post[];
-      // Stable chronological order for all tabs — random shuffling made the
-      // feed jump around on every render and pagination.
+      // Base rank (docs/FEED_ALGORITHM.md §4): recency primary, engagement
+      // boost within the freshness window. 'following' stays chronological.
+      const ranked = feedTypeRef.current === 'for-you' ? rankFeedPosts(newPosts) : newPosts;
+      
       
       if (isInitialPage) {
         setPosts(newPosts);
