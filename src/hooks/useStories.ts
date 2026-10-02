@@ -52,7 +52,7 @@ export const useStories = () => {
   const fetchStories = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('stories')
+        .from('stories' as any)
         .select(`
           *,
           profiles (
@@ -168,7 +168,7 @@ export const useStories = () => {
         const fileName = `${user.id}/${uploadId}.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
-          .from('stories')
+          .from('stories' as any)
           .upload(fileName, mediaFile, { upsert: false, contentType: mediaFile.type, cacheControl: '3600' });
 
         if (uploadError) {
@@ -181,7 +181,7 @@ export const useStories = () => {
       }
 
       const { error } = await supabase
-        .from('stories')
+        .from('stories' as any)
         .insert({
           user_id: user.id,
           content: content?.trim() || null,
@@ -194,7 +194,7 @@ export const useStories = () => {
       if (error) {
         if (uploadedPath) {
           const { data: confirmedStory, error: confirmationError } = await supabase
-            .from('stories')
+            .from('stories' as any)
             .select('id')
             .eq('user_id', user.id)
             .eq('media_url', uploadedPath)
@@ -255,7 +255,7 @@ export const useStories = () => {
   const deleteStory = async (storyId: string) => {
     try {
       const { error } = await supabase
-        .from('stories')
+        .from('stories' as any)
         .delete()
         .eq('id', storyId);
 

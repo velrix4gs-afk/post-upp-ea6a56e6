@@ -86,7 +86,7 @@ export const SharePostDialog = ({ postId, open, onOpenChange }: SharePostDialogP
       const shareMessage = `🔗 Shared post: "${post?.content?.slice(0, 100)}${post?.content && post.content.length > 100 ? '...' : ''}"`;
 
       const { error: messageError } = await supabase
-        .from('messages')
+        .from('messages' as any)
         .insert({
           chat_id: chatId,
           sender_id: user.id,

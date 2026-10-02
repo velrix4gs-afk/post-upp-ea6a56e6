@@ -94,7 +94,7 @@ export const NotificationPreferences = ({ isOpen, onOpenChange }: NotificationPr
     try {
       const { error } = await supabase
         .from('user_settings')
-        .update({ [field]: value })
+        .update({ [field]: value } as any)
         .eq('user_id', user.id);
 
       if (error) throw error;

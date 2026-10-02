@@ -18,7 +18,7 @@ export const logError = async (error: ErrorLogData) => {
     const pageUrl = window.location.href;
     const userAgent = navigator.userAgent;
     
-    await supabase.from('error_logs').insert({
+    await supabase.from('error_logs' as any).insert({
       error_code: error.code,
       error_message: error.message,
       error_type: error.type,
@@ -31,7 +31,7 @@ export const logError = async (error: ErrorLogData) => {
     });
     
     // Only log to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('[ErrorLogger]', {
         code: error.code,
         message: error.message,

@@ -23,7 +23,7 @@ interface RealtimeChatCallbacks {
 export const useRealtimeChat = (chatId: string | undefined, callbacks: RealtimeChatCallbacks = {}) => {
   const { user } = useAuth();
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout>();
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (!chatId || !user) return;

@@ -115,7 +115,7 @@ export const showCleanError = (error: any, toast: any, customTitle?: string) => 
   let description = `${message} [${errorCode}]`;
   
   // Add technical details in development
-  if (process.env.NODE_ENV === 'development' && error?.message) {
+  if (import.meta.env.DEV && error?.message) {
     const details = typeof error === 'object' ? JSON.stringify(error, null, 2) : String(error);
     description += `\n\n📋 Technical Details:\n${details.slice(0, 200)}...`;
   }

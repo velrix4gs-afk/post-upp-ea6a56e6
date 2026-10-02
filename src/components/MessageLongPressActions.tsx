@@ -126,7 +126,7 @@ export const useLongPress = (
   callback: () => void,
   ms: number = 500
 ) => {
-  const timerRef = useRef<NodeJS.Timeout>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   
   const start = (e: React.TouchEvent | React.MouseEvent) => {
     e.preventDefault();

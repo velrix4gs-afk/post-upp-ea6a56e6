@@ -188,7 +188,7 @@ export const useProfile = (userId?: string) => {
 
     const { data, error: updateError } = await supabase
       .from('profiles')
-      .update(updateData)
+      .update(updateData as any)
       .eq('id', user.id)
       .select('id')
       .single();

@@ -84,7 +84,7 @@ export const ChatListItem = ({
   const startY = useRef<number | null>(null);
   const isSwiping = useRef(false);
   const movedRef = useRef(false);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Close this row's swipe whenever any other row opens, the list scrolls,
   // or a chat is selected. Dispatched from MessagesPage.

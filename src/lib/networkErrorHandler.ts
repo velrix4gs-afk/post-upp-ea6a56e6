@@ -66,7 +66,7 @@ export const handleNetworkError = (error: any, toastFn: any, title = 'Error') =>
   // Suppress when offline OR when the error itself is a transport-level failure —
   // the global offline indicator already speaks for those cases.
   if (!navigator.onLine || isNetworkError(error)) {
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.warn('[handleNetworkError] suppressed:', error);
     }
     return;
@@ -79,7 +79,7 @@ export const handleNetworkError = (error: any, toastFn: any, title = 'Error') =>
     variant: 'destructive',
   });
 
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     console.error('[Network Error]', error);
   }
 };

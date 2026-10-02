@@ -329,7 +329,7 @@ const CreateStoryPage = () => {
         media_type = mediaType;
       }
 
-      const { error: insErr } = await supabase.from('stories').insert({
+      const { error: insErr } = await supabase.from('stories' as any).insert({
         user_id: user.id,
         media_url,
         media_type,
