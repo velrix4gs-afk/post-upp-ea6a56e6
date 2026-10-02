@@ -1,5 +1,5 @@
 {
-  "lockfileVersion": 1,
+  "lockfileVersion": 3,
   "configVersion": 1,
   "workspaces": {
     "": {
@@ -83,6 +83,11 @@
         "typescript-eslint": "^8.38.0",
         "vite": "^5.4.19",
       },
+    },
+  },
+  "overrides": {
+    "@babel/helper-compilation-targets": {
+      "lru-cache": "5.1.1",
     },
   },
   "packages": {
