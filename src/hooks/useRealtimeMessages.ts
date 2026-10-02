@@ -99,7 +99,7 @@ export const useRealtimeMessages = (chatId: string | null) => {
         content,
         reply_to_id: replyToId,
         media_url: mediaUrl
-      });
+      } as any);
 
     if (error) {
       console.error('Error sending message:', error);

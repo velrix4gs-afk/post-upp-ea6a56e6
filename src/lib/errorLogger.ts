@@ -28,10 +28,10 @@ export const logError = async (error: ErrorLogData) => {
       user_agent: userAgent,
       severity: error.severity || 'error',
       user_id: error.userId
-    });
+    } as any);
     
     // Only log to console in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.error('[ErrorLogger]', {
         code: error.code,
         message: error.message,

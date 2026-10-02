@@ -11,7 +11,7 @@ interface ProfileHoverCardProps {
 export const ProfileHoverCard = ({ userId, children, disabled }: ProfileHoverCardProps) => {
   const [open, setOpen] = useState(false);
   const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
-  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const didLongPressOpen = useRef(false);
 
   const clearTimer = useCallback(() => {

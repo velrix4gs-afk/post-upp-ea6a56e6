@@ -196,7 +196,7 @@ class ErrorBoundary extends Component<
             <p className="text-muted-foreground">
               The application encountered an unexpected error. Please try refreshing the page.
             </p>
-            {this.state.error && process.env.NODE_ENV === 'development' && (
+            {this.state.error && import.meta.env.DEV && (
               <details className="text-left bg-muted p-4 rounded-lg text-sm">
                 <summary className="cursor-pointer font-medium mb-2">
                   Error Details (Dev Only)

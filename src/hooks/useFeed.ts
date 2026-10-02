@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Post } from './usePosts';
 import { CacheHelper } from '@/lib/asyncStorage';
+import { rankFeedPosts } from '@/lib/feedRanking';
+import { startAffinitySession } from '@/lib/affinityProfile';
 
 export type FeedType = 'for-you' | 'following' | 'trending';
 
@@ -108,17 +110,19 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       if (error) throw error;
 
       const newPosts = (data || []) as Post[];
-      // Stable chronological order for all tabs — random shuffling made the
-      // feed jump around on every render and pagination.
+      // Base rank (docs/FEED_ALGORITHM.md §4): recency primary, engagement
+      // boost within the freshness window. 'following' stays chronological.
+      const ranked = feedTypeRef.current === 'for-you' ? rankFeedPosts(newPosts) : newPosts;
+      
       
       if (isInitialPage) {
-        setPosts(newPosts);
+        setPosts(ranked);
         // Save to cache on fresh fetch
-        CacheHelper.saveFeed(newPosts);
+        CacheHelper.saveFeed(ranked);
       } else {
         setPosts(prev => {
           const existingIds = new Set(prev.map((post) => post.id));
-          const combined = [...prev, ...newPosts.filter((post) => !existingIds.has(post.id))];
+          const combined = [...prev, ...ranked.filter((post) => !existingIds.has(post.id))];
           CacheHelper.saveFeed(combined);
           return combined;
         });
@@ -190,9 +194,12 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       setPosts(prev => {
         const map = new Map(prev.map(p => [p.id, p]));
         for (const p of fresh) map.set(p.id, p);
-        const merged = Array.from(map.values()).sort(
-          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
+        const all = Array.from(map.values());
+        const merged = feedTypeRef.current === 'for-you'
+          ? rankFeedPosts(all)
+          : all.sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
         CacheHelper.saveFeed(merged);
         return merged;
       });
@@ -204,6 +211,8 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
   useEffect(() => {
     if (user) {
       let cancelled = false;
+      // Start the affinity session (daily decay + session reset) — silent.
+      startAffinitySession();
       // Load cached feed first for instant display, then refresh without
       // replacing the visible feed with a full-page skeleton.
       const bootFeed = async () => {

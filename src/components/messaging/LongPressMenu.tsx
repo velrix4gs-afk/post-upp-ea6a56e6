@@ -42,7 +42,7 @@ export const LongPressMenu = ({
   onInfo,
 }: LongPressMenuProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const longPressTimer = useRef<NodeJS.Timeout>();
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [pressPosition, setPressPosition] = useState({ x: 0, y: 0 });
 
   const handleTouchStart = (e: React.TouchEvent) => {

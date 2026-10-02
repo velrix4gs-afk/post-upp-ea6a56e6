@@ -336,7 +336,7 @@ const CreateStoryPage = () => {
         content,
         audience,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      });
+      } as any);
       if (insErr) {
         if (uploadedPath) {
           const { data: confirmedStory, error: confirmationError } = await supabase
