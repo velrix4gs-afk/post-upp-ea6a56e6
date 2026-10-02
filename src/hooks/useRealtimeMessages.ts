@@ -23,7 +23,7 @@ export const useRealtimeMessages = (chatId: string | null) => {
 
     const fetchMessages = async () => {
       const { data, error } = await supabase
-        .from('messages' as any)
+        .from('messages')
         .select('*')
         .eq('chat_id', chatId)
         .order('created_at', { ascending: true });
@@ -92,7 +92,7 @@ export const useRealtimeMessages = (chatId: string | null) => {
     if (!chatId || !user) return;
 
     const { error } = await supabase
-      .from('messages' as any)
+      .from('messages')
       .insert({
         chat_id: chatId,
         sender_id: user.id,
@@ -108,7 +108,7 @@ export const useRealtimeMessages = (chatId: string | null) => {
 
   const deleteMessage = async (messageId: string) => {
     await supabase
-      .from('messages' as any)
+      .from('messages')
       .delete()
       .eq('id', messageId);
   };

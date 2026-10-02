@@ -18,7 +18,7 @@ export const logError = async (error: ErrorLogData) => {
     const pageUrl = window.location.href;
     const userAgent = navigator.userAgent;
     
-    await supabase.from('error_logs' as any).insert({
+    await supabase.from('error_logs').insert({
       error_code: error.code,
       error_message: error.message,
       error_type: error.type,

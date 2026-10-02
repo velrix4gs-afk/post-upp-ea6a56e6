@@ -26,7 +26,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
       // Set self as online
       const setOnline = async () => {
         await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .update({ 
             is_online: true, 
             last_seen: new Date().toISOString() 
@@ -37,7 +37,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
       // Get profile data
       const getProfile = async () => {
         const { data } = await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .select('display_name, avatar_url')
           .eq('id', user.id)
           .single();
@@ -75,7 +75,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
       // Update last seen every 10 seconds
       const interval = setInterval(async () => {
         await supabase
-          .from('profiles' as any)
+          .from('profiles')
           .update({ last_seen: new Date().toISOString() })
           .eq('id', user.id);
       }, 10000);
@@ -84,7 +84,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
       return () => {
         clearInterval(interval);
         supabase
-          .from('profiles' as any)
+          .from('profiles')
           .update({ 
             is_online: false, 
             last_seen: new Date().toISOString() 
@@ -115,7 +115,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
     if (!channel || !user) return;
 
     const { data: profile } = await supabase
-      .from('profiles' as any)
+      .from('profiles')
       .select('display_name, avatar_url')
       .eq('id', user.id)
       .single();
