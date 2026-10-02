@@ -189,7 +189,7 @@ export const useStories = () => {
           media_type,
           audience,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        });
+        } as any);
 
       if (error) {
         if (uploadedPath) {

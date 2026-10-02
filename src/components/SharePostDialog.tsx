@@ -92,7 +92,7 @@ export const SharePostDialog = ({ postId, open, onOpenChange }: SharePostDialogP
           sender_id: user.id,
           content: shareMessage,
           reply_to_id: null,
-        });
+        } as any);
 
       if (messageError) throw messageError;
 

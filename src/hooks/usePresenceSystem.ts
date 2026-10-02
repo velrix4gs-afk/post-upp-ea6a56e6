@@ -30,7 +30,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
           .update({ 
             is_online: true, 
             last_seen: new Date().toISOString() 
-          })
+          } as any)
           .eq('id', user.id);
       };
 
@@ -88,7 +88,7 @@ export const usePresenceSystem = (currentChatId?: string) => {
           .update({ 
             is_online: false, 
             last_seen: new Date().toISOString() 
-          })
+          } as any)
           .eq('id', user.id);
         supabase.removeChannel(presenceChannel);
       };

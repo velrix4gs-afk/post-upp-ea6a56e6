@@ -28,7 +28,7 @@ export const logError = async (error: ErrorLogData) => {
       user_agent: userAgent,
       severity: error.severity || 'error',
       user_id: error.userId
-    });
+    } as any);
     
     // Only log to console in development
     if (import.meta.env.DEV) {
