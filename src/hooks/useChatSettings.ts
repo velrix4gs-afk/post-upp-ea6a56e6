@@ -125,7 +125,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
 
     try {
       const { data, error } = await supabase
-        .from('chat_settings')
+        .from('chat_settings' as any)
         .select('*')
         .eq('chat_id', chatId)
         .eq('user_id', user.id)
@@ -137,7 +137,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
       if (!loadedSettings) {
         // Create default settings
         const { data: newSettings, error: createError } = await supabase
-          .from('chat_settings')
+          .from('chat_settings' as any)
           .insert({
             chat_id: chatId,
             user_id: user.id,
@@ -213,7 +213,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
 
     try {
       const { data, error } = await supabase
-        .from('chat_settings')
+        .from('chat_settings' as any)
         .upsert({
           chat_id: chatId,
           user_id: user.id,
