@@ -21,6 +21,7 @@ import { AppTour } from "@/components/AppTour";
 import { CallSessionProvider } from "@/components/calls/CallSessionProvider";
 import { StreamVideoClientProvider } from "@/hooks/useStreamVideoClient";
 import { AppSwipeNavigation } from "@/hooks/useAppSwipeNavigation";
+import { RouteMeta } from "@/components/RouteMeta";
 
 // Eager-load core pages for instant navigation
 import Feed from "./pages/Feed";
@@ -264,6 +265,7 @@ const App = () => (
           <ToasterMobile />
           <LiquidGlassRoot />
           <BrowserRouter>
+            <RouteMeta />
             <AuthenticatedFeatures />
             <NavHistoryRecorder />
             <GlobalProfilePopupHost />
