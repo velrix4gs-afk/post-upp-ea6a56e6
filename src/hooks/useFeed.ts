@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Post } from './usePosts';
 import { CacheHelper } from '@/lib/asyncStorage';
-import { rankFeedPosts } from '@/lib/feedRanking';
-import { startAffinitySession } from '@/lib/affinityProfile';
+import { AFFINITY_PROFILE_UPDATED_EVENT, loadAffinityProfile, startAffinitySession } from '@/lib/affinityProfile';
+import { rankAndBlendFeedPosts } from '@/lib/feedBuckets';
 
 export type FeedType = 'for-you' | 'following' | 'trending';
 
@@ -35,7 +35,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         loadingMoreRef.current = true;
         setLoadingMore(true);
       }
-      const limit = 10;
+      const limit = feedTypeRef.current === 'for-you' ? 50 : 10;
       const offset = (pageNum - 1) * limit;
 
       let query = supabase
@@ -68,6 +68,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
           )
         `)
         .eq('privacy', 'public')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -102,19 +103,18 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         }
         query = query.or(filters.join(','));
       }
-      // 'for-you' → discovery: no author/page filter. Fetch all public
-      // posts and lightly shuffle each page below so the mix feels random.
+      // For You queries a wider real-post candidate set so the personalized,
+      // trending, and discovery buckets can be blended at their target ratios.
 
       const { data, error } = await query;
 
       if (error) throw error;
 
       const newPosts = (data || []) as Post[];
-      // Base rank (docs/FEED_ALGORITHM.md §4): recency primary, engagement
-      // boost within the freshness window. 'following' stays chronological.
-      const ranked = feedTypeRef.current === 'for-you' ? rankFeedPosts(newPosts) : newPosts;
-      
-      
+      const ranked = feedTypeRef.current === 'for-you'
+        ? rankAndBlendFeedPosts(newPosts)
+        : newPosts;
+
       if (isInitialPage) {
         setPosts(ranked);
         // Save to cache on fresh fetch
@@ -160,7 +160,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
   const refreshSilently = useCallback(async () => {
     if (!user) return;
     try {
-      const limit = 10;
+      const limit = feedTypeRef.current === 'for-you' ? 50 : 10;
       let query = supabase
         .from('posts')
         .select(`
@@ -171,6 +171,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
           page:pages ( name, username, avatar_url, is_verified )
         `)
         .eq('privacy', 'public')
+        .eq('is_deleted', false)
         .order('created_at', { ascending: false })
         .range(0, limit - 1);
 
@@ -189,22 +190,22 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       }
 
       const { data, error } = await query;
-      if (error) return;
+      if (error) throw error;
       const fresh = (data || []) as Post[];
       setPosts(prev => {
         const map = new Map(prev.map(p => [p.id, p]));
         for (const p of fresh) map.set(p.id, p);
         const all = Array.from(map.values());
         const merged = feedTypeRef.current === 'for-you'
-          ? rankFeedPosts(all)
+          ? rankAndBlendFeedPosts(all)
           : all.sort(
               (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
         CacheHelper.saveFeed(merged);
         return merged;
       });
-    } catch {
-      /* silent */
+    } catch (error) {
+      console.error('Error silently refreshing feed:', error);
     }
   }, [user]);
 
@@ -219,8 +220,11 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         const cached = await CacheHelper.getFeed();
         if (cancelled) return;
         if (cached && cached.length > 0) {
-          postsRef.current = cached;
-          setPosts(cached);
+          const visibleCached = feedTypeRef.current === 'for-you'
+            ? rankAndBlendFeedPosts(cached as Post[])
+            : cached as Post[];
+          postsRef.current = visibleCached;
+          setPosts(visibleCached);
           setLoading(false);
         }
 
@@ -240,7 +244,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
           table: 'posts'
         }, async (payload) => {
           const newPost = payload.new as any;
-          if (newPost.privacy !== 'public') return;
+          if (newPost.privacy !== 'public' || newPost.is_deleted) return;
 
           // Fetch profile for the new post
           const { data: profile } = await supabase
@@ -256,7 +260,9 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
 
           setPosts(prev => {
             if (prev.some(p => p.id === postWithProfile.id)) return prev;
-            const updated = [postWithProfile, ...prev];
+            const updated = feedTypeRef.current === 'for-you'
+              ? rankAndBlendFeedPosts([postWithProfile, ...prev])
+              : [postWithProfile, ...prev];
             CacheHelper.saveFeed(updated);
             return updated;
           });
@@ -268,9 +274,17 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         }, (payload) => {
           const updated = payload.new as any;
           setPosts(prev => {
-            const newPosts = prev.map(p => 
+            if (updated.privacy !== 'public' || updated.is_deleted) {
+              const filtered = prev.filter(post => post.id !== updated.id);
+              CacheHelper.saveFeed(filtered);
+              return filtered;
+            }
+            const changed = prev.map(p =>
               p.id === updated.id ? { ...p, ...updated } : p
             );
+            const newPosts = feedTypeRef.current === 'for-you'
+              ? rankAndBlendFeedPosts(changed)
+              : changed;
             CacheHelper.saveFeed(newPosts);
             return newPosts;
           });
@@ -289,8 +303,25 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
         })
         .subscribe();
 
+      const rerankUnseen = () => {
+        if (feedTypeRef.current !== 'for-you') return;
+        const viewedIds = new Set(loadAffinityProfile().session.viewedPostIds);
+        setPosts(current => {
+          if (current.length < 2) return current;
+          const ranked = rankAndBlendFeedPosts(current);
+          const unseen = ranked.filter(post => !viewedIds.has(post.id));
+          const next = current.map(post =>
+            viewedIds.has(post.id) ? post : unseen.shift() || post
+          );
+          CacheHelper.saveFeed(next);
+          return next;
+        });
+      };
+      window.addEventListener(AFFINITY_PROFILE_UPDATED_EVENT, rerankUnseen);
+
       return () => {
         cancelled = true;
+        window.removeEventListener(AFFINITY_PROFILE_UPDATED_EVENT, rerankUnseen);
         supabase.removeChannel(channel);
       };
     }

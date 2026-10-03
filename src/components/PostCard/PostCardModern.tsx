@@ -180,6 +180,7 @@ export const PostCardModern = ({
   const linkPreview = extractLinkPreview(post.content || '');
   // Silent interest tracking (docs/FEED_ALGORITHM.md v1) — no visible effect.
   const dwell = useDwellTracker({
+    postId: post.id,
     authorId: post.author_id,
     hashtags: extractHashtags(post.content || ''),
     format: detectPostFormat(post),
@@ -427,7 +428,7 @@ export const PostCardModern = ({
           </DialogContent>
         </Dialog>
 
-        <Card ref={dwell.targetRef} data-feed-card className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
+        <Card ref={dwell.targetRef} data-feed-card data-dwell-seconds="0" className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
           {/* Pinned indicator */}
           {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
               <Pin className="h-3 w-3" />

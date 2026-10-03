@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -40,6 +40,7 @@ export interface Post {
 }
 
 export const usePosts = () => {
+  const channelInstanceId = useId().replace(/:/g, '');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
@@ -97,7 +98,7 @@ export const usePosts = () => {
     media_urls?: string[];
     media_type?: string;
     privacy?: string;
-  }) => {
+  }): Promise<Post | { queued: true }> => {
     if (!session?.access_token) {
       throw new Error('You must be logged in to create a post');
     }
@@ -126,6 +127,9 @@ export const usePosts = () => {
       if (error) throw error;
 
       console.log('Post creation response:', data);
+      if (!data || typeof data !== 'object' || typeof data.id !== 'string') {
+        throw new Error('Post service returned an invalid response');
+      }
 
       // Real-time will handle adding to state, but also add optimistically
       setPosts(prevPosts => {
@@ -293,7 +297,7 @@ export const usePosts = () => {
 
     // Real-time: handle INSERT/UPDATE/DELETE without full re-fetch
     const channel = supabase
-      .channel('posts-realtime')
+      .channel(`posts-realtime:${channelInstanceId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -347,7 +351,7 @@ export const usePosts = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session?.access_token]);
+  }, [session?.access_token, channelInstanceId]);
 
   return {
     posts,

@@ -70,6 +70,7 @@ const EditPagePage = lazy(() => import("./pages/EditPagePage"));
 const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
 const InstructionsPage = lazy(() => import("./pages/InstructionsPage"));
 const OnboardingPage = lazy(() => import("./pages/OnboardingPage"));
+const Welcome = lazy(() => import("./pages/Welcome"));
 
 const PageLoader = () => {
   const { pathname } = useLocation();

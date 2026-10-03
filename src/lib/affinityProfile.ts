@@ -12,11 +12,13 @@ export interface AffinityProfile {
   authors: Record<string, number>;
   mutedKeywords: string[];
   blockedAuthors: string[];
+  hasSuperSignal: boolean;
   session: {
     startedAt: string;
     hashtags: Record<string, number>;
     authors: Record<string, number>;
     viewedCount: number;
+    viewedPostIds: string[];
   };
   totalSignals: number;
   lastDecayAt: string;
@@ -25,9 +27,10 @@ export interface AffinityProfile {
 
 const STORAGE_KEY = 'postupp_affinity_profile';
 const SESSION_KEY = 'postupp_affinity_session_active';
+export const AFFINITY_PROFILE_UPDATED_EVENT = 'postupp-affinity-profile-updated';
 const DECAY_HALF_LIFE_DAYS = 14;
-const COLD_START_SIGNAL_THRESHOLD = 10;
 const COLD_START_VIEW_THRESHOLD = 20;
+const SUPER_SIGNAL_THRESHOLD = 2.5;
 
 // Signal weights (§2)
 export const SIGNAL_WEIGHTS = {
@@ -71,6 +74,7 @@ const emptySession = () => ({
   hashtags: {} as Record<string, number>,
   authors: {} as Record<string, number>,
   viewedCount: 0,
+  viewedPostIds: [] as string[],
 });
 
 const createProfile = (): AffinityProfile => ({
@@ -80,6 +84,7 @@ const createProfile = (): AffinityProfile => ({
   authors: {},
   mutedKeywords: [],
   blockedAuthors: [],
+  hasSuperSignal: false,
   session: emptySession(),
   totalSignals: 0,
   lastDecayAt: new Date().toISOString(),
@@ -92,15 +97,28 @@ export const loadAffinityProfile = (): AffinityProfile => {
     if (!raw) return createProfile();
     const parsed = JSON.parse(raw) as AffinityProfile;
     if (parsed.version !== 1) return createProfile();
-    return { ...createProfile(), ...parsed };
+    const fallback = createProfile();
+    return {
+      ...fallback,
+      ...parsed,
+      formats: { ...fallback.formats, ...parsed.formats },
+      session: {
+        ...fallback.session,
+        ...parsed.session,
+        viewedPostIds: parsed.session?.viewedPostIds || [],
+      },
+    };
   } catch {
     return createProfile();
   }
 };
 
-export const saveAffinityProfile = (profile: AffinityProfile): void => {
+export const saveAffinityProfile = (profile: AffinityProfile, notify = true): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    if (notify && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(AFFINITY_PROFILE_UPDATED_EVENT));
+    }
   } catch {
     /* storage full or unavailable — learning is best-effort */
   }
@@ -137,7 +155,7 @@ export const startAffinitySession = (): AffinityProfile => {
     profile.session = emptySession();
     sessionStorage.setItem(SESSION_KEY, '1');
   }
-  saveAffinityProfile(profile);
+  saveAffinityProfile(profile, false);
   return profile;
 };
 
@@ -173,6 +191,9 @@ export const recordSignal = (
     profile.formats[target.format] = (profile.formats[target.format] || 0) + effective;
   }
   profile.totalSignals += 1;
+  if (Math.abs(effective) >= SUPER_SIGNAL_THRESHOLD) {
+    profile.hasSuperSignal = true;
+  }
   saveAffinityProfile(profile);
 };
 
@@ -210,20 +231,19 @@ export const recordReactionSignal = (
   recordSignal(REACTION_WEIGHTS[type] ?? SIGNAL_WEIGHTS.like, target);
 };
 
-export const markPostViewed = (): void => {
+export const markPostViewed = (postId?: string): void => {
   const profile = loadAffinityProfile();
+  if (postId && profile.session.viewedPostIds.includes(postId)) return;
+  if (postId) profile.session.viewedPostIds.push(postId);
   profile.session.viewedCount += 1;
-  saveAffinityProfile(profile);
+  saveAffinityProfile(profile, false);
 };
 
 // Cold start (§3.3): personalization stays off until the profile has enough
 // signal or the session has seen enough posts.
 export const isColdStart = (profile?: AffinityProfile): boolean => {
   const p = profile || loadAffinityProfile();
-  return (
-    p.totalSignals < COLD_START_SIGNAL_THRESHOLD &&
-    p.session.viewedCount < COLD_START_VIEW_THRESHOLD
-  );
+  return !p.hasSuperSignal && p.session.viewedCount < COLD_START_VIEW_THRESHOLD;
 };
 
 // Blended affinity for ranking (§3.2): 0.5 * longTerm + 0.5 * session.

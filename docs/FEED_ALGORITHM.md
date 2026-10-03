@@ -1,6 +1,6 @@
 # POST-UPP Feed Recommendation Architecture
 
-> **Status:** Specification
+> **Status:** Specification with v1 and client-side v2 implementation
 > **Scope:** Global public broadcast feed ranking, dwell-time interest learning, and delivery mix.
 > **Rollout:** v1 (signals + base rank) → observe → v2 (personalization + mix)
 
@@ -265,9 +265,9 @@ Set thresholds before A/B testing. Without them you're tuning blind.
 Piece	Location	Responsibility
 useDwellTracker	src/hooks/useDwellTracker.ts	IntersectionObserver timers per post card; emits dwell/skip signals with confidence factor
 affinityProfile	src/lib/affinityProfile.ts	Read/write/decay the local affinity vector; session management
-feedRanking	src/lib/feedRanking.ts	getPostRankScore, sortPostsByRecencyAndEngagement, personalization re-rank, freshness filter
-feedBuckets	src/lib/feedBuckets.ts	Trending / discovery / personalized bucket builders, 70/20/10 mix
-useFeed	src/hooks/useFeed.ts	Global public candidate query, bucket blending, dedupe + stable sort on loadMore
+feedRanking	src/lib/feedRanking.ts	getPostRankScore, sortPostsByRecencyAndEngagement, freshness filter
+feedBuckets	src/lib/feedBuckets.ts	Affinity ranking, trending / discovery / format-diverse buckets, 70/20/10 mix
+useFeed	src/hooks/useFeed.ts	Global public candidate query, bucket blending, dedupe + stable pagination
 PostCardModern	src/components/PostCard/PostCardModern.tsx	Mounts dwell observer; reports micro-actions and reaction types
 signalValidator	Edge function	Server-side sampling of dwell events to drop bot signals
 9.1 Rollout order
@@ -287,11 +287,9 @@ Still no personalization in ranking.
 
 v2 — Personalization & delivery mix.
 
-Enable 70/20/10 with cold-start override.
+Client-side affinity ranking, 70/20/10 blending, cold-start override, and dwell-based updates are implemented. Candidate sets use engagement counts to estimate trending velocity and low reaction counts as a discovery proxy. Global impression counts and time-series engagement velocity are not currently stored, so the spec's under-50-impressions discovery rule and true acceleration calculation remain future server-side work. Author/topic pacing and moderation quarantine also remain outstanding.
 
-Pacing guards and diversity rules go live.
-
-Retune all weights against v1 distributions.
+Retune weights against observed v1 distributions before expanding to server-side ranking.
 
 v2.5 — Adversarial defense.
 

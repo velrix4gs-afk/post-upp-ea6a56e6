@@ -16,26 +16,42 @@ import {
 // dwell confidence and record their own super-signals.
 
 interface UseDwellTrackerOptions extends SignalTarget {
+  postId: string;
   enabled?: boolean;
 }
 
 export const useDwellTracker = (options: UseDwellTrackerOptions) => {
   const targetRef = useRef<HTMLDivElement>(null);
   const visibleSinceRef = useRef<number | null>(null);
+  const accumulatedMsRef = useRef(0);
+  const timerRef = useRef<number | null>(null);
   const engagedRef = useRef(false);
-  const emittedRef = useRef(false);
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
+  const updateElapsed = useCallback(() => {
+    const visibleSince = visibleSinceRef.current;
+    const card = targetRef.current;
+    if (!card || visibleSince == null) return;
+    const elapsed = Math.floor((accumulatedMsRef.current + Date.now() - visibleSince) / 1000);
+    card.dataset.dwellSeconds = String(elapsed);
+  }, []);
+
   const emitDwell = useCallback(() => {
     const since = visibleSinceRef.current;
-    if (since == null || emittedRef.current) return;
-    emittedRef.current = true;
+    if (since == null) return;
+    visibleSinceRef.current = null;
+    if (timerRef.current != null) {
+      window.clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     const duration = Date.now() - since;
-    const { enabled = true, ...target } = optionsRef.current;
+    accumulatedMsRef.current += duration;
+    updateElapsed();
+    const { enabled = true, postId: _postId, ...target } = optionsRef.current;
     if (!enabled) return;
     recordDwellSignal(duration, engagedRef.current, target);
-  }, []);
+  }, [updateElapsed]);
 
   useEffect(() => {
     const target = targetRef.current;
@@ -46,23 +62,25 @@ export const useDwellTracker = (options: UseDwellTrackerOptions) => {
         if (entry.isIntersecting) {
           if (visibleSinceRef.current == null) {
             visibleSinceRef.current = Date.now();
-            emittedRef.current = false;
-            markPostViewed();
+            markPostViewed(optionsRef.current.postId);
+            updateElapsed();
+            timerRef.current = window.setInterval(updateElapsed, 1000);
           }
         } else {
           emitDwell();
-          visibleSinceRef.current = null;
         }
       },
-      { threshold: 0.5 }
+      // A smaller ratio still tracks cards taller than the viewport.
+      { threshold: 0.25 }
     );
 
     observer.observe(target);
     return () => {
       emitDwell();
+      if (timerRef.current != null) window.clearInterval(timerRef.current);
       observer.disconnect();
     };
-  }, [emitDwell, options.enabled]);
+  }, [emitDwell, options.enabled, options.postId, updateElapsed]);
 
   // Mark that the user took a downstream action on this post — upgrades the
   // confidence of the pending dwell signal.
@@ -71,7 +89,7 @@ export const useDwellTracker = (options: UseDwellTrackerOptions) => {
   }, []);
 
   const buildTarget = useCallback((): SignalTarget => {
-    const { enabled: _enabled, ...target } = optionsRef.current;
+    const { enabled: _enabled, postId: _postId, ...target } = optionsRef.current;
     return target;
   }, []);
 

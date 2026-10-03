@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -17,6 +17,7 @@ export interface Notification {
 
 export const useNotifications = () => {
   const { user } = useAuth();
+  const channelInstanceId = useId().replace(/:/g, '');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ export const useNotifications = () => {
       
       // Set up real-time subscription for new notifications
       const channel = supabase
-        .channel(`notifications:${user.id}`)
+        .channel(`notifications:${user.id}:${channelInstanceId}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
@@ -93,7 +94,7 @@ export const useNotifications = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user]);
+  }, [user, channelInstanceId]);
 
   const fetchNotifications = async () => {
     if (!user?.id) return;

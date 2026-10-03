@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -31,6 +31,7 @@ export interface Follower {
 
 export const useFollowers = (userId?: string) => {
   const { user } = useAuth();
+  const channelInstanceId = useId().replace(/:/g, '');
   const [followers, setFollowers] = useState<Follower[]>([]);
   const [following, setFollowing] = useState<Follower[]>([]);
   const [pendingFollowing, setPendingFollowing] = useState<Follower[]>([]);
@@ -44,7 +45,7 @@ export const useFollowers = (userId?: string) => {
       // Set up real-time subscription for followers
       // Subscribe to changes where user is the follower OR following
       const channel = supabase
-        .channel(`followers-changes-${targetUserId}`)
+        .channel(`followers-changes-${targetUserId}:${channelInstanceId}`)
         .on(
           'postgres_changes',
           {
@@ -75,7 +76,7 @@ export const useFollowers = (userId?: string) => {
         supabase.removeChannel(channel);
       };
     }
-  }, [targetUserId]);
+  }, [targetUserId, channelInstanceId]);
 
   const fetchFollowers = async () => {
     try {

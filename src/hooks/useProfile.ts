@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -35,6 +35,7 @@ export interface Profile {
 
 export const useProfile = (userId?: string) => {
   const { user } = useAuth();
+  const channelInstanceId = useId().replace(/:/g, '');
   const authReady = useAuthReady();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +59,7 @@ export const useProfile = (userId?: string) => {
 
       // Set up real-time subscription for profile updates
       const channel = supabase
-        .channel(`profile-${targetUserId}`)
+        .channel(`profile-${targetUserId}:${channelInstanceId}`)
         .on(
           'postgres_changes',
           {
@@ -83,7 +84,7 @@ export const useProfile = (userId?: string) => {
         supabase.removeChannel(channel);
       };
     }
-  }, [targetUserId, authReady]);
+  }, [targetUserId, authReady, channelInstanceId]);
 
   const fetchProfile = async (attempt = 0) => {
     try {

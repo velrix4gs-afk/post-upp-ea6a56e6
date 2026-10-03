@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -42,6 +42,7 @@ export interface Friendship {
 
 export const useFriends = () => {
   const { user } = useAuth();
+  const channelInstanceId = useId().replace(/:/g, '');
   const [friendships, setFriendships] = useState<Friendship[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,7 +53,7 @@ export const useFriends = () => {
       // Set up real-time subscription for friendships
       // Subscribe to changes where user is requester OR addressee
       const channel = supabase
-        .channel('friendships-changes')
+        .channel(`friendships-changes:${channelInstanceId}`)
         .on(
           'postgres_changes',
           {
@@ -83,7 +84,7 @@ export const useFriends = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user]);
+  }, [user, channelInstanceId]);
 
   const fetchFriendships = async () => {
     try {

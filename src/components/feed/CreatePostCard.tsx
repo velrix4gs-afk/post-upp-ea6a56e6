@@ -9,7 +9,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Image, Video, Smile, MapPin, Users, X, Save, Clock, Globe, Lock, UserCheck } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
-import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useProfile } from "@/hooks/useProfile";
 import { usePosts } from "@/hooks/usePosts";
@@ -25,6 +24,11 @@ import { MentionTextarea } from "@/components/composer/MentionTextarea";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
 import { cn } from "@/lib/utils";
+import {
+  canUseFolderPicker,
+  pickDeviceFolder,
+  revokeGalleryThumbs,
+} from "@/lib/deviceGallery";
 const FEELINGS = [{
   emoji: '😊',
   label: 'happy'
@@ -91,7 +95,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const [showFeelings, setShowFeelings] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public');
-  const [showGallerySheet, setShowGallerySheet] = useState(false);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
   const {
     restoredText,
     showRestoredNotice,
@@ -136,21 +140,50 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
 
   const charCount = postContent.length;
   const charPercentage = charCount / MAX_CHARS * 100;
+  const handleSelectMedia = async () => {
+    if (!canUseFolderPicker()) {
+      mediaInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const items = await pickDeviceFolder();
+      const mediaFiles = items
+        .filter(item => item.kind === 'image' || item.kind === 'video')
+        .flatMap(item => item.file ? [item.file] : []);
+      revokeGalleryThumbs(items);
+
+      if (mediaFiles.length === 0) {
+        toast({
+          title: 'No photos or videos found',
+          description: 'Choose a folder that contains image or video files.',
+        });
+        return;
+      }
+
+      addMediaFiles(mediaFiles);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      showCleanError(error, toast, 'Could not Open Folder');
+    }
+  };
   const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
     const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name);
+      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|avi|mkv|3gp)$/i.test(file.name);
+      if (!isImage && !isVideo) {
         showCleanError({
           code: 'POST_002',
           message: `${file.name} is not an image or video`
         }, toast);
         return false;
       }
-      const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
       if (file.size > maxSize) {
         showCleanError({
           code: 'POST_003',
-          message: `${file.name} exceeds ${file.type.startsWith('video/') ? '100MB' : '10MB'} limit`
+          message: `${file.name} exceeds ${isVideo ? '100MB' : '10MB'} limit`
         }, toast);
         return false;
       }
@@ -168,7 +201,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
     if (uniqueFiles.length > availableSlots) {
       showCleanError({
         code: 'POST_001',
-        message: 'Maximum 10 images per post; added the first remaining items'
+        message: 'Maximum 10 media items per post; added the first remaining items'
       }, toast);
     }
     const acceptedFiles = uniqueFiles.slice(0, availableSlots);
@@ -194,35 +227,32 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const uploadPostMedia = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
     setUploadProgress(0);
-    try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user?.id}/${Date.now()}-${Math.random()}.${fileExt}`;
-        const {
-          error: uploadError
-        } = await supabase.storage.from('posts').upload(fileName, file);
-        if (uploadError) {
-          console.error('[POST_004] Upload error:', uploadError);
-          showCleanError({
-            code: 'POST_004',
-            message: `Failed to upload ${file.name}`
-          }, toast);
-          throw uploadError;
-        }
-        const {
-          data: {
-            publicUrl
-          }
-        } = supabase.storage.from('posts').getPublicUrl(fileName);
-        uploadedUrls.push(publicUrl);
-        setUploadProgress(Math.round((i + 1) / files.length * 100));
-      }
-      return uploadedUrls;
-    } catch (error: any) {
-      showCleanError(error, toast, 'Upload Failed');
-      return [];
+    if (!user?.id) {
+      throw new Error('You must be logged in to upload post media');
     }
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}-${Math.random()}.${fileExt}`;
+      const {
+        error: uploadError
+      } = await supabase.storage.from('posts').upload(fileName, file, {
+        contentType: file.type || undefined,
+      });
+      if (uploadError) {
+        console.error('[POST_004] Upload error:', uploadError);
+        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
+      }
+      const {
+        data: {
+          publicUrl
+        }
+      } = supabase.storage.from('posts').getPublicUrl(fileName);
+      uploadedUrls.push(publicUrl);
+      setUploadProgress(Math.round((i + 1) / files.length * 100));
+    }
+    return uploadedUrls;
   };
   const handlePost = async () => {
     haptic('heavy');
@@ -248,10 +278,6 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
       let mediaUrls: string[] = [];
       if (selectedImages.length > 0) {
         mediaUrls = await uploadPostMedia(selectedImages);
-        if (mediaUrls.length === 0 && selectedImages.length > 0) {
-          setIsPosting(false);
-          return;
-        }
       }
       let contentWithFeeling = postContent.trim();
       if (feeling) {
@@ -282,13 +308,15 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
       if (scheduledDate) {
         postData.scheduled_for = scheduledDate.toISOString();
       }
-      const newPostId = await createPost(postData);
-      if (contentWithFeeling) {
-        await processHashtags(newPostId, contentWithFeeling);
+      const createdPost = await createPost(postData);
+      if (!('queued' in createdPost) && contentWithFeeling) {
+        await processHashtags(createdPost.id, contentWithFeeling);
       }
       toast({
-        title: 'Posted!',
-        description: scheduledDate ? 'Post scheduled successfully' : 'Your post is now live'
+        title: 'queued' in createdPost ? 'Post queued' : 'Posted!',
+        description: 'queued' in createdPost
+          ? "Your post will be published when you're back online"
+          : scheduledDate ? 'Post scheduled successfully' : 'Your post is now live'
       });
 
       // Reset form
@@ -423,15 +451,27 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
             <div className="flex items-center gap-1 flex-wrap">
               {/* Photo/Video */}
               <div className="relative">
+                <input
+                  ref={mediaInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  multiple
+                  className="hidden"
+                  onChange={(event) => {
+                    addMediaFiles(Array.from(event.target.files || []));
+                    event.target.value = '';
+                  }}
+                />
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
                   className="h-9 px-3 gap-2 cursor-pointer rounded-lg hover:bg-success/10"
-                  onClick={() => setShowGallerySheet(true)}
+                  onClick={handleSelectMedia}
+                  title="Choose a folder of photos and videos, or select media files"
                 >
                   <Image className="h-5 w-5 text-success" />
-                  <span className="text-sm hidden sm:inline">Photo/Video</span>
+                  <span className="text-sm hidden sm:inline">Select media</span>
                   {selectedImages.length > 0 && <span className="text-xs bg-success/20 text-success px-1.5 rounded-full">
                       {selectedImages.length}
                     </span>}
@@ -537,14 +577,6 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
           </div>
         </div>
       </div>
-      <GalleryPickerSheet
-        open={showGallerySheet}
-        onOpenChange={setShowGallerySheet}
-        multiple
-        title="Add to your post"
-        onSelect={(file) => addMediaFiles([file])}
-        onSelectMany={(files) => addMediaFiles(files)}
-      />
     </Card>;
 };
 export default CreatePostCard;
