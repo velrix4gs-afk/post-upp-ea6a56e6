@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Eye, EyeOff, Mail, Lock, Chrome, Twitter } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Chrome } from 'lucide-react';
 import { z } from 'zod';
 
 const signInSchema = z.object({
@@ -49,24 +49,6 @@ const SignIn = () => {
     }
   };
 
-  const handleTwitterSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'twitter',
-        options: {
-          redirectTo: `${window.location.origin}/feed`
-        }
-      });
-      
-      if (error) throw error;
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Twitter/X sign-in is not configured yet. Please use email or magic link.',
-        variant: 'destructive'
-      });
-    }
-  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -311,31 +293,17 @@ const SignIn = () => {
 
               {/* Social & Alternative Sign In */}
               <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 gap-2 hover:bg-muted/50 transition-colors"
-                    onClick={handleGoogleSignIn}
-                    disabled={loading}
-                    aria-label="Sign in with Google"
-                  >
-                    <Chrome className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">Google</span>
-                  </Button>
-                  
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 gap-2 hover:bg-muted/50 transition-colors"
-                    onClick={handleTwitterSignIn}
-                    disabled={loading}
-                    aria-label="Sign in with Twitter"
-                  >
-                    <Twitter className="h-4 w-4" aria-hidden="true" />
-                    <span className="hidden sm:inline">Twitter</span>
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 gap-2 hover:bg-muted/50 transition-colors"
+                  onClick={handleGoogleSignIn}
+                  disabled={loading}
+                  aria-label="Sign in with Google"
+                >
+                  <Chrome className="h-4 w-4" aria-hidden="true" />
+                  Continue with Google
+                </Button>
 
                 <Button
                   type="button"
