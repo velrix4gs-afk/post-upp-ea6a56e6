@@ -567,13 +567,13 @@ const CreateStoryPage = () => {
         {/* Right-side tool rail (Instagram-style) */}
         {hasMedia && mediaType === 'image' && (
           <div className="absolute right-2 top-20 flex flex-col gap-2 z-10">
-            <ToolBtn icon={<Type className="h-5 w-5" />} onClick={addText} />
-            <ToolBtn icon={<Paintbrush className="h-5 w-5" />} onClick={() => setActiveTool('draw')} />
-            <ToolBtn icon={<Smile className="h-5 w-5" />} onClick={() => setActiveTool('stickers')} />
-            <ToolBtn icon={<Sparkles className="h-5 w-5" />} onClick={() => setActiveTool('filters')} active={activeTool === 'filters'} />
-            <ToolBtn icon={<SlidersHorizontal className="h-5 w-5" />} onClick={() => setActiveTool('adjust')} active={activeTool === 'adjust'} />
+            <ToolBtn label="Add text" icon={<Type className="h-5 w-5" />} onClick={addText} />
+            <ToolBtn label="Draw" icon={<Paintbrush className="h-5 w-5" />} onClick={() => setActiveTool('draw')} />
+            <ToolBtn label="Add stickers" icon={<Smile className="h-5 w-5" />} onClick={() => setActiveTool('stickers')} />
+            <ToolBtn label="Filters" icon={<Sparkles className="h-5 w-5" />} onClick={() => setActiveTool('filters')} active={activeTool === 'filters'} />
+            <ToolBtn label="Adjust" icon={<SlidersHorizontal className="h-5 w-5" />} onClick={() => setActiveTool('adjust')} active={activeTool === 'adjust'} />
             {mediaType === 'image' && (
-              <ToolBtn icon={<Crop className="h-5 w-5" />} onClick={() => setActiveTool('crop')} />
+              <ToolBtn label="Crop" icon={<Crop className="h-5 w-5" />} onClick={() => setActiveTool('crop')} />
             )}
           </div>
         )}
@@ -696,15 +696,21 @@ const CreateStoryPage = () => {
       <GalleryPickerSheet
         open={galleryOpen}
         onOpenChange={setGalleryOpen}
-        onSelect={acceptFile}
+        onSelect={(file) => {
+          acceptFile(file);
+          setGalleryOpen(false);
+        }}
       />
     </div>
   );
 };
 
-const ToolBtn = ({ icon, onClick, active }: { icon: React.ReactNode; onClick: () => void; active?: boolean }) => (
+const ToolBtn = ({ label, icon, onClick, active }: { label: string; icon: React.ReactNode; onClick: () => void; active?: boolean }) => (
   <button
+    type="button"
     onClick={onClick}
+    aria-label={label}
+    title={label}
     className={cn(
       'h-11 w-11 rounded-full backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform',
       active ? 'bg-primary text-primary-foreground' : 'bg-black/40 text-white'

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -93,7 +93,7 @@ export const GalleryPickerSheet = ({
         new Promise<DeviceGalleryItem[]>((_, reject) => {
           timeoutId = window.setTimeout(() => reject(new Error('Gallery loading timed out')), 15000);
         }),
-      ]);
+      ]).then((media) => media.filter((item) => item.kind === 'image' || item.kind === 'video'));
       setItems((prev) => {
         revokeGalleryThumbs(prev);
         return next;
@@ -212,8 +212,17 @@ export const GalleryPickerSheet = ({
 
   const ingestFiles = useCallback(
     (fileList: File[]) => {
-      const next = filesToGalleryItems(fileList);
-      if (next.length === 0) return;
+      const allItems = filesToGalleryItems(fileList);
+      const next = allItems.filter((item) => item.kind === 'image' || item.kind === 'video');
+      revokeGalleryThumbs(allItems.filter((item) => item.kind === 'file'));
+      if (next.length === 0) {
+        toast({
+          title: 'No photos or videos found',
+          description: 'Choose image or video files for your story.',
+          variant: 'destructive',
+        });
+        return;
+      }
       if (multiple && next.length > 10) {
         toast({
           title: 'Selection limit reached',
@@ -233,7 +242,16 @@ export const GalleryPickerSheet = ({
 
   const openFolder = useCallback(async () => {
     try {
-      const next = await pickDeviceFolder();
+      const allItems = await pickDeviceFolder();
+      const next = allItems.filter((item) => item.kind === 'image' || item.kind === 'video');
+      revokeGalleryThumbs(allItems.filter((item) => item.kind === 'file'));
+      if (next.length === 0) {
+        toast({
+          title: 'No photos or videos found',
+          description: 'Choose a folder that contains image or video files.',
+          variant: 'destructive',
+        });
+      }
       setItems((prev) => {
         revokeGalleryThumbs(prev);
         return next;
@@ -246,6 +264,7 @@ export const GalleryPickerSheet = ({
   }, []);
 
   const visible = items.filter((item) => {
+    if (item.kind === 'file') return false;
     if (filter === 'photos') return item.kind === 'image';
     if (filter === 'videos') return item.kind === 'video';
     return true;
@@ -264,10 +283,10 @@ export const GalleryPickerSheet = ({
           <div className="mx-auto h-1.5 w-10 rounded-full bg-muted-foreground/30 mb-3" />
           <div className="flex items-end justify-between gap-3">
             <div>
-              <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-              <p className="text-xs text-muted-foreground">
+              <SheetTitle className="text-lg font-semibold tracking-tight">{title}</SheetTitle>
+              <SheetDescription className="text-xs">
                 {canUseNativeGallery() ? 'Photos and videos on this device' : 'Photos and videos from this device'}
-              </p>
+              </SheetDescription>
             </div>
             <div className="flex rounded-full bg-muted p-0.5">
               {(['all', 'photos', 'videos'] as GalleryFilter[]).map((key) => (

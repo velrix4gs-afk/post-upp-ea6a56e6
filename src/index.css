@@ -14,6 +14,14 @@ body,
   background: hsl(var(--background));
 }
 
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
 .text-muted-foreground {
   color: color-mix(in srgb, hsl(var(--muted-foreground)) 76%, hsl(var(--foreground)) 24%);
   transition: color 180ms ease;
