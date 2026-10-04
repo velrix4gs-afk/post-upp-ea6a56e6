@@ -5182,50 +5182,6 @@ export type Database = {
           phone: string
         }[]
       }
-      get_profile_card: {
-        Args: { p_id: string }
-        Returns: {
-          avatar_url: string | null
-          bio: string | null
-          can_view_full: boolean
-          cover_url: string | null
-          created_at: string
-          display_name: string
-          id: string
-          is_private: boolean
-          is_verified: boolean
-          location: string | null
-          relationship_status: string | null
-          theme_color: string | null
-          updated_at: string
-          username: string
-          verification_type: string | null
-          verified_at: string | null
-          website: string | null
-        }[]
-      }
-      get_profile_card_by_username: {
-        Args: { p_username: string }
-        Returns: {
-          avatar_url: string | null
-          bio: string | null
-          can_view_full: boolean
-          cover_url: string | null
-          created_at: string
-          display_name: string
-          id: string
-          is_private: boolean
-          is_verified: boolean
-          location: string | null
-          relationship_status: string | null
-          theme_color: string | null
-          updated_at: string
-          username: string
-          verification_type: string | null
-          verified_at: string | null
-          website: string | null
-        }[]
-      }
       get_random_feed: {
         Args: { user_uuid: string }
         Returns: {
