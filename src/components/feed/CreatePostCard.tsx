@@ -26,6 +26,7 @@ import { postContentSchema } from "@/lib/validationSchemas";
 import { cn } from "@/lib/utils";
 import {
   canUseFolderPicker,
+  normalizeMediaFile,
   pickDeviceFolder,
   revokeGalleryThumbs,
 } from "@/lib/deviceGallery";
@@ -169,25 +170,25 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   };
   const addMediaFiles = (files: File[]) => {
     if (files.length === 0) return;
-    const validFiles = files.filter(file => {
-      const isImage = file.type.startsWith('image/') || /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i.test(file.name);
-      const isVideo = file.type.startsWith('video/') || /\.(mp4|webm|mov|m4v|avi|mkv|3gp)$/i.test(file.name);
-      if (!isImage && !isVideo) {
+    const validFiles = files.flatMap(file => {
+      const normalizedFile = normalizeMediaFile(file);
+      if (!normalizedFile) {
         showCleanError({
           code: 'POST_002',
           message: `${file.name} is not an image or video`
         }, toast);
-        return false;
+        return [];
       }
+      const isVideo = normalizedFile.type.startsWith('video/');
       const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (file.size > maxSize) {
+      if (normalizedFile.size > maxSize) {
         showCleanError({
           code: 'POST_003',
           message: `${file.name} exceeds ${isVideo ? '100MB' : '10MB'} limit`
         }, toast);
-        return false;
+        return [];
       }
-      return true;
+      return [normalizedFile];
     });
     const existingFileKeys = new Set(selectedImages.map((file) => `${file.name}:${file.size}:${file.lastModified}`));
     const uniqueFiles = validFiles.filter((file) => {

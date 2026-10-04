@@ -102,6 +102,11 @@ export const GalleryPickerSheet = ({
     } catch (err) {
       reportSilently('GALLERY_001', err);
       setAccess('denied');
+      toast({
+        title: "Couldn't load media",
+        description: err instanceof Error ? err.message : 'Check photo permissions and try again.',
+        variant: 'destructive',
+      });
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
@@ -178,6 +183,11 @@ export const GalleryPickerSheet = ({
         onOpenChange(false);
       } catch (err) {
         reportSilently('GALLERY_003', err);
+        toast({
+          title: "Couldn't import media",
+          description: err instanceof Error ? err.message : 'Try selecting the photo or video again.',
+          variant: 'destructive',
+        });
       } finally {
         setConfirming(false);
         setBusyId(null);

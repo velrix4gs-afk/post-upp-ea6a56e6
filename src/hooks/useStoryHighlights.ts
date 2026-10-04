@@ -57,7 +57,7 @@ export const useStoryHighlights = (userId?: string) => {
       setHighlights(formattedHighlights);
     } catch (err) {
       console.error('Failed to fetch highlights:', err);
-      toast({ title: 'Could not load story highlights', variant: 'destructive' });
+      toast({ title: 'Could not load Showcase collections', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

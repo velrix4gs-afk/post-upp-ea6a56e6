@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { ToasterMobile } from "@/components/ui/sonner-mobile";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import { lazy, Suspense, Component, ReactNode, useEffect } from "react";
@@ -64,7 +64,7 @@ const PurchaseHistoryPage = lazy(() => import("./pages/PurchaseHistoryPage"));
 const StarredMessagesPage = lazy(() => import("./pages/StarredMessagesPage"));
 const ChatMediaPage = lazy(() => import("./pages/ChatMediaPage"));
 const ChatSettingsPage = lazy(() => import("./pages/ChatSettingsPage"));
-const CreateStoryPage = lazy(() => import("./pages/CreateStoryPage"));
+const CreateShowcasePage = lazy(() => import("./pages/CreateShowcasePage"));
 const CreatePagePage = lazy(() => import("./pages/CreatePagePage"));
 const EditPagePage = lazy(() => import("./pages/EditPagePage"));
 const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
@@ -447,13 +447,14 @@ const App = () => (
                   <Route path="/chat-media" element={<ProtectedRoute><ChatMediaPage /></ProtectedRoute>} />
                   <Route path="/chat-settings" element={<ProtectedRoute><ChatSettingsPage /></ProtectedRoute>} />
                   {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="/create/story" element={
+                  <Route path="/create/showcase" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>
-                        <CreateStoryPage />
+                        <CreateShowcasePage />
                       </Suspense>
                     </ProtectedRoute>
                   } />
+                  <Route path="/create/story" element={<Navigate to="/create/showcase" replace />} />
                   <Route path="/create/page" element={
                     <ProtectedRoute>
                       <Suspense fallback={<PageLoader />}>

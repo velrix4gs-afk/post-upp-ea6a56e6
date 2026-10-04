@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -21,7 +20,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import StoryViewer from '@/components/StoryViewer';
+import ShowcaseViewer from '@/components/ShowcaseViewer';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface StoryHighlightsProps {
@@ -108,8 +107,8 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
     setOpeningId(null);
     if (highlightStories.length === 0) {
       toast({
-        title: 'No active stories',
-        description: 'The stories in this highlight have expired or are no longer available.',
+        title: 'No active Showcase items',
+        description: 'The items in this collection have expired or are no longer available.',
       });
       return;
     }
@@ -146,7 +145,7 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
       if (error) throw error;
       closeViewer();
       navigate(`/messages?chat=${chatId}`);
-      toast({ description: 'Story reply sent' });
+      toast({ description: 'Showcase reply sent' });
       return true;
     } catch (error) {
       console.error('Failed to reply to highlighted story:', error);
@@ -172,12 +171,12 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
             type="button"
             onClick={() => setCreateOpen(true)}
             className="flex flex-col items-center gap-2 min-w-[80px] group"
-            aria-label="Create story highlight"
+            aria-label="Create Showcase collection"
           >
-            <div className="h-16 w-16 rounded-full border-2 border-dashed border-muted-foreground/50 flex items-center justify-center group-hover:border-primary group-hover:scale-105 transition-all duration-200">
+            <div className="flex h-24 w-16 items-center justify-center rounded-xl border border-dashed border-muted-foreground/50 bg-muted/30 transition-all duration-200 group-hover:scale-105 group-hover:border-primary">
               <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
             </div>
-            <span className="text-xs text-muted-foreground">New</span>
+            <span className="text-xs text-muted-foreground">New set</span>
           </button>
         )}
 
@@ -188,17 +187,22 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
               onClick={() => void openHighlight(highlight)}
               disabled={openingId === highlight.id}
               className="flex flex-col items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl"
-              aria-label={`Open ${highlight.title} story highlight`}
+              aria-label={`Open ${highlight.title} Showcase collection`}
             >
               {openingId === highlight.id ? (
-                <div className="h-16 w-16 rounded-full ring-2 ring-primary flex items-center justify-center bg-muted">
+                <div className="h-24 w-16 rounded-xl ring-2 ring-primary flex items-center justify-center bg-muted">
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
               ) : (
-                <Avatar className="h-16 w-16 ring-2 ring-primary group-hover:scale-105 transition-transform duration-200">
-                  <AvatarImage src={highlight.cover_image} />
-                  <AvatarFallback><ImageIcon className="h-5 w-5" /></AvatarFallback>
-                </Avatar>
+                <div className="h-24 w-16 overflow-hidden rounded-xl ring-2 ring-primary transition-transform duration-200 group-hover:scale-105">
+                  {highlight.cover_image ? (
+                    <img src={highlight.cover_image} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-primary/10 text-primary">
+                      <ImageIcon className="h-5 w-5" />
+                    </div>
+                  )}
+                </div>
               )}
               <span className="text-xs text-center line-clamp-2 group-hover:text-primary transition">
                 {highlight.title}
@@ -221,22 +225,22 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-h-[85dvh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Create story highlight</DialogTitle>
+            <DialogTitle>Create Showcase collection</DialogTitle>
             <DialogDescription>
-              Group active stories under a title. Stories saved here stay available on your profile after their 24-hour story window.
+              Group active Showcase items under a title. Items saved here stay available on your profile after their 24-hour window.
             </DialogDescription>
           </DialogHeader>
           <Input
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Highlight title"
+            placeholder="Collection title"
             maxLength={40}
             autoFocus
           />
           <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
             {activeOwnStories.length === 0 ? (
               <p className="text-sm text-muted-foreground py-6 text-center">
-                You need an active story before creating a highlight.
+                You need an active Showcase item before creating a collection.
               </p>
             ) : activeOwnStories.map((story) => (
               <label
@@ -256,7 +260,7 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
                     <ImageIcon className="h-5 w-5 text-primary" />
                   </div>
                 )}
-                <span className="text-sm line-clamp-2">{story.content || 'Story'}</span>
+                <span className="text-sm line-clamp-2">{story.content || 'Showcase item'}</span>
               </label>
             ))}
           </div>
@@ -266,13 +270,13 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
             className="w-full"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-            {saving ? 'Creating…' : 'Create highlight'}
+            {saving ? 'Creating…' : 'Create collection'}
           </Button>
         </DialogContent>
       </Dialog>
 
       {viewerIndex >= 0 && viewerStories[viewerIndex] && (
-        <StoryViewer
+        <ShowcaseViewer
           stories={viewerStories}
           currentIndex={viewerIndex}
           onClose={closeViewer}
@@ -286,15 +290,15 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertTitle>Delete this highlight?</AlertTitle>
+            <AlertTitle>Delete this collection?</AlertTitle>
             <AlertDescription>
-              “{deleteTarget?.title}” will be removed from your profile. The original stories are not deleted.
+              “{deleteTarget?.title}” will be removed from your profile. The original Showcase items are not deleted.
             </AlertDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => void confirmDelete()} className="bg-destructive text-destructive-foreground">
-              Delete highlight
+              Delete collection
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

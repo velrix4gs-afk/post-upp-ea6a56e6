@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, ChevronLeft, FileText, X } from 'lucide-react';
+import { ChevronLeft, Clapperboard, FileText, X } from 'lucide-react';
 import CreatePostCard from '@/components/feed/CreatePostCard';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,10 +29,10 @@ export const FeedCreateMenu = ({ trigger }: FeedCreateMenuProps) => {
     if (!nextOpen) setView('choices');
   };
 
-  const openStoryCreator = () => {
+  const openShowcaseCreator = () => {
     setOpen(false);
     setView('choices');
-    navigate('/create/story');
+    navigate('/create/showcase');
   };
 
   return (
@@ -92,14 +92,14 @@ export const FeedCreateMenu = ({ trigger }: FeedCreateMenuProps) => {
 
               <button
                 type="button"
-                onClick={openStoryCreator}
-                className="group flex min-h-28 items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-[transform,background-color,border-color,box-shadow] duration-200 hover:border-pink-500/40 hover:bg-pink-500/5 hover:shadow-md active:scale-[0.98]"
+                onClick={openShowcaseCreator}
+                className="group flex min-h-28 items-center gap-4 rounded-2xl border border-border/60 bg-card p-4 text-left shadow-sm transition-[transform,background-color,border-color,box-shadow] duration-200 hover:border-primary/40 hover:bg-primary/5 hover:shadow-md active:scale-[0.98]"
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/20 via-pink-500/20 to-purple-600/20 text-pink-600 transition-transform duration-200 group-hover:scale-105 dark:text-pink-300">
-                  <Camera className="h-6 w-6" />
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform duration-200 group-hover:scale-105">
+                  <Clapperboard className="h-6 w-6" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block font-semibold">Story</span>
+                  <span className="block font-semibold">Showcase</span>
                   <span className="mt-1 block text-sm text-muted-foreground">
                     Share a moment for 24 hours
                   </span>

@@ -32,6 +32,7 @@ import { MentionTextarea } from "@/components/composer/MentionTextarea";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
 import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
+import { normalizeMediaFile } from "@/lib/deviceGallery";
 
 const FEELINGS = [
   { emoji: '😊', label: 'happy' },
@@ -112,21 +113,22 @@ const CreatePost = () => {
     if (files.length === 0) return;
 
     // Validate file types and sizes
-    const validFiles = files.filter(file => {
-      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+    const validFiles = files.flatMap(file => {
+      const normalizedFile = normalizeMediaFile(file);
+      if (!normalizedFile) {
         showCleanError({ code: 'POST_002', message: `${file.name} is not an image or video` }, toast);
-        return false;
+        return [];
       }
       // Allow 100MB for videos, 10MB for images
-      const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (file.size > maxSize) {
+      const maxSize = normalizedFile.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (normalizedFile.size > maxSize) {
         showCleanError({ 
           code: 'POST_003', 
-          message: `${file.name} exceeds ${file.type.startsWith('video/') ? '100MB' : '10MB'} limit` 
+          message: `${file.name} exceeds ${normalizedFile.type.startsWith('video/') ? '100MB' : '10MB'} limit`
         }, toast);
-        return false;
+        return [];
       }
-      return true;
+      return [normalizedFile];
     });
 
     const existingFileKeys = new Set(selectedImages.map((file) => `${file.name}:${file.size}:${file.lastModified}`));

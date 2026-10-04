@@ -17,6 +17,7 @@ import { StoryAudienceSelector, StoryAudience } from '@/components/story/StoryAu
 import { StoryCropTool } from '@/components/story/StoryCropTool';
 import { StoryAdjustments, AdjustmentValues, defaultAdjustments, adjustmentsToCss } from '@/components/story/StoryAdjustments';
 import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
+import { normalizeMediaFile } from '@/lib/deviceGallery';
 import { cn } from '@/lib/utils';
 
 interface TextOverlayItem {
@@ -56,7 +57,7 @@ const getStickerLabel = (sticker: Sticker): string => {
   return String(data.question || (sticker.type === 'slider' ? 'Slider' : 'Quiz'));
 };
 
-const CreateStoryPage = () => {
+const CreateShowcasePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -96,17 +97,18 @@ const CreateStoryPage = () => {
   };
 
   const acceptFile = (f: File) => {
-    if (f.size > 50 * 1024 * 1024) {
+    const mediaFile = normalizeMediaFile(f);
+    if (!mediaFile) {
+      toast({ title: 'Invalid file', description: 'Choose an image or video.', variant: 'destructive' });
+      return;
+    }
+    if (mediaFile.size > 50 * 1024 * 1024) {
       toast({ title: 'File too large', description: 'Max 50MB', variant: 'destructive' });
       return;
     }
-    if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) {
-      toast({ title: 'Invalid file', variant: 'destructive' });
-      return;
-    }
-    setMediaFile(f);
-    setMediaPreview(URL.createObjectURL(f));
-    setMediaType(f.type.startsWith('video/') ? 'video' : 'image');
+    setMediaFile(mediaFile);
+    setMediaPreview(URL.createObjectURL(mediaFile));
+    setMediaType(mediaFile.type.startsWith('video/') ? 'video' : 'image');
     setSelectedFilter('none');
     setAdjustments(defaultAdjustments);
     setTextOverlays([]);
@@ -185,7 +187,7 @@ const CreateStoryPage = () => {
       setMediaPreview(url);
       setActiveTool(null);
     } catch (err) {
-      console.error('Story crop preparation failed:', err);
+      console.error('Showcase crop preparation failed:', err);
       URL.revokeObjectURL(url);
       toast({ title: 'Could not save crop', description: err instanceof Error ? err.message : 'Please try cropping again.', variant: 'destructive' });
     } finally {
@@ -195,8 +197,8 @@ const CreateStoryPage = () => {
 
   // Composite image+filters+overlays into a single File for upload
   const compositeImage = async (): Promise<File> => {
-    if (mediaType !== 'image') throw new Error('Image composition is only available for photo stories.');
-    if (!mediaPreview) throw new Error('Could not load the story image for editing.');
+    if (mediaType !== 'image') throw new Error('Image composition is only available for photo Showcase items.');
+    if (!mediaPreview) throw new Error('Could not load the Showcase image for editing.');
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image();
@@ -283,10 +285,10 @@ const CreateStoryPage = () => {
           else reject(new Error('Could not export the edited image.'));
         }, 'image/jpeg', 0.92);
       });
-      return new File([blob], 'story.jpg', { type: 'image/jpeg' });
+      return new File([blob], 'showcase.jpg', { type: 'image/jpeg' });
     } catch (err) {
-      console.error('Story image composition failed:', err);
-      throw new Error('Could not prepare your edited story image. Please try again.');
+      console.error('Showcase image composition failed:', err);
+      throw new Error('Could not prepare your edited Showcase image. Please try again.');
     }
   };
 
@@ -313,9 +315,9 @@ const CreateStoryPage = () => {
         content = storyText;
       } else {
         const fileToUpload = mediaType === 'image' ? await compositeImage() : mediaFile;
-        if (!fileToUpload) throw new Error('Could not prepare the story media. Please try again.');
+        if (!fileToUpload) throw new Error('Could not prepare the Showcase media. Please try again.');
         if (!fileToUpload.type.startsWith('image/') && !fileToUpload.type.startsWith('video/')) {
-          throw new Error('Choose a valid image or video for your story.');
+          throw new Error('Choose a valid image or video for your Showcase.');
         }
         const ext = fileToUpload.type.split('/')[1]?.split(';')[0]?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
         const uploadId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -361,10 +363,10 @@ const CreateStoryPage = () => {
       }
       uploadedPath = null;
 
-      toast({ title: 'Story shared 🎉' });
+      toast({ title: 'Showcase shared 🎉' });
       navigate('/');
     } catch (err) {
-      console.error('Share story error', err);
+      console.error('Share Showcase error', err);
       if (uploadedPath) {
         try {
           const { error: cleanupError } = await supabase.storage.from('stories').remove([uploadedPath]);
@@ -374,7 +376,7 @@ const CreateStoryPage = () => {
         }
       }
       toast({
-        title: 'Failed to share story',
+        title: 'Failed to share Showcase',
         description: err instanceof Error ? err.message : 'Please try again.',
         variant: 'destructive',
       });
@@ -484,7 +486,7 @@ const CreateStoryPage = () => {
             <textarea
               value={storyText}
               onChange={(e) => setStoryText(e.target.value)}
-              placeholder="Type your story..."
+              placeholder="Write a Showcase caption..."
               maxLength={250}
               className="w-full max-w-md bg-transparent text-white text-3xl font-bold text-center resize-none focus:outline-none placeholder:text-white/50"
               style={{ caretColor: 'white', minHeight: '50%' }}
@@ -579,7 +581,7 @@ const CreateStoryPage = () => {
         )}
         {hasMedia && mediaType === 'video' && (
           <div className="absolute bottom-24 left-4 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs text-white/80 backdrop-blur">
-            Video stories post as selected. Photo editing tools apply to images.
+            Videos are shared as selected. Photo editing tools apply to images.
           </div>
         )}
 
@@ -687,7 +689,7 @@ const CreateStoryPage = () => {
               disabled={uploading || preparingCrop}
               className="flex-1 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center gap-2 text-sm font-semibold disabled:opacity-50 active:scale-[0.98] transition-transform"
             >
-              {uploading || preparingCrop ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Share story</>}
+              {uploading || preparingCrop ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Send className="h-4 w-4" /> Share Showcase</>}
             </button>
           </div>
         )}
@@ -730,4 +732,4 @@ const BottomSheet = ({ children, onClose, title }: { children: React.ReactNode; 
   </div>
 );
 
-export default CreateStoryPage;
+export default CreateShowcasePage;

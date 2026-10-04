@@ -12,7 +12,7 @@ const howItWorksSteps = [
   {
     icon: Megaphone,
     title: 'Post it up',
-    description: 'Share photos, videos, reels and stories in seconds. No follower count needed — every post goes out to the whole community.'
+    description: 'Share photos, videos, and Showcase moments in seconds. No follower count needed — every post goes out to the whole community.'
   },
   {
     icon: Globe,
@@ -28,7 +28,7 @@ const howItWorksSteps = [
 
 const highlights = [
   { icon: MessageCircle, label: 'Real-time chats & calls' },
-  { icon: Clapperboard, label: 'Reels & stories' },
+  { icon: Clapperboard, label: 'Showcase moments' },
   { icon: Users, label: 'Pages for brands & creators' }
 ];
 

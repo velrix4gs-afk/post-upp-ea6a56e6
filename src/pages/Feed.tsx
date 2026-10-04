@@ -4,7 +4,7 @@ import { useFeed } from '@/hooks/useFeed';
 import { useNavigate } from 'react-router-dom';
 import { RealtimeFeed } from '@/components/RealtimeFeed';
 import Navigation from '@/components/Navigation';
-import Stories from '@/components/Stories';
+import Showcase from '@/components/Showcase';
 import TrendingFeed from '@/components/TrendingFeed';
 import { Sparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -68,7 +68,7 @@ const Feed = () => {
 
         {/* Stories - scrolls with feed */}
         <div>
-          <Stories />
+          <Showcase />
         </div>
 
         {/* Feed Content */}

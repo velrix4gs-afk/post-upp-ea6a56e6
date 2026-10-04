@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 const STATIC_ROUTES = [
   '/feed', '/explore', '/search', '/messages', '/friends', '/bookmarks',
   '/pages', '/premium', '/purchases', '/settings', '/onboarding',
-  '/create/story', '/create/page', '/verification', '/analytics',
+  '/create/showcase', '/create/page', '/verification', '/analytics',
   '/starred-messages', '/chat-media', '/chat-settings', '/instructions', '/dashboard', '/help-support',
 ];
 const DYNAMIC_ROUTES = [/^\/profile\/[^/]+$/, /^\/post\/[^/]+$/, /^\/hashtag\/[^/]+$/, /^\/page\/[^/]+$/, /^\/creator\/[^/]+$/];

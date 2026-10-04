@@ -2,7 +2,7 @@ import Navigation from "@/components/Navigation";
 import CreatePost from "@/components/CreatePost";
 import { PostCard } from "@/components/PostCard";
 
-import Stories from "@/components/Stories";
+import Showcase from "@/components/Showcase";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,7 @@ const Dashboard = () => {
           {/* Main Feed */}
           <div className="lg:col-span-6 space-y-6">
             {/* Stories */}
-            <Stories />
+            <Showcase />
 
             {/* Create Post */}
             <CreatePost />

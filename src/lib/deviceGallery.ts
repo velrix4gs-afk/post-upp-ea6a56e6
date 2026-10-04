@@ -22,6 +22,24 @@ export interface DeviceGalleryItem {
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v|avi|mkv|3gp)$/i;
 const SKIP_DIRS = new Set(['node_modules', '.git', 'windows', 'program files', 'system volume information']);
+const MIME_BY_EXTENSION: Record<string, string> = {
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  gif: 'image/gif',
+  heic: 'image/heic',
+  heif: 'image/heif',
+  jpeg: 'image/jpeg',
+  jpg: 'image/jpeg',
+  mov: 'video/quicktime',
+  mp4: 'video/mp4',
+  png: 'image/png',
+  '3gp': 'video/3gpp',
+  avi: 'video/x-msvideo',
+  m4v: 'video/x-m4v',
+  mkv: 'video/x-matroska',
+  webm: 'video/webm',
+  webp: 'image/webp',
+};
 
 export const canUseNativeGallery = () => isNativeGalleryAvailable();
 
@@ -81,15 +99,35 @@ function assetToItem(asset: DeviceMediaAsset): DeviceGalleryItem {
 }
 
 export async function deviceItemToFile(item: DeviceGalleryItem): Promise<File> {
-  if (item.file) return item.file;
-  if (item.source !== 'native') {
+  if (item.file) return normalizeMediaFile(item.file) || item.file;
+  if (item.source !== 'native' || (item.kind !== 'image' && item.kind !== 'video')) {
     throw new Error('Missing file for gallery item');
   }
   const copied = await DeviceGallery.copyToCache({ uri: item.id, name: item.name });
   const webPath = Capacitor.convertFileSrc(copied.path.startsWith('file:') ? copied.path : `file://${copied.path}`);
   const res = await fetch(webPath);
+  if (!res.ok) throw new Error(`Could not read selected media (${res.status}).`);
   const blob = await res.blob();
-  return new File([blob], copied.name || item.name, { type: copied.mimeType || item.mimeType || blob.type });
+  const name = copied.name || item.name;
+  const mimeType = resolveMediaMime(copied.mimeType || blob.type, name, item.kind, item.mimeType);
+  return new File([blob], name, { type: mimeType });
+}
+
+export function normalizeMediaFile(file: File): File | null {
+  const kind = fileKind(file);
+  if (kind !== 'image' && kind !== 'video') return null;
+
+  const mimeType = resolveMediaMime(file.type, file.name, kind);
+  return file.type === mimeType ? file : new File([file], file.name, { type: mimeType, lastModified: file.lastModified });
+}
+
+function resolveMediaMime(type: string, name: string, kind: 'image' | 'video', fallback = ''): string {
+  if (type.startsWith(`${kind}/`)) return type;
+  if (fallback.startsWith(`${kind}/`)) return fallback;
+  const extension = name.split('.').pop()?.toLowerCase() || '';
+  const extensionMime = MIME_BY_EXTENSION[extension];
+  if (extensionMime?.startsWith(`${kind}/`)) return extensionMime;
+  return kind === 'video' ? 'video/mp4' : 'image/jpeg';
 }
 
 function fileKind(file: File): DeviceMediaKind | null {

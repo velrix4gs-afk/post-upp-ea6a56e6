@@ -2740,23 +2740,6 @@ html.dark[data-contrast='dim'] {
   }
 }
 
-/* Story ring pulse on hover */
-@keyframes ring-pulse {
-
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
-  }
-
-  50% {
-    box-shadow: 0 0 0 4px hsl(var(--primary) / 0);
-  }
-}
-
-.story-ring-pulse:hover {
-  animation: ring-pulse 1.5s ease-in-out infinite;
-}
-
 /* Smooth avatar hover */
 .avatar-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -3077,16 +3060,6 @@ html[data-skin="liquid-glass"] .lg-spring {
 html[data-skin="liquid-glass"] button:active,
 html[data-skin="liquid-glass"] [role="button"]:active {
   transform: scale(0.94);
-}
-
-/* Story avatar ring (conic gradient) */
-html[data-skin="liquid-glass"] .story-ring,
-html[data-skin="liquid-glass"] [class*="ring-primary"] {
-  background: conic-gradient(from 180deg,
-      hsl(320 95% 60%),
-      hsl(265 95% 65%),
-      hsl(195 95% 60%),
-      hsl(320 95% 60%));
 }
 
 /* Hardware acceleration hint */

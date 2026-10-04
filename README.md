@@ -10,6 +10,16 @@ Explore the live versions of the application:
 * **Production Build:** [post-upp.vercel.app](https://post-upp.vercel.app)
 * **Preview / Alternative Release:** [post-upp.lovable.app](https://post-upp.lovable.app)
 
+### Supabase Auth redirect URLs
+
+In Supabase **Authentication → URL Configuration**, keep both production origins allowed:
+
+* `https://post-upp.vercel.app/**`
+* `https://post-upp.lovable.app/**`
+* `https://post-upp-*.vercel.app/**` for Vercel preview deployments
+
+Set the production Site URL to `https://post-upp.vercel.app`. The Vercel wildcard is scoped to this project's deployment name rather than all `vercel.app` sites. Sign-in redirect targets use the current site origin.
+
 ---
 
 ## 🛠️ About the Project
