@@ -158,8 +158,8 @@ const MessagesPage = () => {
       chatId: state.openChatId,
       kind: state.callType,
       isInitiator: false,
-      participantName: participant?.profiles.display_name || incomingChat?.name || 'User',
-      participantAvatar: participant?.profiles.avatar_url,
+      participantName: participant?.profiles?.display_name || incomingChat?.name || 'User',
+      participantAvatar: participant?.profiles?.avatar_url,
     });
     navigate(location.pathname, { replace: true, state: {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -684,12 +684,12 @@ const MessagesPage = () => {
     return chats
       .filter((chat) => {
         const otherP = chat.participants.find((p) => p.user_id !== user?.id);
-        const name = chat.name || otherP?.profiles.display_name || '';
+        const name = chat.name || otherP?.profiles?.display_name || '';
         const matchSearch =
           !searchQuery ||
           name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           chat.participants.some((p) =>
-            p.profiles.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+            p.profiles?.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
           );
         if (!matchSearch) return false;
         // Archived chats are hidden from every normal tab and only show
@@ -896,8 +896,8 @@ const MessagesPage = () => {
           <div className="animate-stagger">
             {filteredChats.map((chat) => {
               const otherP = chat.participants.find((p) => p.user_id !== user?.id);
-              const name = chat.name || otherP?.profiles.display_name || 'Unknown';
-              const avatar = chat.avatar_url || otherP?.profiles.avatar_url;
+              const name = chat.name || otherP?.profiles?.display_name || 'Unknown';
+              const avatar = chat.avatar_url || otherP?.profiles?.avatar_url;
               const isOnlineUser = otherP ? isUserOnline(otherP.user_id) : false;
               return (
                 <ChatListItem
@@ -945,8 +945,8 @@ const MessagesPage = () => {
   const renderChatView = () => {
     if (!selectedChat) return null;
     const otherP = selectedParticipants.find((p) => p.user_id !== user?.id);
-    const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles.display_name || 'User';
-    const chatAvatar = selectedChat.avatar_url || otherP?.profiles.avatar_url;
+    const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles?.display_name || 'User';
+    const chatAvatar = selectedChat.avatar_url || otherP?.profiles?.avatar_url;
 
     return (
       <div ref={chatViewRef} className="flex flex-col h-full bg-card animate-slide-in-right will-change-transform">
@@ -969,20 +969,20 @@ const MessagesPage = () => {
               chatId: selectedChatId,
               kind: 'voice',
               isInitiator: true,
-              participantName: otherP?.profiles.display_name || 'User',
-              participantAvatar: otherP?.profiles.avatar_url,
+              participantName: otherP?.profiles?.display_name || 'User',
+              participantAvatar: otherP?.profiles?.avatar_url,
             });
-            toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
+            toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
           }}
           onVideoCall={() => {
             startCall({
               chatId: selectedChatId,
               kind: 'video',
               isInitiator: true,
-              participantName: otherP?.profiles.display_name || 'User',
-              participantAvatar: otherP?.profiles.avatar_url,
+              participantName: otherP?.profiles?.display_name || 'User',
+              participantAvatar: otherP?.profiles?.avatar_url,
             });
-            toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
+            toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
           }}
           menu={
             <ChatMenu
@@ -1001,20 +1001,20 @@ const MessagesPage = () => {
                   chatId: selectedChatId,
                   kind: 'video',
                   isInitiator: true,
-                  participantName: otherP?.profiles.display_name || 'User',
-                  participantAvatar: otherP?.profiles.avatar_url,
+                  participantName: otherP?.profiles?.display_name || 'User',
+                  participantAvatar: otherP?.profiles?.avatar_url,
                 });
-                toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
+                toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
               }}
               onVoiceCall={() => {
                 startCall({
                   chatId: selectedChatId,
                   kind: 'voice',
                   isInitiator: true,
-                  participantName: otherP?.profiles.display_name || 'User',
-                  participantAvatar: otherP?.profiles.avatar_url,
+                  participantName: otherP?.profiles?.display_name || 'User',
+                  participantAvatar: otherP?.profiles?.avatar_url,
                 });
-                toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles.display_name || 'participant'}` });
+                toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
               }}
             />
           }
@@ -1365,7 +1365,7 @@ const MessagesPage = () => {
       {showBlockDialog && otherParticipant && (
         <BlockUserDialog
           userId={otherParticipant.user_id}
-          userName={otherParticipant.profiles.display_name}
+          userName={otherParticipant.profiles?.display_name}
           open={showBlockDialog}
           onOpenChange={setShowBlockDialog}
         />
@@ -1374,7 +1374,7 @@ const MessagesPage = () => {
       {showReportDialog && otherParticipant && (
         <ReportUserDialog
           userId={otherParticipant.user_id}
-          userName={otherParticipant.profiles.username || ''}
+          userName={otherParticipant.profiles?.username || ''}
           open={showReportDialog}
           onOpenChange={setShowReportDialog}
         />
@@ -1462,8 +1462,8 @@ const MessagesPage = () => {
         const c = chats.find((x) => x.id === previewChatId);
         if (!c) return null;
         const otherP = c.participants.find((p) => p.user_id !== user?.id);
-        const previewName = c.name || otherP?.profiles.display_name || 'Chat';
-        const previewAvatar = c.avatar_url || otherP?.profiles.avatar_url;
+        const previewName = c.name || otherP?.profiles?.display_name || 'Chat';
+        const previewAvatar = c.avatar_url || otherP?.profiles?.avatar_url;
         return (
           <ChatLongPressPopup
             open={!!previewChatId}
