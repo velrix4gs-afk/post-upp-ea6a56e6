@@ -105,6 +105,80 @@ export interface Chat {
   }[];
 }
 
+const normalizeCachedMessages = (value: unknown, chatId: string): Message[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry): Message[] => {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return [];
+
+    const message = entry as Record<string, unknown>;
+    if (
+      typeof message.id !== 'string' ||
+      !message.id ||
+      typeof message.sender_id !== 'string' ||
+      !message.sender_id ||
+      (typeof message.chat_id === 'string' && message.chat_id !== chatId) ||
+      typeof message.created_at !== 'string' ||
+      !Number.isFinite(Date.parse(message.created_at))
+    ) {
+      return [];
+    }
+
+    const sender = message.sender && typeof message.sender === 'object'
+      ? message.sender as Record<string, unknown>
+      : {};
+    const reply = message.reply_to_message && typeof message.reply_to_message === 'object'
+      ? message.reply_to_message as Record<string, unknown>
+      : undefined;
+    const replySender = reply?.sender && typeof reply.sender === 'object'
+      ? reply.sender as Record<string, unknown>
+      : undefined;
+
+    const status = message.status === 'sending'
+      || message.status === 'sent'
+      || message.status === 'delivered'
+      || message.status === 'read'
+      || message.status === 'failed'
+      ? message.status
+      : 'sent';
+
+    return [{
+      id: message.id,
+      chat_id: chatId,
+      sender_id: message.sender_id,
+      content: typeof message.content === 'string' ? message.content : undefined,
+      media_url: typeof message.media_url === 'string' ? message.media_url : undefined,
+      media_type: typeof message.media_type === 'string' ? message.media_type : undefined,
+      expires_at: typeof message.expires_at === 'string' ? message.expires_at : null,
+      reply_to: typeof message.reply_to === 'string' ? message.reply_to : undefined,
+      is_edited: message.is_edited === true,
+      is_forwarded: message.is_forwarded === true,
+      created_at: message.created_at,
+      updated_at: typeof message.updated_at === 'string' ? message.updated_at : undefined,
+      status,
+      is_optimistic: message.is_optimistic === true,
+      sender: {
+        username: typeof sender.username === 'string' ? sender.username : 'user',
+        display_name: typeof sender.display_name === 'string' && sender.display_name
+          ? sender.display_name
+          : 'Unknown User',
+        avatar_url: typeof sender.avatar_url === 'string' ? sender.avatar_url : undefined,
+      },
+      reply_to_message: reply
+        ? {
+          id: typeof reply.id === 'string' ? reply.id : '',
+          content: typeof reply.content === 'string' ? reply.content : undefined,
+          sender: {
+            display_name: typeof replySender?.display_name === 'string' && replySender.display_name
+              ? replySender.display_name
+              : 'Unknown User',
+          },
+        }
+        : undefined,
+    }];
+  });
+};
+
 const normalizeCachedChats = (value: unknown): Chat[] => {
   if (!Array.isArray(value)) return [];
 
@@ -183,7 +257,13 @@ export const useMessages = (chatId?: string) => {
 
   const loadMessagesFromCache = async (forChatId: string) => {
     if (!forChatId) return;
-    const cached = await CacheHelper.getMessages(forChatId);
+    let cached: unknown;
+    try {
+      cached = await CacheHelper.getMessages(forChatId);
+    } catch (error) {
+      console.error(`[CHAT_CACHE] Could not read cached messages for ${forChatId}:`, error);
+      return;
+    }
     // Two races this guards against:
     // 1) The cache read (disk/IndexedDB) resolving AFTER the network fetch
     //    already set fresh messages -- without this, opening a chat could
@@ -191,7 +271,8 @@ export const useMessages = (chatId?: string) => {
     // 2) The cache read for a chat the user has since navigated away from
     //    landing late and overwriting whatever chat is now open.
     if (cached && chatIdRef.current === forChatId && !freshFetchAppliedRef.current) {
-      setMessages(cached.filter((message) =>
+      const safeMessages = normalizeCachedMessages(cached, forChatId);
+      setMessages(safeMessages.filter((message) =>
         !message.expires_at || new Date(message.expires_at).getTime() > Date.now()
       ));
       // Anchor scroll-to-bottom as soon as the cache renders, not only
