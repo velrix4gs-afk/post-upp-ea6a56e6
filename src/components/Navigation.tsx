@@ -114,7 +114,8 @@ const Navigation = () => {
       });
     };
   }, [handleInteraction, isFeedPage]);
-  if (isAuthPage || isMessagesPage || isCreatorPage) {
+  const isProfilePage = location.pathname.startsWith("/profile");
+  if (isAuthPage || isMessagesPage || isCreatorPage || isProfilePage) {
     return null;
   }
 
