@@ -3,7 +3,24 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { ChevronLeft, ChevronRight, Clapperboard, Heart, Loader2, Send, X } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronLeft, ChevronRight, Heart, Loader2, MoreVertical, Send, X } from 'lucide-react';
 import type { Story } from '@/hooks/useStories';
 
 interface ShowcaseViewerProps {
@@ -13,6 +30,9 @@ interface ShowcaseViewerProps {
   onNext: () => void;
   onPrevious: () => void;
   onReply: (story: Story, text: string) => Promise<boolean>;
+  onDelete?: (story: Story) => Promise<void>;
+  onShareToFeed?: (story: Story) => Promise<boolean>;
+  onViewProfile?: (story: Story) => void;
   canReply?: boolean;
 }
 
@@ -25,12 +45,17 @@ const ShowcaseViewer = ({
   onNext,
   onPrevious,
   onReply,
+  onDelete,
+  onShareToFeed,
+  onViewProfile,
   canReply = true,
 }: ShowcaseViewerProps) => {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [paused, setPaused] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -103,6 +128,27 @@ const ShowcaseViewer = ({
     setTouchStart(null);
   };
 
+  const handleTouchStart = (event: React.TouchEvent) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('button, input, textarea, [role="menu"]')
+    ) return;
+    setTouchStart({
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+    });
+  };
+
+  const handleStageClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (
+      event.target instanceof Element &&
+      event.target.closest('button, input, textarea, [role="menu"], header')
+    ) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    if (event.clientX < bounds.left + bounds.width / 2) onPrevious();
+    else onNext();
+  };
+
   const handlePressStart = (event: React.PointerEvent) => {
     const target = event.target;
     if (target instanceof Element && target.closest('button, input, textarea')) return;
@@ -123,19 +169,18 @@ const ShowcaseViewer = ({
   const storyName = currentStory.profiles.display_name || currentStory.profiles.username || 'User';
 
   return (
+    <>
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         aria-label={`${storyName}'s Showcase`}
-        className="fixed inset-0 z-[200] flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 bg-background p-0 text-foreground shadow-2xl [&>button]:hidden md:left-1/2 md:top-1/2 md:h-[min(88dvh,900px)] md:w-[min(94vw,1120px)] md:-translate-x-1/2 md:-translate-y-1/2 md:flex-row md:rounded-3xl md:border"
+        className="fixed inset-0 z-[200] flex h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col overflow-hidden rounded-none border-0 bg-black p-0 text-white shadow-2xl [&>button]:hidden"
       >
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-black md:rounded-l-3xl">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col bg-black">
           <div
             className="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden touch-pan-y"
-            onTouchStart={(event) => setTouchStart({
-              x: event.touches[0].clientX,
-              y: event.touches[0].clientY,
-            })}
+            onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            onClick={handleStageClick}
             onPointerDown={handlePressStart}
             onPointerUp={handlePressEnd}
             onPointerCancel={handlePressEnd}
@@ -173,6 +218,54 @@ const ShowcaseViewer = ({
               >
                 <X className="h-5 w-5" />
               </Button>
+              {(onDelete || onShareToFeed || onViewProfile) && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-10 w-10 rounded-full text-white hover:bg-white/15"
+                      aria-label="Showcase options"
+                    >
+                      <MoreVertical className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {onShareToFeed && (
+                      <DropdownMenuItem
+                        disabled={sharing}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          setSharing(true);
+                          void onShareToFeed(currentStory).finally(() => setSharing(false));
+                        }}
+                      >
+                        {sharing ? 'Sharing…' : 'Share to feed'}
+                      </DropdownMenuItem>
+                    )}
+                    {onViewProfile && (
+                      <DropdownMenuItem onSelect={() => {
+                        onClose();
+                        onViewProfile(currentStory);
+                      }}>
+                        View profile
+                      </DropdownMenuItem>
+                    )}
+                    {onDelete && (
+                      <>
+                        {(onShareToFeed || onViewProfile) && <DropdownMenuSeparator />}
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={() => setConfirmDelete(true)}
+                        >
+                          Delete Showcase item
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </header>
 
             {currentStory.media_url ? currentStory.media_type === 'video' ? (
@@ -238,77 +331,72 @@ const ShowcaseViewer = ({
             )}
           </div>
 
-          <aside className="flex max-h-[34dvh] min-h-[145px] shrink-0 flex-col border-t border-border bg-background p-4 pb-[max(env(safe-area-inset-bottom),16px)] md:max-h-none md:w-[320px] md:border-l md:border-t-0 md:p-6 md:pb-6">
-            <div className="mb-5 hidden items-center gap-2 md:flex">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                <Clapperboard className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Showcase</p>
-                <p className="text-xs text-muted-foreground">A moment, while it lasts</p>
-              </div>
-            </div>
-            <div className="flex min-h-0 flex-1 gap-3 overflow-y-auto">
-              <Avatar className="h-10 w-10 shrink-0">
-                <AvatarImage src={currentStory.profiles.avatar_url} />
-                <AvatarFallback>{storyName[0]?.toUpperCase() || 'U'}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">{storyName}</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm text-muted-foreground">
-                  {currentStory.content || 'Shared a moment'}
-                </p>
-                <p className="mt-3 text-xs text-muted-foreground">
-                  Expires {new Date(currentStory.expires_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
-                </p>
-              </div>
-            </div>
-            {canReply && (
-              <form
-                className="mt-4 flex shrink-0 items-center gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void handleReply();
+          {canReply && (
+            <form
+              className="absolute inset-x-4 bottom-[max(env(safe-area-inset-bottom),16px)] z-20 mx-auto flex max-w-xl items-center gap-2 rounded-full border border-white/15 bg-black/65 p-1.5 backdrop-blur-md"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void handleReply();
+              }}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 shrink-0 rounded-full text-white hover:bg-white/15"
+                aria-label="Add a heart to your reply"
+                onClick={() => {
+                  setMessage((text) => `${text}❤️`);
+                  inputRef.current?.focus();
                 }}
               >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 shrink-0 rounded-full"
-                  aria-label="Add a heart to your reply"
-                  onClick={() => {
-                    setMessage((text) => `${text}❤️`);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  <Heart className="h-5 w-5" />
-                </Button>
-                <Input
-                  ref={inputRef}
-                  placeholder="Reply to Showcase..."
-                  value={message}
-                  onChange={(event) => setMessage(event.target.value)}
-                  onFocus={() => setPaused(true)}
-                  onBlur={() => setPaused(false)}
-                  className="h-11 min-w-0 rounded-full"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  variant="secondary"
-                  className="h-10 w-10 shrink-0 rounded-full"
-                  disabled={!message.trim() || sending}
-                  aria-label="Send Showcase reply"
-                >
-                  {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-                </Button>
-              </form>
-            )}
-          </aside>
+                <Heart className="h-5 w-5" />
+              </Button>
+              <Input
+                ref={inputRef}
+                placeholder="Reply to Showcase..."
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                onFocus={() => setPaused(true)}
+                onBlur={() => setPaused(false)}
+                className="h-10 min-w-0 rounded-full border-0 bg-transparent text-white placeholder:text-white/60 focus-visible:ring-0"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                variant="secondary"
+                className="h-10 w-10 shrink-0 rounded-full"
+                disabled={!message.trim() || sending}
+                aria-label="Send Showcase reply"
+              >
+                {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              </Button>
+            </form>
+          )}
         </div>
       </DialogContent>
     </Dialog>
+    <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete this Showcase item?</AlertDialogTitle>
+          <AlertDialogDescription>This item will be removed from your Showcase.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep item</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            onClick={() => {
+              if (!onDelete) return;
+              void onDelete(currentStory).finally(() => setConfirmDelete(false));
+            }}
+          >
+            Delete
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 

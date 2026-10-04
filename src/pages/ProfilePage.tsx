@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ensurePrivateChat } from '@/lib/chatCreation';
-import Navigation from '@/components/Navigation';
 import { ProfileHeader } from '@/components/ProfileHeader';
 import { PostCardModern } from '@/components/PostCard/PostCardModern';
 import ProfileEdit from '@/components/ProfileEdit';
@@ -20,7 +19,7 @@ import { StoryHighlights } from '@/components/StoryHighlights';
 import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
-import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2 } from 'lucide-react';
+import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2, Instagram, Twitter, Music2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { usePosts } from '@/hooks/usePosts';
@@ -33,6 +32,24 @@ import { toast } from '@/hooks/use-toast';
 import CreatePost from '@/components/CreatePost';
 import { canViewFullProfile } from '@/lib/profilePrivacy';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+
+const getSocialHref = (value: string, domain: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const candidate = /^https?:\/\//i.test(trimmed)
+    ? trimmed
+    : /(?:^|\.)[a-z0-9-]+\.[a-z]{2,}(?:\/|$)/i.test(trimmed)
+      ? `https://${trimmed.replace(/^\/+/, '')}`
+      : `https://${domain}/${trimmed.replace(/^@/, '')}`;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
+};
+
 const ProfilePage = () => {
   const {
     userId
@@ -43,20 +60,18 @@ const ProfilePage = () => {
   const {
     user
   } = useAuth();
-  const profileUserId = userId || user?.id;
-  const isOwnProfile = profileUserId === user?.id;
-  const {
-    profile: currentUserProfile
-  } = useProfile(user?.id);
+  const requestedProfileKey = userId || user?.id;
   const {
     profile,
     loading: profileLoading,
     refetch: refetchProfile
-  } = useProfile(profileUserId);
+  } = useProfile(requestedProfileKey);
+  const profileUserId = profile?.id || requestedProfileKey;
+  const isOwnProfile = profileUserId === user?.id;
   const {
     posts,
     loading: postsLoading
-  } = usePosts();
+  } = usePosts(profileUserId, Boolean(profile?.id));
   const {
     friends
   } = useFriends();
@@ -170,7 +185,6 @@ const ProfilePage = () => {
   }];
   if (profileLoading) {
     return <div className="min-h-screen bg-background">
-      <Navigation />
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <Skeleton className="h-48 md:h-64 w-full rounded-lg mb-6" />
         <div className="flex items-center gap-4 mb-6">
@@ -186,7 +200,6 @@ const ProfilePage = () => {
   }
   if (!profile) {
     return <div className="min-h-screen bg-background">
-      <Navigation />
       <div className="container mx-auto px-4 py-6 max-w-4xl">
         <Card className="p-12 text-center">
           <h2 className="text-2xl font-bold mb-2">Profile not found</h2>
@@ -208,8 +221,6 @@ const ProfilePage = () => {
     canViewFull: profile.can_view_full,
   });
   return <div className="min-h-screen bg-background pb-20 md:pb-0">
-    <Navigation />
-
     {/* Sticky Profile Header */}
     <ProfileHeader displayName={profile?.display_name || ''} username={profile?.username || ''} postsCount={userPosts.length} isOwnProfile={isOwnProfile} />
 
@@ -328,6 +339,29 @@ const ProfilePage = () => {
             <span>{profile.website.replace(/^https?:\/\//, '')}</span>
             <ExternalLink className="h-3 w-3" />
           </a>}
+          {canViewFull && [
+            { key: 'instagram', label: 'Instagram', domain: 'instagram.com', Icon: Instagram },
+            { key: 'twitter', label: 'X', domain: 'x.com', Icon: Twitter },
+            { key: 'tiktok', label: 'TikTok', domain: 'tiktok.com', Icon: Music2 },
+          ].map(({ key, label, domain, Icon }) => {
+            const value = profile.social_links?.[key] || profile.social_links?.[`${key}_url`];
+            const href = value ? getSocialHref(value, domain) : null;
+            if (!href) return null;
+            return (
+              <a
+                key={key}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Open ${profile.display_name}'s ${label}`}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-3 py-1.5 text-primary transition-colors hover:border-primary/40 hover:bg-primary/5"
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{label}</span>
+                <ExternalLink className="h-3 w-3 opacity-60" />
+              </a>
+            );
+          })}
           {canViewFull && <div className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
             <span>Joined {formatJoinDate(profile?.created_at || '')}</span>
@@ -356,8 +390,8 @@ const ProfilePage = () => {
 
         {canViewFull && <MutualFollowers profileUserId={profileUserId!} />}
 
-        {isOwnProfile && !currentUserProfile?.is_verified && <div className="mt-4">
-          <VerificationBanner isViewerVerified={currentUserProfile?.is_verified} />
+        {isOwnProfile && !profile?.is_verified && <div className="mt-4">
+          <VerificationBanner isViewerVerified={profile?.is_verified} />
         </div>}
 
         {canViewFull && <div className="mt-4">

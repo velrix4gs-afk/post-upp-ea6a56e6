@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -16,6 +16,7 @@ export interface Profile {
   cover_url?: string;
   location?: string;
   website?: string;
+  social_links?: Record<string, string> | null;
   birth_date?: string;
   gender?: string;
   phone?: string;
@@ -40,24 +41,36 @@ export const useProfile = (userId?: string) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const currentTargetRef = useRef<string | undefined>(undefined);
 
   const targetUserId = userId || user?.id;
 
   const loadProfileFromCache = async () => {
     if (!targetUserId) return;
-    const cached = await CacheHelper.getProfile(targetUserId);
-    if (cached) {
-      setProfile(cached);
-      setLoading(false);
+    try {
+      const cached = await CacheHelper.getProfile(targetUserId);
+      if (cached && currentTargetRef.current === targetUserId) {
+        setProfile(cached);
+        setLoading(false);
+      }
+    } catch (cacheError) {
+      console.error('[PROFILE_CACHE] Could not read cached profile:', cacheError);
     }
   };
 
   useEffect(() => {
+    if (currentTargetRef.current !== targetUserId) {
+      setProfile(null);
+      setLoading(true);
+      setError(null);
+    }
+    currentTargetRef.current = targetUserId;
     if (targetUserId && authReady) {
       loadProfileFromCache();
       fetchProfile();
 
       // Set up real-time subscription for profile updates
+      const targetIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUserId);
       const channel = supabase
         .channel(`profile-${targetUserId}:${channelInstanceId}`)
         .on(
@@ -66,7 +79,7 @@ export const useProfile = (userId?: string) => {
             event: '*',
             schema: 'public',
             table: 'profiles',
-            filter: `id=eq.${targetUserId}`
+            filter: `${targetIsUuid ? 'id' : 'username'}=eq.${targetUserId}`
           },
           (payload) => {
             if (!payload.new) return;
@@ -87,66 +100,96 @@ export const useProfile = (userId?: string) => {
   }, [targetUserId, authReady, channelInstanceId]);
 
   const fetchProfile = async (attempt = 0) => {
+    const requestedTarget = targetUserId;
     try {
-      setLoading(true);
+      if (!profile) setLoading(true);
       // Public card never includes phone / birth_date / gender. The owner
       // loads those separately via get_my_sensitive_profile.
-      let data: any = null;
-      const { data: card, error: cardError } = await (supabase as any).rpc('get_profile_card', {
-        p_id: targetUserId,
-      });
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      const targetIsUuid = !!targetUserId && uuidPattern.test(targetUserId);
+      const cardResult = targetIsUuid && targetUserId
+        ? await supabase.rpc('get_profile_card', { p_id: targetUserId })
+        : await supabase.rpc('get_profile_card_by_username', { p_username: targetUserId || '' });
+      const { data: card, error: cardError } = cardResult;
+      if (cardError) throw cardError;
+      if (currentTargetRef.current !== requestedTarget) return;
       const cardRow = Array.isArray(card) ? card[0] : card;
-      if (!cardError && cardRow) {
-        data = cardRow;
-      } else {
-        const { data: fallback, error } = await supabase
-          .from('profiles')
-          .select(
-            'id, username, display_name, bio, avatar_url, cover_url, location, website, relationship_status, theme_color, is_private, is_verified, verification_type, verified_at, created_at, updated_at'
-          )
-          .eq('id', targetUserId)
-          .single();
-
-        if (error) {
-          if (error.code === 'PGRST116' && attempt === 0) {
-            setTimeout(() => fetchProfile(1), 400);
-            return;
-          }
-          throw error;
+      if (!cardRow) {
+        if (attempt === 0) {
+          setTimeout(() => fetchProfile(1), 400);
+          return;
         }
-        data = fallback;
+        throw new Error('Profile not found');
       }
 
-      let merged: any = stripOwnerOnlyProfileFields({ ...(data || {}) });
-
-      if (isProfileOwner(user?.id, targetUserId)) {
-        const { data: sensitive } = await supabase.rpc('get_my_sensitive_profile');
-        const row = Array.isArray(sensitive) ? sensitive[0] : sensitive;
-        if (row) {
-          merged = {
-            ...merged,
-            phone: (row as any).phone ?? undefined,
-            birth_date: (row as any).birth_date ?? undefined,
-            gender: (row as any).gender ?? undefined,
-          };
-        }
-      }
-
+      const merged = stripOwnerOnlyProfileFields({ ...cardRow });
+      const resolvedProfileId = typeof merged.id === 'string' ? merged.id : targetUserId;
+      const isOwner = isProfileOwner(user?.id, resolvedProfileId);
+      if (currentTargetRef.current !== requestedTarget) return;
       setProfile(merged);
 
-      if (targetUserId && merged) {
-        const toCache = isProfileOwner(user?.id, targetUserId)
-          ? merged
-          : stripOwnerOnlyProfileFields(merged);
-        await CacheHelper.saveProfile(targetUserId, toCache);
+      if (targetUserId) {
+        const publicCache = stripOwnerOnlyProfileFields(merged);
+        await CacheHelper.saveProfile(targetUserId, publicCache);
+        if (merged.username && merged.username !== targetUserId) {
+          await CacheHelper.saveProfile(merged.username, publicCache);
+        }
       }
+
+      void (async () => {
+        const extras: Promise<unknown>[] = [];
+        if (isOwner) extras.push(supabase.rpc('get_my_sensitive_profile'));
+        if (merged.can_view_full !== false && resolvedProfileId) {
+          extras.push(
+            supabase.from('profiles').select('social_links').eq('id', resolvedProfileId).maybeSingle()
+          );
+        }
+        const results = await Promise.all(extras);
+        if (currentTargetRef.current !== requestedTarget) return;
+        let index = 0;
+        const updates: Partial<Profile> = {};
+        if (isOwner) {
+          const result = results[index++] as { data: unknown; error: unknown };
+          if (result.data) {
+            const rowValue = Array.isArray(result.data) ? result.data[0] : result.data;
+            if (rowValue && typeof rowValue === 'object') {
+              const row = rowValue as Record<string, unknown>;
+              updates.phone = typeof row.phone === 'string' ? row.phone : undefined;
+              updates.birth_date = typeof row.birth_date === 'string' ? row.birth_date : undefined;
+              updates.gender = typeof row.gender === 'string' ? row.gender : undefined;
+            }
+          } else if (result.error) {
+            console.error('[PROFILE_LOAD] Could not load owner-only profile fields:', result.error);
+          }
+        }
+        if (merged.can_view_full !== false && resolvedProfileId) {
+          const result = results[index] as {
+            data: { social_links?: Record<string, string> | null } | null;
+            error: unknown;
+          };
+          if (result.data) updates.social_links = result.data.social_links;
+          else if (result.error) console.error('[PROFILE_LOAD] Could not load profile social links:', result.error);
+        }
+        if (Object.keys(updates).length > 0) {
+          setProfile((current) => current?.id === resolvedProfileId ? { ...current, ...updates } : current);
+          const cached = await CacheHelper.getProfile(resolvedProfileId || '');
+          if (cached) await CacheHelper.saveProfile(resolvedProfileId || '', { ...cached, ...updates });
+          if (merged.username) {
+            const cachedByName = await CacheHelper.getProfile(merged.username);
+            if (cachedByName) await CacheHelper.saveProfile(merged.username, { ...cachedByName, ...updates });
+          }
+        }
+      })().catch((extraError) => {
+        console.error('[PROFILE_LOAD] Could not load supplemental profile data:', extraError);
+      });
     } catch (err: any) {
+      if (currentTargetRef.current !== requestedTarget) return;
       setError(err.message);
       // Silent — profile load failures are covered by the global offline
       // indicator; a repeating toast here just spams the user.
       reportSilently('PROFILE_LOAD', err);
     } finally {
-      setLoading(false);
+      if (currentTargetRef.current === requestedTarget) setLoading(false);
     }
   };
 
@@ -165,6 +208,7 @@ export const useProfile = (userId?: string) => {
       'cover_url',
       'location',
       'website',
+      'social_links',
       'birth_date',
       'gender',
       'phone',

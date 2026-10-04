@@ -283,7 +283,7 @@ export const EnhancedMessageBubble = ({
           isFirstOfGroup ? (
             <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
               <AvatarImage src={sender.avatar_url} alt={sender.display_name} />
-              <AvatarFallback className="text-xs bg-muted">{sender.display_name[0]}</AvatarFallback>
+              <AvatarFallback className="text-xs bg-muted">{sender.display_name?.[0] || 'U'}</AvatarFallback>
             </Avatar>
           ) : (
             <div className="h-8 w-8 flex-shrink-0" aria-hidden="true" />

@@ -39,17 +39,18 @@ export interface Post {
   }[];
 }
 
-export const usePosts = () => {
+export const usePosts = (userId?: string, enabled = true) => {
   const channelInstanceId = useId().replace(/:/g, '');
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const { session } = useAuth();
 
   const fetchPosts = async () => {
+    if (!enabled) return;
     if (!session?.access_token) return;
 
     try {
-      const { data: postsData, error } = await supabase
+      let postsQuery = supabase
         .from('posts')
         .select(`
           *,
@@ -64,25 +65,29 @@ export const usePosts = () => {
         `)
         .order('created_at', { ascending: false })
         .limit(50);
+      if (userId) postsQuery = postsQuery.eq('user_id', userId);
+      const { data: postsData, error } = await postsQuery;
 
       if (error) {
         console.error('Error fetching posts:', error);
         return;
       }
 
-      const postsWithReactions = await Promise.all(
-        (postsData || []).map(async (post) => {
-          const { data: reactions } = await supabase
-            .from('post_reactions')
-            .select('*')
-            .eq('post_id', post.id);
-
-          return {
-            ...post,
-            reactions: reactions || []
-          };
-        })
-      );
+      const postIds = (postsData || []).map((post) => post.id);
+      const { data: reactions, error: reactionsError } = postIds.length
+        ? await supabase.from('post_reactions').select('*').in('post_id', postIds)
+        : { data: [], error: null };
+      if (reactionsError) console.error('Error fetching post reactions:', reactionsError);
+      const reactionsByPost = new Map<string, NonNullable<typeof reactions>>();
+      (reactions || []).forEach((reaction) => {
+        const list = reactionsByPost.get(reaction.post_id) || [];
+        list.push(reaction);
+        reactionsByPost.set(reaction.post_id, list);
+      });
+      const postsWithReactions = (postsData || []).map((post) => ({
+        ...post,
+        reactions: reactionsByPost.get(post.id) || [],
+      }));
 
       setPosts(postsWithReactions || []);
     } catch (error) {
@@ -293,6 +298,11 @@ export const usePosts = () => {
   };
 
   useEffect(() => {
+    if (!enabled) {
+      setPosts([]);
+      setLoading(true);
+      return;
+    }
     fetchPosts();
 
     // Real-time: handle INSERT/UPDATE/DELETE without full re-fetch
@@ -304,6 +314,7 @@ export const usePosts = () => {
         table: 'posts'
       }, async (payload) => {
         const newPost = payload.new as any;
+        if (userId && newPost.user_id !== userId) return;
         
         // Fetch profile + reactions for the new post
         const { data: profile } = await supabase
@@ -334,6 +345,7 @@ export const usePosts = () => {
         table: 'posts'
       }, (payload) => {
         const updated = payload.new as any;
+        if (userId && updated.user_id !== userId) return;
         setPosts(prev => prev.map(p => 
           p.id === updated.id ? { ...p, ...updated } : p
         ));
@@ -343,7 +355,9 @@ export const usePosts = () => {
         schema: 'public',
         table: 'posts'
       }, (payload) => {
-        const deletedId = (payload.old as any).id;
+        const deletedPost = payload.old as any;
+        if (userId && deletedPost.user_id && deletedPost.user_id !== userId) return;
+        const deletedId = deletedPost.id;
         setPosts(prev => prev.filter(p => p.id !== deletedId));
       })
       .subscribe();
@@ -351,7 +365,7 @@ export const usePosts = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session?.access_token, channelInstanceId]);
+  }, [session?.access_token, channelInstanceId, userId, enabled]);
 
   return {
     posts,

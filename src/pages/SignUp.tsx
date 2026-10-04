@@ -35,7 +35,7 @@ const SignUp = () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/welcome`,
+          redirectTo: `${window.location.origin}/feed`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

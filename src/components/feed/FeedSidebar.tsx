@@ -79,7 +79,7 @@ export const FeedSidebar = () => {
     { icon: MessageCircle, label: 'Messages', path: '/messages' },
     { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
     { icon: Users, label: 'Friends', path: '/friends' },
-    { icon: User, label: 'Profile', path: `/profile/${user?.id}` },
+    { icon: User, label: 'Profile', path: `/profile/${profile?.username || user?.id}` },
   ];
 
   const moreItems = [
@@ -92,7 +92,7 @@ export const FeedSidebar = () => {
       {/* User Profile Card */}
       <Card className="p-4 mb-4">
         <button 
-          onClick={() => navigate(`/profile/${user?.id}`)}
+          onClick={() => navigate(`/profile/${profile?.username || user?.id}`)}
           className="flex items-center gap-3 w-full hover:bg-muted/50 rounded-xl p-2 -m-2 transition-colors"
         >
           <Avatar className="h-12 w-12 ring-2 ring-border">
@@ -116,14 +116,14 @@ export const FeedSidebar = () => {
         {/* Stats */}
         <div className="flex items-center justify-around mt-4 pt-4 border-t border-border">
           <button 
-            onClick={() => navigate(`/profile/${user?.id}`)}
+            onClick={() => navigate(`/profile/${profile?.username || user?.id}`)}
             className="text-center hover:bg-muted/50 rounded-lg px-3 py-1 transition-colors"
           >
             <div className="font-bold text-foreground">{following.length}</div>
             <div className="text-xs text-muted-foreground">Following</div>
           </button>
           <button 
-            onClick={() => navigate(`/profile/${user?.id}`)}
+            onClick={() => navigate(`/profile/${profile?.username || user?.id}`)}
             className="text-center hover:bg-muted/50 rounded-lg px-3 py-1 transition-colors"
           >
             <div className="font-bold text-foreground">{followers.length}</div>

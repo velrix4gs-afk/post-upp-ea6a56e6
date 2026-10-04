@@ -57,9 +57,9 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
     gender: '',
     phone: '',
     is_private: false,
-    instagram_url: '',
-    twitter_url: '',
-    tiktok_url: ''
+    instagram_url: profile.social_links?.instagram || profile.social_links?.instagram_url || '',
+    twitter_url: profile.social_links?.twitter || profile.social_links?.twitter_url || '',
+    tiktok_url: profile.social_links?.tiktok || profile.social_links?.tiktok_url || ''
   });
 
   // Pre-fill form data when profile loads
@@ -76,9 +76,9 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
         gender: profile.gender || '',
         phone: profile.phone || '',
         is_private: profile.is_private || false,
-        instagram_url: '',
-        twitter_url: '',
-        tiktok_url: ''
+        instagram_url: profile.social_links?.instagram || profile.social_links?.instagram_url || '',
+        twitter_url: profile.social_links?.twitter || profile.social_links?.twitter_url || '',
+        tiktok_url: profile.social_links?.tiktok || profile.social_links?.tiktok_url || ''
       };
       setFormData(initialData);
       originalFormData.current = initialData;
@@ -282,7 +282,14 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
     }
 
     setIsSaving(true);
-    const success = await updateProfile(formData);
+    const socialLinks = Object.fromEntries(
+      Object.entries({
+        instagram: formData.instagram_url.trim(),
+        twitter: formData.twitter_url.trim(),
+        tiktok: formData.tiktok_url.trim(),
+      }).filter(([, value]) => value.length > 0)
+    );
+    const success = await updateProfile({ ...formData, social_links: socialLinks });
     setIsSaving(false);
     
     if (success) {

@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { useStories, type Story } from '@/hooks/useStories';
+import { storyObjectPath, useStories, type Story } from '@/hooks/useStories';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Clapperboard, X } from 'lucide-react';
+import { Clapperboard } from 'lucide-react';
 import ShowcaseViewer from '@/components/ShowcaseViewer';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,11 +45,61 @@ const Showcase = () => {
     void viewStory(story.id);
   };
 
-  const handleDeleteStory = async (storyId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    await deleteStory(storyId);
-    if (selectedStoryId === storyId) {
-      setSelectedStoryId(null);
+  const handleShareToFeed = async (story: Story): Promise<boolean> => {
+    if (!user) return false;
+
+    let uploadedPostPath: string | null = null;
+    try {
+      let mediaUrl: string | undefined;
+      const storyMediaPath = story.media_path || (story.media_url ? storyObjectPath(story.media_url) : null);
+      if (story.media_type && storyMediaPath) {
+        const { data: file, error: downloadError } = await supabase.storage
+          .from('stories')
+          .download(storyMediaPath);
+        if (downloadError) throw downloadError;
+
+        const extension = storyMediaPath.split('.').pop()?.replace(/[^a-z0-9]/gi, '') || 'bin';
+        const uploadId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        uploadedPostPath = `${user.id}/${uploadId}.${extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from('posts')
+          .upload(uploadedPostPath, file, {
+            upsert: false,
+            contentType: file.type || `${story.media_type}/*`,
+            cacheControl: '3600',
+          });
+        if (uploadError) throw uploadError;
+
+        mediaUrl = supabase.storage.from('posts').getPublicUrl(uploadedPostPath).data.publicUrl;
+      } else if (story.media_type) {
+        throw new Error('This Showcase item has no reusable media file. Try sharing a text-only item.');
+      }
+
+      const { error: postError, data } = await supabase.functions.invoke('posts', {
+        body: {
+          content: story.content?.trim() || 'Shared from Showcase',
+          media_url: mediaUrl,
+          media_type: story.media_type || undefined,
+          privacy: 'public',
+        },
+      });
+      if (postError) throw postError;
+      if (data?.error) throw new Error(String(data.error));
+      uploadedPostPath = null;
+      toast({ title: 'Shared to feed' });
+      return true;
+    } catch (error) {
+      if (uploadedPostPath) {
+        const { error: cleanupError } = await supabase.storage.from('posts').remove([uploadedPostPath]);
+        if (cleanupError) console.error('Could not clean up failed Showcase post media upload:', cleanupError);
+      }
+      console.error('[showcase] failed to share to feed', error);
+      toast({
+        title: 'Could not share to feed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      });
+      return false;
     }
   };
 
@@ -113,61 +162,28 @@ const Showcase = () => {
             const isOwnStory = userId === user?.id;
             const displayName = story.profiles.display_name || story.profiles.username || 'User';
             return (
-              <div key={userId} className="group relative h-32 w-52 shrink-0 snap-start">
+              <div key={userId} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
                 <button
                   type="button"
-                  className="relative h-full w-full overflow-hidden rounded-2xl border border-border/60 bg-card text-left shadow-sm transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
+                  className="relative h-[68px] w-[68px] rounded-full bg-gradient-to-br from-primary via-accent to-primary p-[2.5px] transition-transform duration-200 hover:scale-105 active:scale-95"
                   onClick={() => handleStoryClick(firstStory)}
                   aria-label={`Open ${displayName}'s Showcase, ${userStories.length} active ${userStories.length === 1 ? 'item' : 'items'}`}
                 >
-                  {story.media_url ? (
-                    story.media_type === 'video' ? (
-                      <video
-                        src={story.media_url}
-                        className="absolute inset-0 h-full w-full object-cover"
-                        muted
-                        playsInline
-                        preload="metadata"
-                      />
-                    ) : (
-                      <img
-                        src={story.media_url}
-                        alt=""
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    )
-                  ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/50 via-accent/40 to-background" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/5 to-black/20" />
-                  <div className="absolute left-3 top-3 flex items-center gap-1.5">
-                    <Avatar className="h-8 w-8 border border-white/70">
-                      <AvatarImage src={story.profiles.avatar_url} className="object-cover" />
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                        {displayName[0]?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
-                    {userStories.length > 1 && (
-                      <span className="rounded-full bg-black/55 px-2 py-1 text-[10px] font-semibold text-white">
-                        {userStories.length} items
-                      </span>
+                  <Avatar className="h-full w-full border-2 border-background">
+                    {story.media_url && story.media_type !== 'video' && (
+                      <AvatarImage src={story.media_url} alt="" className="object-cover" />
                     )}
-                  </div>
-                  <span className="absolute inset-x-3 bottom-3 line-clamp-2 text-sm font-semibold leading-tight text-white">
-                    {story.content || displayName}
-                  </span>
+                    <AvatarFallback className="bg-gradient-to-br from-primary/30 via-accent/20 to-background text-base font-semibold">
+                      {displayName[0]?.toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                  {userStories.length > 1 && (
+                    <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full border-2 border-background bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                      {userStories.length}
+                    </span>
+                  )}
                 </button>
-                {isOwnStory && (
-                  <Button
-                    size="icon"
-                    variant="destructive"
-                    className="absolute right-2 top-2 z-10 h-7 w-7 rounded-full opacity-100 shadow transition-opacity sm:opacity-0 sm:group-hover:opacity-100"
-                    onClick={(event) => handleDeleteStory(story.id, event)}
-                    aria-label="Delete latest Showcase item"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <span className="max-w-full truncate text-[11px] text-muted-foreground">{isOwnStory ? 'Your Showcase' : displayName}</span>
               </div>
             );
           })}
@@ -182,6 +198,15 @@ const Showcase = () => {
           onNext={() => goToStory(selectedStoryIndex + 1)}
           onPrevious={() => goToStory(selectedStoryIndex - 1)}
           onReply={handleReply}
+          onDelete={viewerStories[selectedStoryIndex].user_id === user?.id
+            ? async (story) => {
+                if (await deleteStory(story.id)) setSelectedStoryId(null);
+              }
+            : undefined}
+          onShareToFeed={viewerStories[selectedStoryIndex].user_id === user?.id
+            ? handleShareToFeed
+            : undefined}
+          onViewProfile={(story) => navigate(`/profile/${story.profiles.username}`)}
           canReply={viewerStories[selectedStoryIndex].user_id !== user?.id}
         />
       )}

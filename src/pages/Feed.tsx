@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
 import { useNavigate } from 'react-router-dom';
@@ -44,7 +44,9 @@ const Feed = () => {
     }
   });
   useElasticOverscroll(containerRef);
-  const handleNewPost = () => { };
+  const handleNewPost = useCallback(() => {
+    void refreshSilently();
+  }, [refreshSilently]);
   useEffect(() => {
     if (inView && !loading && !loadingMore && hasMore) {
       const timer = setTimeout(() => {
@@ -66,7 +68,7 @@ const Feed = () => {
       <main className="flex-1 max-w-2xl mx-auto lg:mx-0 min-h-screen pb-8">
         <FeedTabs activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {/* Stories - scrolls with feed */}
+        {/* Showcase moments */}
         <div>
           <Showcase />
         </div>

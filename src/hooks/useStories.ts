@@ -9,6 +9,7 @@ export interface Story {
   user_id: string;
   content?: string;
   media_url?: string;
+  media_path?: string;
   media_type?: string;
   audience?: 'public' | 'followers' | 'only-me';
   views_count: number;
@@ -68,6 +69,7 @@ export const useStories = () => {
       const storiesData: Story[] = await Promise.all((data || []).map(async (story) => ({
         ...story,
         audience: story.audience as Story['audience'],
+        media_path: storyObjectPath(story.media_url) || undefined,
         media_url: await resolveStoryMediaUrl(story.media_url),
       })));
       setStories(storiesData);
@@ -253,8 +255,9 @@ export const useStories = () => {
     }
   };
 
-  const deleteStory = async (storyId: string) => {
+  const deleteStory = async (storyId: string): Promise<boolean> => {
     try {
+      const story = stories.find((item) => item.id === storyId);
       const { error } = await supabase
         .from('stories')
         .delete()
@@ -262,18 +265,34 @@ export const useStories = () => {
 
       if (error) throw error;
 
+      setStories((previous) => {
+        const updated = previous.filter((item) => item.id !== storyId);
+        if (user) void CacheHelper.saveStories(updated);
+        return updated;
+      });
+
+      if (story?.media_path) {
+        const { error: cleanupError } = await supabase.storage
+          .from('stories')
+          .remove([story.media_path]);
+        if (cleanupError) {
+          console.error('Showcase deleted but its media could not be removed:', cleanupError);
+        }
+      }
+
       toast({
         title: 'Success',
-        description: 'Story deleted successfully!',
+        description: 'Showcase item deleted.',
       });
-      // Real-time will handle removing from state
+      return true;
     } catch (err: unknown) {
-      console.error('Failed to delete story:', err);
+      console.error('Failed to delete Showcase item:', err);
       toast({
         title: 'Error',
         description: err instanceof Error ? err.message : 'Failed to delete story',
         variant: 'destructive'
       });
+      return false;
     }
   };
 

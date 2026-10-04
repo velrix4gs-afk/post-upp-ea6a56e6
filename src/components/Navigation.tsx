@@ -191,13 +191,13 @@ const Navigation = () => {
               </div>}
           </div>
 
-          {user && !isCompactMode && <div className="md:hidden flex items-center justify-end ml-[80px]">
+          {user && !isCompactMode && !isFeedPage && <div className="md:hidden flex items-center justify-end ml-[80px]">
               <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
                 <Search className="h-5 w-5" />
               </Button>
             </div>}
 
-          {user && !isCompactMode && <div className="hidden md:flex flex-1 max-w-md">
+          {user && !isCompactMode && !isFeedPage && <div className="hidden md:flex flex-1 max-w-md">
               <div className="relative w-full">
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Search..." className="pl-9 w-full" onClick={() => navigate('/search')} readOnly />
@@ -205,7 +205,19 @@ const Navigation = () => {
             </div>}
 
           <div className={`flex items-center transition-all duration-300 ${isCompactMode ? 'gap-2' : 'gap-3'}`}>
-            <ThemeToggle />
+            {user && isFeedPage && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/search')}
+                aria-label="Search"
+                title="Search"
+                className="h-9 w-9 rounded-full"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+            )}
+            {!isFeedPage && <ThemeToggle />}
             
             {user ? <>
                 <Button variant="ghost" size={isCompactMode ? "icon" : "sm"} className="relative" onClick={() => setShowNotifications(true)}>

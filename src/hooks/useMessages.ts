@@ -248,10 +248,14 @@ export const useMessages = (chatId?: string) => {
   const locallySentMessageIdsRef = useRef(new Set<string>());
 
   const loadChatsFromCache = async () => {
-    const cached = await CacheHelper.getChats();
-    if (cached) {
-      setChats(normalizeCachedChats(cached));
-      setChatsLoading(false);
+    try {
+      const cached = await CacheHelper.getChats();
+      if (cached) {
+        setChats(normalizeCachedChats(cached));
+        setChatsLoading(false);
+      }
+    } catch (error) {
+      console.error('[CHAT_CACHE] Could not read cached chats:', error);
     }
   };
 
@@ -630,7 +634,17 @@ export const useMessages = (chatId?: string) => {
       if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
       freshFetchAppliedRef.current = true;
 
-      const rows = messagesData || [];
+      const rows = (messagesData || []).filter((message) =>
+        typeof message.id === 'string' &&
+        typeof message.sender_id === 'string' &&
+        typeof message.created_at === 'string' &&
+        Number.isFinite(Date.parse(message.created_at))
+      );
+      if (rows.length !== (messagesData || []).length) {
+        console.error(
+          `[CHAT_001] Skipped ${(messagesData || []).length - rows.length} malformed message row(s) for chat ${fetchingFor}`,
+        );
+      }
       const messageIds = rows.map((message) => message.id);
       const { data: readRows, error: readsError } = messageIds.length && user
         ? await supabase

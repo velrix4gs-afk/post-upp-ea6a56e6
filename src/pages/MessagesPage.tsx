@@ -58,7 +58,7 @@ import {
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups' | 'archived';
@@ -85,10 +85,13 @@ const isWallpaperUrl = (v?: string) => !!v && /^(https?:|\/|data:)/i.test(v);
 const MessagesPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { startCall } = useCallSession();
   const { isAdmin } = useAdmin();
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('chat'),
+  );
   const [showAIChat, setShowAIChat] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const {
@@ -99,7 +102,8 @@ const MessagesPage = () => {
   const { handleTyping } = useTypingIndicator(selectedChatId || undefined);
   const { isUserOnline } = usePresence(selectedChatId || undefined);
   const selectedChat = chats.find((c) => c.id === selectedChatId);
-  const otherParticipant = selectedChat?.participants.find((p) => p.user_id !== user?.id);
+  const selectedParticipants = Array.isArray(selectedChat?.participants) ? selectedChat.participants : [];
+  const otherParticipant = selectedParticipants.find((p) => p.user_id !== user?.id);
   const isOnline = otherParticipant ? isUserOnline(otherParticipant.user_id) : false;
   const { settings: chatSettings } = useChatSettings(selectedChatId || undefined, otherParticipant?.user_id);
 
@@ -215,12 +219,11 @@ const MessagesPage = () => {
     }
   }, []);
 
-  // Handle chat_id from URL
+  // Keep the selected conversation in sync with direct links and notification links.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const chatIdFromUrl = params.get('chat');
+    const chatIdFromUrl = searchParams.get('chat');
     if (chatIdFromUrl) setSelectedChatId(chatIdFromUrl);
-  }, []);
+  }, [searchParams]);
 
   // Auto-scroll behavior
   useEffect(() => {
@@ -941,7 +944,7 @@ const MessagesPage = () => {
   // ----- CHAT VIEW -----
   const renderChatView = () => {
     if (!selectedChat) return null;
-    const otherP = selectedChat.participants.find((p) => p.user_id !== user?.id);
+    const otherP = selectedParticipants.find((p) => p.user_id !== user?.id);
     const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles.display_name || 'User';
     const chatAvatar = selectedChat.avatar_url || otherP?.profiles.avatar_url;
 
@@ -1069,12 +1072,12 @@ const MessagesPage = () => {
                 }
                 const message = item.message;
                 const isOwn = message.sender_id === user?.id;
-                const senderProfile = selectedChat.participants.find((p) => p.user_id === message.sender_id)?.profiles;
+                const senderProfile = selectedParticipants.find((p) => p.user_id === message.sender_id)?.profiles;
                 const replyToData = message.reply_to
                   ? (() => {
                       const replyMsg = messages.find((m) => m.id === message.reply_to);
                       if (!replyMsg) return undefined;
-                      const rsp = selectedChat.participants.find((p) => p.user_id === replyMsg.sender_id)?.profiles;
+                      const rsp = selectedParticipants.find((p) => p.user_id === replyMsg.sender_id)?.profiles;
                       return {
                         id: replyMsg.id,
                         content: replyMsg.content || '',

@@ -36,11 +36,11 @@ export const RealtimeNotifications = () => {
             if (oldestId) alertedNotificationIds.delete(oldestId);
           }
           
-          toast(notification.title, {
-            description: notification.content,
-          });
-
-          if ('Notification' in window && Notification.permission === 'granted') {
+          if (document.visibilityState === 'visible') {
+            toast(notification.title, {
+              description: notification.content,
+            });
+          } else if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(notification.title, {
               body: notification.content,
               icon: '/favicon.ico',
