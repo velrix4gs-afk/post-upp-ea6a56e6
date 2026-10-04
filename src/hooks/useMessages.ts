@@ -105,6 +105,60 @@ export interface Chat {
   }[];
 }
 
+const normalizeCachedChats = (value: unknown): Chat[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry): Chat[] => {
+    if (!entry || typeof entry !== 'object') return [];
+
+    const chat = entry as Record<string, unknown>;
+    if (typeof chat.id !== 'string' || !chat.id) return [];
+
+    const participants = Array.isArray(chat.participants)
+      ? chat.participants.flatMap((entry) => {
+          if (!entry || typeof entry !== 'object') return [];
+
+          const participant = entry as Record<string, unknown>;
+          if (typeof participant.user_id !== 'string' || !participant.user_id) return [];
+
+          const profile = participant.profiles && typeof participant.profiles === 'object'
+            ? participant.profiles as Record<string, unknown>
+            : {};
+
+          return [{
+            user_id: participant.user_id,
+            role: typeof participant.role === 'string' ? participant.role : 'member',
+            joined_at: typeof participant.joined_at === 'string' ? participant.joined_at : '',
+            profiles: {
+              username: typeof profile.username === 'string' ? profile.username : 'user',
+              display_name: typeof profile.display_name === 'string' ? profile.display_name : 'Unknown User',
+              avatar_url: typeof profile.avatar_url === 'string' ? profile.avatar_url : undefined,
+            },
+          }];
+        })
+      : [];
+
+    return [{
+      ...chat,
+      id: chat.id,
+      name: typeof chat.name === 'string' ? chat.name : undefined,
+      avatar_url: typeof chat.avatar_url === 'string' ? chat.avatar_url : undefined,
+      is_group: chat.is_group === true,
+      created_at: typeof chat.created_at === 'string' ? chat.created_at : '',
+      updated_at: typeof chat.updated_at === 'string' ? chat.updated_at : '',
+      last_message: typeof chat.last_message === 'string' ? chat.last_message : undefined,
+      last_message_at: typeof chat.last_message_at === 'string' ? chat.last_message_at : undefined,
+      last_message_id: typeof chat.last_message_id === 'string' ? chat.last_message_id : undefined,
+      last_message_sender_id: typeof chat.last_message_sender_id === 'string' ? chat.last_message_sender_id : undefined,
+      last_message_status: chat.last_message_status === 'read' || chat.last_message_status === 'delivered'
+        ? chat.last_message_status
+        : chat.last_message_status === 'sent' ? 'sent' : undefined,
+      unread_count: typeof chat.unread_count === 'number' ? chat.unread_count : 0,
+      participants,
+    } as Chat];
+  });
+};
+
 export const useMessages = (chatId?: string) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -122,7 +176,7 @@ export const useMessages = (chatId?: string) => {
   const loadChatsFromCache = async () => {
     const cached = await CacheHelper.getChats();
     if (cached) {
-      setChats(cached);
+      setChats(normalizeCachedChats(cached));
       setChatsLoading(false);
     }
   };

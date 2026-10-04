@@ -73,7 +73,7 @@ export const FeedTabs = ({ activeTab, onTabChange }: FeedTabsProps) => {
               variant="ghost"
               size="icon"
               className="mr-2 h-10 w-10 shrink-0 rounded-full transition-transform duration-200 hover:bg-primary/10 hover:text-primary active:scale-90"
-              aria-label="Create a post or story"
+              aria-label="Create a post or Showcase"
               title="Create"
             >
               <Plus className="h-5 w-5" strokeWidth={2.5} />

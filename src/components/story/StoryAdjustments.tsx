@@ -9,7 +9,6 @@ export interface AdjustmentValues {
   saturation: number;
   warmth: number;
   fade: number;
-  sharpen: number;
   vignette: number;
 }
 
@@ -19,7 +18,6 @@ export const defaultAdjustments: AdjustmentValues = {
   saturation: 100,
   warmth: 0,
   fade: 0,
-  sharpen: 0,
   vignette: 0,
 };
 
@@ -45,7 +43,6 @@ const sliders: { key: keyof AdjustmentValues; label: string; min: number; max: n
   { key: 'saturation', label: 'Saturation', min: 0, max: 200, default: 100 },
   { key: 'warmth', label: 'Warmth', min: 0, max: 50, default: 0 },
   { key: 'fade', label: 'Fade', min: 0, max: 50, default: 0 },
-  { key: 'sharpen', label: 'Structure', min: 0, max: 100, default: 0 },
   { key: 'vignette', label: 'Vignette', min: 0, max: 100, default: 0 },
 ];
 

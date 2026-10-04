@@ -140,7 +140,9 @@ const ProfilePage = () => {
           text: `Check out ${profile?.display_name}'s profile!`,
           url: profileUrl
         });
-      } catch (error) { }
+      } catch {
+        // Sharing can be dismissed without taking action.
+      }
     } else {
       await navigator.clipboard.writeText(profileUrl);
       toast({
@@ -211,16 +213,23 @@ const ProfilePage = () => {
     {/* Sticky Profile Header */}
     <ProfileHeader displayName={profile?.display_name || ''} username={profile?.username || ''} postsCount={userPosts.length} isOwnProfile={isOwnProfile} />
 
-    <main className="container mx-auto max-w-4xl">
+    <main className="container mx-auto max-w-5xl px-4 py-5">
       {/* Cover Photo */}
-      <div className="relative h-40 md:h-56 overflow-hidden cursor-pointer group" onClick={() => profile?.cover_url && setShowCoverViewer(true)}>
-        {profile?.cover_url ? <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" /> : <div className="w-full h-full bg-gradient-to-br from-primary/30 via-primary/20 to-accent/30 flex items-center justify-center">
-          <Camera className="h-12 w-12 text-muted-foreground/40" />
+      <div className="relative h-44 md:h-72 overflow-hidden cursor-pointer group rounded-3xl border border-border/70 shadow-sm" onClick={() => profile?.cover_url && setShowCoverViewer(true)}>
+        {profile?.cover_url ? <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" /> : <div className="relative w-full h-full overflow-hidden bg-gradient-to-br from-primary/25 via-primary/10 to-accent/30 flex items-center justify-center">
+          <div className="absolute -top-20 -right-10 h-64 w-64 rounded-full bg-primary/15 blur-3xl" />
+          <div className="absolute -bottom-28 -left-8 h-64 w-64 rounded-full bg-accent/20 blur-3xl" />
+          <div className="relative flex flex-col items-center gap-2 text-center">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-border/50 bg-background/60 shadow-sm backdrop-blur">
+              <Camera className="h-6 w-6 text-primary" />
+            </div>
+            {isOwnProfile && <span className="text-sm font-medium text-foreground/75">Add a cover to make this space yours</span>}
+          </div>
         </div>}
         {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+        {profile?.cover_url && <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/10 to-transparent" />}
         {/* Change cover button for own profile */}
-        {isOwnProfile && <div className="absolute bottom-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+        {isOwnProfile && <div className="absolute bottom-3 right-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
           <Button variant="secondary" size="sm" className="gap-2 bg-background/80 backdrop-blur-sm hover:bg-background" onClick={e => {
             e.stopPropagation();
             setShowProfileEdit(true);
@@ -232,11 +241,11 @@ const ProfilePage = () => {
       </div>
 
       {/* Profile Info Section */}
-      <div className="px-4 relative">
+      <div className="relative z-10 -mt-12 mx-2 rounded-3xl border border-border/70 bg-card/95 px-4 pb-5 shadow-xl shadow-black/5 backdrop-blur-xl sm:mx-4 sm:px-6 md:-mt-16 md:mx-8 md:px-8 md:pb-7">
         {/* Avatar - overlapping cover */}
         <div className="relative -mt-16 md:-mt-20 mb-4">
           <div className="relative inline-block cursor-pointer group" onClick={() => profile?.avatar_url ? setShowAvatarViewer(true) : isOwnProfile && setShowProfileEdit(true)}>
-            <Avatar className="h-32 w-32 md:h-40 md:w-40 ring-4 ring-background shadow-xl group-hover:ring-primary/30 transition-all">
+            <Avatar className="h-28 w-28 md:h-36 md:w-36 ring-[5px] ring-card shadow-xl group-hover:ring-primary/30 transition-all">
               {profile?.avatar_url ? <AvatarImage src={profile.avatar_url} alt={profile.display_name} className="object-cover" /> : <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-4xl md:text-5xl font-bold">
                 {profile?.display_name?.split(' ').map(n => n[0]).join('') || 'U'}
               </AvatarFallback>}
@@ -251,7 +260,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Action Buttons Row */}
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-5">
           {isOwnProfile ? <Button variant="outline" onClick={() => setShowProfileEdit(true)} className="flex-1 rounded-full font-semibold">
             <Edit className="h-4 w-4 mr-2" />
             Edit Profile
@@ -269,16 +278,16 @@ const ProfilePage = () => {
                 Follow
               </>}
             </Button>
-            <Button variant="outline" onClick={handleMessage} disabled={messageActionBusy} className="rounded-full px-4" aria-label="Message">
+            <Button variant="outline" onClick={handleMessage} disabled={messageActionBusy} className="rounded-full px-4" aria-label="Message" title="Message">
               {messageActionBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
             </Button>
           </>}
-          <Button variant="outline" onClick={handleShare} className="rounded-full px-4">
+          <Button variant="outline" onClick={handleShare} className="rounded-full px-4" aria-label="Share profile" title="Share profile">
             <Share2 className="h-4 w-4" />
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="rounded-full px-4">
+              <Button variant="outline" className="rounded-full px-4" aria-label="More profile options" title="More options">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -293,58 +302,56 @@ const ProfilePage = () => {
         </div>
 
         {/* User Info Block */}
-        <div className="mb-4">
+        <div className="mb-5">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl md:text-2xl font-bold">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight">
               {profile?.display_name}
             </h1>
             {profile?.is_verified && <VerificationBadge isVerified={profile.is_verified} verificationType={profile.verification_type} />}
           </div>
-          <p className="text-muted-foreground">@{profile?.username}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">@{profile?.username}</p>
 
           {/* Bio */}
-          {canViewFull && profile?.bio ? <p className="mt-3 text-sm leading-relaxed whitespace-pre-wrap">{profile.bio}</p> : isOwnProfile && <button onClick={() => setShowProfileEdit(true)} className="mt-3 text-sm text-muted-foreground hover:text-primary transition-colors">
+          {canViewFull && profile?.bio ? <p className="mt-4 max-w-2xl text-sm leading-relaxed whitespace-pre-wrap">{profile.bio}</p> : isOwnProfile && <button onClick={() => setShowProfileEdit(true)} className="mt-4 rounded-xl border border-dashed border-border px-3 py-2 text-left text-sm text-muted-foreground hover:border-primary/50 hover:text-primary transition-colors">
             + Add a bio to tell people about yourself
           </button>}
         </div>
 
         {/* Social + Metadata */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-3">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground mb-5">
           {canViewFull && profile?.location && <div className="flex items-center gap-1">
-            <MapPin className="h-4 w-4" />
+            <MapPin className="h-3.5 w-3.5" />
             <span>{profile.location}</span>
           </div>}
           {canViewFull && profile?.website && <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
-            <LinkIcon className="h-4 w-4" />
+            <LinkIcon className="h-3.5 w-3.5" />
             <span>{profile.website.replace(/^https?:\/\//, '')}</span>
             <ExternalLink className="h-3 w-3" />
           </a>}
           {canViewFull && <div className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
+            <Calendar className="h-3.5 w-3.5" />
             <span>Joined {formatJoinDate(profile?.created_at || '')}</span>
           </div>}
         </div>
 
         {/* Stats Row */}
-        <div className="flex items-center gap-4 mb-3 text-sm">
-          <div className="group">
-            <span className="font-bold">{userPosts.length}</span>
-            <span className="text-muted-foreground ml-1">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+          <div className="rounded-2xl border border-border/70 bg-gradient-to-br from-primary/5 via-card to-card px-3 py-3 text-center">
+            <span className="block text-lg font-bold tracking-tight">{userPosts.length}</span>
+            <span className="text-xs text-muted-foreground">
               {userPosts.length === 1 ? 'Post' : 'Posts'}
             </span>
           </div>
-          <div className="text-muted-foreground">•</div>
-          <div className="cursor-pointer group hover:text-primary transition-colors" onClick={() => setShowFollowingDialog(true)}>
-            <span className="font-bold group-hover:underline">{following.length}</span>
-            <span className="text-muted-foreground group-hover:text-primary ml-1">Following</span>
-          </div>
-          <div className="text-muted-foreground">•</div>
-          <div className="cursor-pointer group hover:text-primary transition-colors" onClick={() => setShowFollowersDialog(true)}>
-            <span className="font-bold group-hover:underline">{followers.length}</span>
-            <span className="text-muted-foreground group-hover:text-primary ml-1">
+          <button type="button" className="group rounded-2xl border border-border/70 bg-gradient-to-br from-primary/5 via-card to-card px-3 py-3 text-center transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setShowFollowingDialog(true)} aria-label={`View ${following.length} following`}>
+            <span className="block text-lg font-bold tracking-tight group-hover:text-primary">{following.length}</span>
+            <span className="text-xs text-muted-foreground group-hover:text-primary">Following</span>
+          </button>
+          <button type="button" className="group rounded-2xl border border-border/70 bg-gradient-to-br from-primary/5 via-card to-card px-3 py-3 text-center transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => setShowFollowersDialog(true)} aria-label={`View ${followers.length} followers`}>
+            <span className="block text-lg font-bold tracking-tight group-hover:text-primary">{followers.length}</span>
+            <span className="text-xs text-muted-foreground group-hover:text-primary">
               {followers.length === 1 ? 'Follower' : 'Followers'}
             </span>
-          </div>
+          </button>
         </div>
 
         {canViewFull && <MutualFollowers profileUserId={profileUserId!} />}

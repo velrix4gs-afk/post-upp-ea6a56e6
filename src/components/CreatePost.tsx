@@ -353,6 +353,7 @@ const CreatePost = () => {
               value={postContent}
               onValueChange={setPostContent}
               onFocus={() => setIsExpanded(true)}
+              style={{ fontSize: '16px' }}
               className="border-0 bg-muted/50 resize-none focus-visible:ring-primary min-h-[60px] max-h-[40vh] overflow-y-auto"
               rows={isExpanded ? 4 : 2}
             />

@@ -3,9 +3,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useStories, type Story } from '@/hooks/useStories';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
 import { useNavigate } from 'react-router-dom';
-import { Clapperboard, Plus, X } from 'lucide-react';
+import { Clapperboard, X } from 'lucide-react';
 import ShowcaseViewer from '@/components/ShowcaseViewer';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,7 +12,6 @@ import { toast } from '@/hooks/use-toast';
 
 const Showcase = () => {
   const { user } = useAuth();
-  const { profile } = useProfile();
   const { stories, viewStory, deleteStory } = useStories();
   const navigate = useNavigate();
   const [selectedStoryId, setSelectedStoryId] = useState<string | null>(null);
@@ -96,49 +94,26 @@ const Showcase = () => {
   };
 
   return <>
-      <section aria-label="Showcase" className="px-4 py-4">
+      <section aria-label="Showcase" className="px-4 py-3">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Showcase</h2>
-            <p className="text-xs text-muted-foreground">Moments from people you follow</p>
+            <h2 className="text-base font-semibold tracking-tight">Showcase</h2>
+            <p className="text-xs text-muted-foreground">Recent moments, gathered in one place</p>
           </div>
           <Clapperboard className="h-5 w-5 text-primary" aria-hidden="true" />
         </div>
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 scrollbar-hide">
           <style>{`
             .scrollbar-hide::-webkit-scrollbar { display: none; }
             .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
           `}</style>
-          <button
-            type="button"
-            className="group relative h-44 w-32 shrink-0 snap-start overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/25 via-card to-accent/30 text-left shadow-sm transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]"
-            onClick={() => navigate('/create/showcase')}
-            aria-label="Create a Showcase"
-          >
-            {profile?.avatar_url && (
-              <img
-                src={profile.avatar_url}
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover opacity-35 transition-transform duration-300 group-hover:scale-105"
-              />
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/25 to-transparent" />
-            <div className="absolute inset-x-3 bottom-3">
-              <span className="mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                <Plus className="h-5 w-5" strokeWidth={2.5} />
-              </span>
-              <span className="block text-sm font-semibold">Add to Showcase</span>
-              <span className="mt-0.5 block text-[11px] text-muted-foreground">Share for 24 hours</span>
-            </div>
-          </button>
-
           {storyGroups.map(({ userId, stories: userStories }) => {
             const story = userStories[userStories.length - 1];
             const firstStory = userStories[0];
             const isOwnStory = userId === user?.id;
             const displayName = story.profiles.display_name || story.profiles.username || 'User';
             return (
-              <div key={userId} className="group relative h-44 w-32 shrink-0 snap-start">
+              <div key={userId} className="group relative h-32 w-52 shrink-0 snap-start">
                 <button
                   type="button"
                   className="relative h-full w-full overflow-hidden rounded-2xl border border-border/60 bg-card text-left shadow-sm transition-transform duration-200 hover:-translate-y-0.5 active:scale-[0.98]"

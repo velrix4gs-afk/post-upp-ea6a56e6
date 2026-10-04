@@ -21,6 +21,7 @@ import DraftsDialog from "../DraftsDialog";
 import { UserTagSelector } from "../UserTagSelector";
 import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
 import { MentionTextarea } from "@/components/composer/MentionTextarea";
+import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
 import { cn } from "@/lib/utils";
@@ -94,6 +95,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const [taggedUsers, setTaggedUsers] = useState<string[]>([]);
   const [feeling, setFeeling] = useState<string>('');
   const [showFeelings, setShowFeelings] = useState(false);
+  const [showGallerySheet, setShowGallerySheet] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public');
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -143,7 +145,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const charPercentage = charCount / MAX_CHARS * 100;
   const handleSelectMedia = async () => {
     if (!canUseFolderPicker()) {
-      mediaInputRef.current?.click();
+      setShowGallerySheet(true);
       return;
     }
 
@@ -165,6 +167,10 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
       addMediaFiles(mediaFiles);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
+      if (error instanceof DOMException && error.name === 'NotFoundError') {
+        setShowGallerySheet(true);
+        return;
+      }
       showCleanError(error, toast, 'Could not Open Folder');
     }
   };
@@ -394,7 +400,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
           </Avatar>
           
           <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-            <MentionTextarea placeholder="Write a caption..." value={postContent} onValueChange={value => {
+            <MentionTextarea placeholder="Write a caption..." value={postContent} style={{ fontSize: '16px' }} onValueChange={value => {
             if (value.length <= MAX_CHARS) {
               setPostContent(value);
             }
@@ -426,7 +432,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
                 </span>
               </div>}
           </div>
-        </div>
+        </div>;
 
         {/* Image Previews - BELOW text area as thumbnails */}
         {previewImages.length > 0 && <div className="px-2">
@@ -578,6 +584,14 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
           </div>
         </div>
       </div>
+      <GalleryPickerSheet
+        open={showGallerySheet}
+        onOpenChange={setShowGallerySheet}
+        multiple
+        title="Add media to your post"
+        onSelect={(file) => addMediaFiles([file])}
+        onSelectMany={addMediaFiles}
+      />
     </Card>;
 };
 export default CreatePostCard;

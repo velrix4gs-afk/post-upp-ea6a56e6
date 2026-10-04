@@ -41,10 +41,18 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 };
 
+interface DirectoryPickerWindow extends Window {
+  showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandle>;
+}
+
+interface DirectoryEntriesHandle extends FileSystemDirectoryHandle {
+  entries(): AsyncIterable<[string, FileSystemHandle]>;
+}
+
 export const canUseNativeGallery = () => isNativeGalleryAvailable();
 
 export const canUseFolderPicker = () =>
-  typeof window !== 'undefined' && typeof (window as any).showDirectoryPicker === 'function';
+  typeof window !== 'undefined' && typeof (window as DirectoryPickerWindow).showDirectoryPicker === 'function';
 
 export async function checkDeviceGalleryAccess(): Promise<boolean> {
   if (!canUseNativeGallery()) return false;
@@ -164,7 +172,7 @@ async function walkDirectory(
   depth = 0,
 ): Promise<void> {
   if (acc.length >= 400 || depth > 6) return;
-  for await (const [name, handle] of (dir as any).entries() as AsyncIterable<[string, FileSystemHandle]>) {
+  for await (const [name, handle] of (dir as DirectoryEntriesHandle).entries()) {
     if (acc.length >= 400) return;
     if (handle.kind === 'directory') {
       if (SKIP_DIRS.has(name.toLowerCase())) continue;
@@ -177,13 +185,11 @@ async function walkDirectory(
 }
 
 export async function pickDeviceFolder(): Promise<DeviceGalleryItem[]> {
-  const picker = (window as any).showDirectoryPicker as
-    | ((opts?: { mode?: string; startIn?: string }) => Promise<FileSystemDirectoryHandle>)
-    | undefined;
+  const picker = (window as DirectoryPickerWindow).showDirectoryPicker;
   if (!picker) {
     throw new Error('Folder access is not supported in this browser');
   }
-  const dir = await picker({ mode: 'read', startIn: 'pictures' });
+  const dir = await picker({ mode: 'read' });
   const files: File[] = [];
   await walkDirectory(dir, files);
   return filesToGalleryItems(files);

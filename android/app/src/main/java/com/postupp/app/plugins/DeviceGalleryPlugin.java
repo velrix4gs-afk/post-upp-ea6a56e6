@@ -231,8 +231,19 @@ public class DeviceGalleryPlugin extends Plugin {
 
     private List<MediaItem> queryMedia(int quantity, String types) {
         List<MediaItem> items = new ArrayList<>();
-        boolean photos = "all".equals(types) || "photos".equals(types);
-        boolean videos = "all".equals(types) || "videos".equals(types);
+        boolean hasSelectedAccess =
+            Build.VERSION.SDK_INT >= 34 &&
+            hasPermission(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED);
+        boolean canReadPhotos =
+            Build.VERSION.SDK_INT < 33 ||
+            hasSelectedAccess ||
+            hasPermission(Manifest.permission.READ_MEDIA_IMAGES);
+        boolean canReadVideos =
+            Build.VERSION.SDK_INT < 33 ||
+            hasSelectedAccess ||
+            hasPermission(Manifest.permission.READ_MEDIA_VIDEO);
+        boolean photos = ("all".equals(types) || "photos".equals(types)) && canReadPhotos;
+        boolean videos = ("all".equals(types) || "videos".equals(types)) && canReadVideos;
         if (photos) {
             collect(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, "image", items, quantity);
         }

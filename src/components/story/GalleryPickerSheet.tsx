@@ -267,8 +267,8 @@ export const GalleryPickerSheet = ({
         return next;
       });
       setAccess('web');
-    } catch (err: any) {
-      if (err?.name === 'AbortError') return;
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') return;
       folderInputRef.current?.click();
     }
   }, []);

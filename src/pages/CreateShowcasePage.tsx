@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   X, Type, Smile, Image as ImageIcon, Send, Loader2,
-  Paintbrush, Crop, SlidersHorizontal, Sparkles, Users,
-  Video, ChevronDown,
+  Crop, SlidersHorizontal, Sparkles, Users,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { storyFilters } from '@/components/story/StoryFilters';
-import { StoryStickerPicker, StickerDisplay, Sticker } from '@/components/story/StoryStickers';
+import { StoryStickerPicker, Sticker } from '@/components/story/StoryStickers';
 import { StoryTextOverlay } from '@/components/story/StoryTextOverlay';
-import { StoryDrawing } from '@/components/story/StoryDrawing';
 import { StoryAudienceSelector, StoryAudience } from '@/components/story/StoryAudienceSelector';
 import { StoryCropTool } from '@/components/story/StoryCropTool';
 import { StoryAdjustments, AdjustmentValues, defaultAdjustments, adjustmentsToCss } from '@/components/story/StoryAdjustments';
@@ -41,7 +40,7 @@ const textBackgrounds = [
   { id: 'g7', bg: 'linear-gradient(135deg,#a855f7,#3b82f6)' },
 ];
 
-type Tool = null | 'filters' | 'adjust' | 'stickers' | 'crop' | 'draw' | 'audience' | 'textEdit';
+type Tool = null | 'filters' | 'adjust' | 'stickers' | 'crop' | 'audience' | 'textEdit';
 
 const getStickerLabel = (sticker: Sticker): string => {
   const data = sticker.data as Record<string, unknown>;
@@ -80,7 +79,6 @@ const CreateShowcasePage = () => {
   const [textOverlays, setTextOverlays] = useState<TextOverlayItem[]>([]);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [stickers, setStickers] = useState<Sticker[]>([]);
-  const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
   const [audience, setAudience] = useState<StoryAudience>('public');
 
   // UI
@@ -113,7 +111,6 @@ const CreateShowcasePage = () => {
     setAdjustments(defaultAdjustments);
     setTextOverlays([]);
     setStickers([]);
-    setDrawingUrl(null);
   };
 
   // Cleanup blob url
@@ -202,13 +199,15 @@ const CreateShowcasePage = () => {
     try {
       const img = await new Promise<HTMLImageElement>((resolve, reject) => {
         const i = new Image();
-        i.crossOrigin = 'anonymous';
         i.onload = () => resolve(i);
         i.onerror = reject;
         i.src = mediaPreview;
       });
-      const W = img.naturalWidth || 1080;
-      const H = img.naturalHeight || 1920;
+      const sourceWidth = img.naturalWidth || 1080;
+      const sourceHeight = img.naturalHeight || 1920;
+      const scale = Math.min(1, 2160 / Math.max(sourceWidth, sourceHeight));
+      const W = Math.round(sourceWidth * scale);
+      const H = Math.round(sourceHeight * scale);
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
@@ -224,15 +223,6 @@ const CreateShowcasePage = () => {
         grad.addColorStop(1, `rgba(0,0,0,${adjustments.vignette / 100})`);
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
-      }
-
-      // Drawing
-      if (drawingUrl) {
-        const d = await new Promise<HTMLImageElement>((res, rej) => {
-          const i = new Image();
-          i.onload = () => res(i); i.onerror = rej; i.src = drawingUrl;
-        });
-        ctx.drawImage(d, 0, 0, W, H);
       }
 
       // Text overlays
@@ -288,12 +278,17 @@ const CreateShowcasePage = () => {
       return new File([blob], 'showcase.jpg', { type: 'image/jpeg' });
     } catch (err) {
       console.error('Showcase image composition failed:', err);
-      throw new Error('Could not prepare your edited Showcase image. Please try again.');
+      const reason = err instanceof Error ? err.message : 'The image could not be decoded by this device.';
+      throw new Error(`Could not apply the edits to this image: ${reason}`);
     }
   };
 
   const handleShare = async () => {
-    if (!user || uploadGuardRef.current) return;
+    if (uploadGuardRef.current) return;
+    if (!user) {
+      toast({ title: 'Sign in to share', description: 'Your session has expired. Sign in and try again.', variant: 'destructive' });
+      return;
+    }
     if (mediaType === 'text' && !storyText.trim()) {
       toast({ title: 'Type something first', variant: 'destructive' });
       return;
@@ -314,7 +309,16 @@ const CreateShowcasePage = () => {
       if (mediaType === 'text') {
         content = storyText;
       } else {
-        const fileToUpload = mediaType === 'image' ? await compositeImage() : mediaFile;
+        const hasImageEdits = selectedFilter !== 'none'
+          || adjustments.brightness !== defaultAdjustments.brightness
+          || adjustments.contrast !== defaultAdjustments.contrast
+          || adjustments.saturation !== defaultAdjustments.saturation
+          || adjustments.warmth !== defaultAdjustments.warmth
+          || adjustments.fade !== defaultAdjustments.fade
+          || adjustments.vignette !== defaultAdjustments.vignette
+          || textOverlays.length > 0
+          || stickers.length > 0;
+        const fileToUpload = mediaType === 'image' && hasImageEdits ? await compositeImage() : mediaFile;
         if (!fileToUpload) throw new Error('Could not prepare the Showcase media. Please try again.');
         if (!fileToUpload.type.startsWith('image/') && !fileToUpload.type.startsWith('video/')) {
           throw new Error('Choose a valid image or video for your Showcase.');
@@ -338,7 +342,7 @@ const CreateShowcasePage = () => {
         content,
         audience,
         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      } as any);
+      });
       if (insErr) {
         if (uploadedPath) {
           const { data: confirmedStory, error: confirmationError } = await supabase
@@ -364,7 +368,7 @@ const CreateShowcasePage = () => {
       uploadedPath = null;
 
       toast({ title: 'Showcase shared 🎉' });
-      navigate('/');
+      navigate('/feed');
     } catch (err) {
       console.error('Share Showcase error', err);
       if (uploadedPath) {
@@ -377,7 +381,11 @@ const CreateShowcasePage = () => {
       }
       toast({
         title: 'Failed to share Showcase',
-        description: err instanceof Error ? err.message : 'Please try again.',
+        description: err instanceof Error
+          ? err.message
+          : typeof err === 'object' && err !== null && 'message' in err
+            ? String(err.message)
+            : 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -392,16 +400,6 @@ const CreateShowcasePage = () => {
   // --- Full-screen overlays for heavy tools ---
   if (activeTool === 'stickers') {
     return <StoryStickerPicker onSelect={addSticker} onClose={() => setActiveTool(null)} />;
-  }
-  if (activeTool === 'draw') {
-    return (
-      <StoryDrawing
-        canvasWidth={1080}
-        canvasHeight={1920}
-        onSave={(url) => { setDrawingUrl(url); setActiveTool(null); }}
-        onClose={() => setActiveTool(null)}
-      />
-    );
   }
   if (activeTool === 'crop' && mediaPreview && mediaType === 'image') {
     return <StoryCropTool imageUrl={mediaPreview} onSave={onCropSave} onClose={() => setActiveTool(null)} />;
@@ -429,26 +427,32 @@ const CreateShowcasePage = () => {
   }
 
   return (
-    <div className="fixed inset-0 z-[70] bg-black flex flex-col text-white select-none">
+    <div className="fixed inset-0 z-[70] flex flex-col bg-[#09070f] text-white select-none">
       {/* Hidden inputs */}
       <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
 
-      {/* Top bar (over canvas) */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-3 pt-3 pb-2"
+      {/* Showcase studio header */}
+      <div
+        className="relative z-20 flex shrink-0 items-center justify-between border-b border-white/10 px-4 pb-3 pt-3"
         style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
       >
         <button
           onClick={() => navigate(-1)}
-          className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 transition-colors hover:bg-white/15 active:scale-95"
           aria-label="Close"
         >
           <X className="h-5 w-5" />
         </button>
 
+        <div className="text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-primary-foreground/55">POST UPP</p>
+          <h1 className="text-sm font-semibold tracking-wide">Showcase studio</h1>
+        </div>
+
         <div className="flex items-center gap-2">
           <button
             onClick={() => setActiveTool('audience')}
-            className="h-10 px-3 rounded-full bg-black/40 backdrop-blur-md flex items-center gap-1.5 text-xs font-medium active:scale-95 transition-transform"
+            className="flex h-10 items-center gap-1.5 rounded-full border border-white/10 bg-white/10 px-3 text-xs font-medium transition-colors hover:bg-white/15 active:scale-95"
           >
             <Users className="h-4 w-4" />
             {audience === 'public' ? 'Everyone' : audience === 'followers' ? 'Followers' : 'Only me'}
@@ -463,7 +467,7 @@ const CreateShowcasePage = () => {
         onPointerMove={onDragMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
-        className="flex-1 relative overflow-hidden"
+        className="relative m-3 min-h-0 flex-1 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.03] shadow-2xl"
       >
         {hasMedia ? (
           mediaType === 'video' ? (
@@ -500,11 +504,6 @@ const CreateShowcasePage = () => {
             className="absolute inset-0 pointer-events-none"
             style={{ background: `radial-gradient(circle, transparent 40%, rgba(0,0,0,${adjustments.vignette / 100}) 100%)` }}
           />
-        )}
-
-        {/* Drawing overlay */}
-        {drawingUrl && (
-          <img src={drawingUrl} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
         )}
 
         {/* Text overlays - draggable */}
@@ -566,19 +565,6 @@ const CreateShowcasePage = () => {
           </div>
         ))}
 
-        {/* Right-side tool rail (Instagram-style) */}
-        {hasMedia && mediaType === 'image' && (
-          <div className="absolute right-2 top-20 flex flex-col gap-2 z-10">
-            <ToolBtn label="Add text" icon={<Type className="h-5 w-5" />} onClick={addText} />
-            <ToolBtn label="Draw" icon={<Paintbrush className="h-5 w-5" />} onClick={() => setActiveTool('draw')} />
-            <ToolBtn label="Add stickers" icon={<Smile className="h-5 w-5" />} onClick={() => setActiveTool('stickers')} />
-            <ToolBtn label="Filters" icon={<Sparkles className="h-5 w-5" />} onClick={() => setActiveTool('filters')} active={activeTool === 'filters'} />
-            <ToolBtn label="Adjust" icon={<SlidersHorizontal className="h-5 w-5" />} onClick={() => setActiveTool('adjust')} active={activeTool === 'adjust'} />
-            {mediaType === 'image' && (
-              <ToolBtn label="Crop" icon={<Crop className="h-5 w-5" />} onClick={() => setActiveTool('crop')} />
-            )}
-          </div>
-        )}
         {hasMedia && mediaType === 'video' && (
           <div className="absolute bottom-24 left-4 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs text-white/80 backdrop-blur">
             Videos are shared as selected. Photo editing tools apply to images.
@@ -648,9 +634,18 @@ const CreateShowcasePage = () => {
 
       {/* Bottom dock */}
       <div
-        className="relative z-20 px-3 pb-3 pt-2 bg-gradient-to-t from-black/70 to-transparent"
+        className="relative z-20 shrink-0 border-t border-white/10 bg-[#09070f] px-4 pb-3 pt-3"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 12px)' }}
       >
+        {hasMedia && mediaType === 'image' && (
+          <div className="mx-auto mb-3 flex max-w-xl gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.04] p-2 scrollbar-hide">
+            <ToolBtn label="Text" icon={<Type className="h-4 w-4" />} onClick={addText} />
+            <ToolBtn label="Stickers" icon={<Smile className="h-4 w-4" />} onClick={() => setActiveTool('stickers')} />
+            <ToolBtn label="Looks" icon={<Sparkles className="h-4 w-4" />} onClick={() => setActiveTool('filters')} active={activeTool === 'filters'} />
+            <ToolBtn label="Adjust" icon={<SlidersHorizontal className="h-4 w-4" />} onClick={() => setActiveTool('adjust')} active={activeTool === 'adjust'} />
+            <ToolBtn label="Crop" icon={<Crop className="h-4 w-4" />} onClick={() => setActiveTool('crop')} />
+          </div>
+        )}
         {!hasMedia ? (
           <div className="flex items-center gap-2">
             <button
@@ -679,7 +674,7 @@ const CreateShowcasePage = () => {
         ) : (
           <div className="flex items-center justify-between gap-2">
             <button
-              onClick={() => { setMediaFile(null); setMediaPreview(null); setMediaType('text'); setSelectedFilter('none'); setAdjustments(defaultAdjustments); setTextOverlays([]); setStickers([]); setDrawingUrl(null); }}
+              onClick={() => { setMediaFile(null); setMediaPreview(null); setMediaType('text'); setSelectedFilter('none'); setAdjustments(defaultAdjustments); setTextOverlays([]); setStickers([]); }}
               className="h-11 px-4 rounded-full bg-white/10 text-white text-sm font-medium active:scale-[0.98] transition-transform"
             >
               Replace
@@ -714,11 +709,12 @@ const ToolBtn = ({ label, icon, onClick, active }: { label: string; icon: React.
     aria-label={label}
     title={label}
     className={cn(
-      'h-11 w-11 rounded-full backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform',
-      active ? 'bg-primary text-primary-foreground' : 'bg-black/40 text-white'
+      'flex min-w-[66px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-medium transition-colors active:scale-95',
+      active ? 'bg-primary text-primary-foreground' : 'text-white/75 hover:bg-white/10 hover:text-white'
     )}
   >
     {icon}
+    <span>{label}</span>
   </button>
 );
 
