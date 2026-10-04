@@ -3575,7 +3575,6 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
-          audience: "public" | "followers" | "only-me"
           media_type: string | null
           media_url: string | null
           user_id: string
@@ -3586,7 +3585,6 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
-          audience?: "public" | "followers" | "only-me"
           media_type?: string | null
           media_url?: string | null
           user_id: string
@@ -3597,7 +3595,6 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
-          audience?: "public" | "followers" | "only-me"
           media_type?: string | null
           media_url?: string | null
           user_id?: string
