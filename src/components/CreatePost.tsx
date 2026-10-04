@@ -264,11 +264,12 @@ const CreatePost = () => {
         postData.scheduled_for = scheduledDate.toISOString();
       }
 
-      const newPostId = await createPost(postData);
+      const createdPost = await createPost(postData);
+      const newPostId = 'queued' in createdPost ? null : createdPost.id;
       setCreatedPostId(newPostId);
 
       // Process hashtags
-      if (contentWithFeeling) {
+      if (newPostId && contentWithFeeling) {
         await processHashtags(newPostId, contentWithFeeling);
       }
 

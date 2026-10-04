@@ -46,7 +46,7 @@ interface DirectoryPickerWindow extends Window {
 }
 
 interface DirectoryEntriesHandle extends FileSystemDirectoryHandle {
-  entries(): AsyncIterable<[string, FileSystemHandle]>;
+  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
 }
 
 export const canUseNativeGallery = () => isNativeGalleryAvailable();
