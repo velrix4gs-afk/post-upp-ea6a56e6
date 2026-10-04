@@ -45,8 +45,8 @@ interface DirectoryPickerWindow extends Window {
   showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandle>;
 }
 
-interface DirectoryEntriesHandle extends FileSystemDirectoryHandle {
-  entries(): AsyncIterable<[string, FileSystemHandle]>;
+interface DirectoryEntriesHandle {
+  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
 }
 
 export const canUseNativeGallery = () => isNativeGalleryAvailable();

@@ -3571,6 +3571,7 @@ export type Database = {
       }
       stories: {
         Row: {
+          audience: string
           content: string | null
           created_at: string | null
           expires_at: string | null
@@ -3581,6 +3582,7 @@ export type Database = {
           views_count: number | null
         }
         Insert: {
+          audience?: string
           content?: string | null
           created_at?: string | null
           expires_at?: string | null
@@ -3591,6 +3593,7 @@ export type Database = {
           views_count?: number | null
         }
         Update: {
+          audience?: string
           content?: string | null
           created_at?: string | null
           expires_at?: string | null

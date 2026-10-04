@@ -137,8 +137,9 @@ export const useStoryHighlights = (userId?: string) => {
       const highlightedStories = (data || [])
         .map((item) => item.story)
         .filter((story): story is NonNullable<typeof story> => Boolean(story));
-      return await Promise.all(highlightedStories.map(async (story) => ({
+      return await Promise.all(highlightedStories.map(async (story): Promise<Story> => ({
         ...story,
+        audience: story.audience as Story['audience'],
         media_url: await resolveStoryMediaUrl(story.media_url),
         profiles: {
           username: story.profiles?.username || 'user',
