@@ -45,7 +45,7 @@ interface DirectoryPickerWindow extends Window {
   showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandle>;
 }
 
-interface DirectoryEntriesHandle extends FileSystemDirectoryHandle {
+interface DirectoryEntriesHandle {
   entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
 }
 

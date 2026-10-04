@@ -65,8 +65,9 @@ export const useStories = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      const storiesData = await Promise.all((data || []).map(async (story) => ({
+      const storiesData: Story[] = await Promise.all((data || []).map(async (story) => ({
         ...story,
+        audience: story.audience as Story['audience'],
         media_url: await resolveStoryMediaUrl(story.media_url),
       })));
       setStories(storiesData);
