@@ -124,7 +124,7 @@ export const useProfile = (userId?: string) => {
       const { data: card, error: cardError } = cardResult;
       if (cardError) throw cardError;
       if (currentTargetRef.current !== requestedTarget) return;
-      const cardRow = (Array.isArray(card) ? card[0] : card) as Record<string, unknown> | null | undefined;
+      const cardRow = (Array.isArray(card) ? card[0] : card) as (Profile & Record<string, unknown>) | null | undefined;
       if (!cardRow) {
         if (attempt === 0) {
           setTimeout(() => fetchProfile(1), 400);
@@ -133,7 +133,7 @@ export const useProfile = (userId?: string) => {
         throw new Error('Profile not found');
       }
 
-      const merged = stripOwnerOnlyProfileFields({ ...cardRow } as Profile);
+      const merged = stripOwnerOnlyProfileFields({ ...cardRow });
       const resolvedProfileId = typeof merged.id === 'string' ? merged.id : targetUserId;
       const isOwner = isProfileOwner(user?.id, resolvedProfileId);
       if (currentTargetRef.current !== requestedTarget) return;
