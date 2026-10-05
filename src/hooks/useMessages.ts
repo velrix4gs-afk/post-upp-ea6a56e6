@@ -15,22 +15,9 @@ const purgeExpiredMessages = async (chatId: string, context: string) => {
     if (!error) return;
 
     console.error(`Could not purge expired messages (${context}):`, error);
-    const errorDetails = `${error.message} ${error.details || ''} ${error.hint || ''}`;
-    const schemaCacheIssue = /purge_expired_messages|schema cache|PGRST202/i.test(errorDetails);
-    toast({
-      title: 'Expired messages could not be removed from the server',
-      description: schemaCacheIssue
-        ? 'The server may be missing the purge_expired_messages migration or need its API schema cache refreshed. Messages will still load.'
-        : error.message,
-      variant: 'destructive',
-    });
   } catch (error) {
+    // Background maintenance — never interrupt the user with a toast.
     console.error(`Could not call purge_expired_messages (${context}):`, error);
-    toast({
-      title: 'Expired messages could not be removed from the server',
-      description: 'The cleanup request failed. Messages will still load; check your connection and try again.',
-      variant: 'destructive',
-    });
   }
 };
 

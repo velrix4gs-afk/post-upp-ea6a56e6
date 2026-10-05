@@ -192,7 +192,7 @@ const Navigation = () => {
               </div>}
           </div>
 
-          {user && !isCompactMode && !isFeedPage && <div className="md:hidden flex items-center justify-end ml-[80px]">
+          {user && !isCompactMode && !isFeedPage && <div className="md:hidden flex items-center justify-end ml-auto">
               <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
                 <Search className="h-5 w-5" />
               </Button>

@@ -66,7 +66,8 @@ const ProfilePage = () => {
     loading: profileLoading,
     refetch: refetchProfile
   } = useProfile(requestedProfileKey);
-  const profileUserId = profile?.id || requestedProfileKey;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const profileUserId = profile?.id || (requestedProfileKey && uuidPattern.test(requestedProfileKey) ? requestedProfileKey : undefined);
   const isOwnProfile = profileUserId === user?.id;
   const {
     posts,

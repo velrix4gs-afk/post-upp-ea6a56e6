@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -49,6 +49,7 @@ export const isChatMuted = (settings?: Pick<ChatSettings, 'is_muted' | 'muted_un
 
 export const useChatSettings = (chatId?: string, targetUserId?: string) => {
   const { user } = useAuth();
+  const channelInstanceId = useId().replace(/:/g, '');
   const [settings, setSettings] = useState<ChatSettings | null>(() => {
     const cachedWallpaper = readCachedWallpaper(chatId);
     if (!cachedWallpaper || !chatId) return null;
@@ -89,7 +90,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
   useEffect(() => {
     if (!user || !chatId) return;
     const channel = supabase
-      .channel(`chat-settings:${user.id}:${chatId}`)
+      .channel(`chat-settings:${user.id}:${chatId}:${channelInstanceId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
@@ -118,7 +119,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [chatId, user]);
+  }, [chatId, user, channelInstanceId]);
 
   const fetchSettings = useCallback(async () => {
     if (!user || !chatId) return;
