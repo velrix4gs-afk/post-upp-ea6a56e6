@@ -363,6 +363,12 @@ const ProfilePage = () => {
               </a>
             );
           })}
+          {isOwnProfile && !['instagram', 'twitter', 'tiktok'].some((key) => profile.social_links?.[key] || profile.social_links?.[`${key}_url`]) && (
+            <button type="button" onClick={() => setShowProfileEdit(true)} className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">
+              <LinkIcon className="h-3.5 w-3.5" />
+              <span>Add social links</span>
+            </button>
+          )}
           {canViewFull && <div className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
             <span>Joined {formatJoinDate(profile?.created_at || '')}</span>
