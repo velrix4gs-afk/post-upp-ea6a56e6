@@ -2824,6 +2824,7 @@ export type Database = {
           location: string | null
           phone: string | null
           relationship_status: string | null
+          social_links: Json | null
           theme_color: string | null
           updated_at: string | null
           username: string
@@ -2850,6 +2851,7 @@ export type Database = {
           location?: string | null
           phone?: string | null
           relationship_status?: string | null
+          social_links?: Json | null
           theme_color?: string | null
           updated_at?: string | null
           username: string
@@ -2876,6 +2878,7 @@ export type Database = {
           location?: string | null
           phone?: string | null
           relationship_status?: string | null
+          social_links?: Json | null
           theme_color?: string | null
           updated_at?: string | null
           username?: string

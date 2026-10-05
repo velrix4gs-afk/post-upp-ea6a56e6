@@ -117,7 +117,7 @@ export const useProfile = (userId?: string) => {
         const fallback = await supabase
           .from('profiles')
           .select('*')
-          .eq(targetIsUuid ? 'id' : 'username', targetUserId || '')
+          .filter(targetIsUuid ? 'id' : 'username', targetIsUuid ? 'eq' : 'ilike', targetUserId || '')
           .maybeSingle();
         cardResult = { data: fallback.data, error: fallback.error };
       }

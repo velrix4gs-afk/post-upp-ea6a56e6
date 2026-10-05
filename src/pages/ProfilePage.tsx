@@ -66,7 +66,8 @@ const ProfilePage = () => {
     loading: profileLoading,
     refetch: refetchProfile
   } = useProfile(requestedProfileKey);
-  const profileUserId = profile?.id || requestedProfileKey;
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const profileUserId = profile?.id || (requestedProfileKey && uuidPattern.test(requestedProfileKey) ? requestedProfileKey : undefined);
   const isOwnProfile = profileUserId === user?.id;
   const {
     posts,
@@ -362,6 +363,12 @@ const ProfilePage = () => {
               </a>
             );
           })}
+          {isOwnProfile && !['instagram', 'twitter', 'tiktok'].some((key) => profile.social_links?.[key] || profile.social_links?.[`${key}_url`]) && (
+            <button type="button" onClick={() => setShowProfileEdit(true)} className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">
+              <LinkIcon className="h-3.5 w-3.5" />
+              <span>Add social links</span>
+            </button>
+          )}
           {canViewFull && <div className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
             <span>Joined {formatJoinDate(profile?.created_at || '')}</span>
