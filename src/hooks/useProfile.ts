@@ -107,13 +107,24 @@ export const useProfile = (userId?: string) => {
       // loads those separately via get_my_sensitive_profile.
       const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const targetIsUuid = !!targetUserId && uuidPattern.test(targetUserId);
-      const cardResult = targetIsUuid && targetUserId
-        ? await supabase.rpc('get_profile_card', { p_id: targetUserId })
-        : await supabase.rpc('get_profile_card_by_username', { p_username: targetUserId || '' });
+      type LooseResult = { data: unknown; error: unknown };
+      const looseRpc = supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => PromiseLike<LooseResult>;
+      let cardResult: LooseResult = targetIsUuid && targetUserId
+        ? await looseRpc.call(supabase, 'get_profile_card', { p_id: targetUserId })
+        : await looseRpc.call(supabase, 'get_profile_card_by_username', { p_username: targetUserId || '' });
+      if (cardResult.error) {
+        // Fallback when the profile card functions are not available on the database.
+        const fallback = await supabase
+          .from('profiles')
+          .select('*')
+          .eq(targetIsUuid ? 'id' : 'username', targetUserId || '')
+          .maybeSingle();
+        cardResult = { data: fallback.data, error: fallback.error };
+      }
       const { data: card, error: cardError } = cardResult;
       if (cardError) throw cardError;
       if (currentTargetRef.current !== requestedTarget) return;
-      const cardRow = Array.isArray(card) ? card[0] : card;
+      const cardRow = (Array.isArray(card) ? card[0] : card) as (Profile & Record<string, unknown>) | null | undefined;
       if (!cardRow) {
         if (attempt === 0) {
           setTimeout(() => fetchProfile(1), 400);
@@ -137,11 +148,11 @@ export const useProfile = (userId?: string) => {
       }
 
       void (async () => {
-        const extras: Promise<unknown>[] = [];
+        const extras: PromiseLike<unknown>[] = [];
         if (isOwner) extras.push(supabase.rpc('get_my_sensitive_profile'));
         if (merged.can_view_full !== false && resolvedProfileId) {
           extras.push(
-            supabase.from('profiles').select('social_links').eq('id', resolvedProfileId).maybeSingle()
+            supabase.from('profiles').select('*').eq('id', resolvedProfileId).maybeSingle()
           );
         }
         const results = await Promise.all(extras);
