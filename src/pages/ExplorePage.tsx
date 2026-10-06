@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Navigation from '@/components/Navigation';
+import Navigation from "@/components/Navigation";
+import { profilePath } from "@/lib/profilePath";
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -185,7 +186,7 @@ const ExplorePage = () => {
                   <Card 
                     key={trendingUser.id} 
                     className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigate(`/profile/${trendingUser.id}`)}
+                    onClick={() => navigate(profilePath({ username: trendingUser.username || trendingUser.display_name, id: trendingUser.id }))}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">

@@ -60,6 +60,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
+import { profilePath } from '@/lib/profilePath';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups' | 'archived';
 
@@ -961,7 +962,7 @@ const MessagesPage = () => {
             if (selectedChat.is_group) {
               setShowGroupInfo(true);
             } else if (otherP?.user_id) {
-              navigate(`/profile/${otherP.user_id}`);
+              navigate(profilePath({ username: otherP?.profiles?.username, id: otherP?.user_id }));
             }
           }}
           onVoiceCall={() => {

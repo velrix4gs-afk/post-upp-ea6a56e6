@@ -1,4 +1,5 @@
 import Navigation from "@/components/Navigation";
+import { profilePath } from "@/lib/profilePath";
 import CreatePost from "@/components/CreatePost";
 import { PostCard } from "@/components/PostCard";
 
@@ -176,7 +177,7 @@ const Dashboard = () => {
                 ) : (
                   suggestions.slice(0, 3).map((person) => (
                     <div key={person.id} className="flex items-center justify-between">
-                      <Link to={`/profile/${person.id}`} className="flex items-center space-x-3 flex-1">
+                      <Link to={profilePath({ username: person.username || person.display_name, id: person.id })} className="flex items-center space-x-3 flex-1">
                         <Avatar className="h-10 w-10">
                           <AvatarImage src={person.avatar_url} />
                           <AvatarFallback className="bg-gradient-primary text-white text-sm">
@@ -192,7 +193,7 @@ const Dashboard = () => {
                           </p>
                         </div>
                       </Link>
-                      <Link to={`/profile/${person.id}`}>
+                      <Link to={profilePath({ username: person.username || person.display_name, id: person.id })}>
                         <Button size="sm" variant="outline">View</Button>
                       </Link>
                     </div>

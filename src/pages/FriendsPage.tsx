@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, UserPlus, UserMinus, UserCheck, X, Check, MessageSquare } from 'lucide-react';
 import { useFriends } from '@/hooks/useFriends';
 import { useFollowers } from '@/hooks/useFollowers';
+import { profilePath } from '@/lib/profilePath';
 import { useSearch } from '@/hooks/useSearch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
@@ -142,7 +143,7 @@ const FriendsPage = () => {
                       <div className="relative">
                         <Avatar 
                           className="h-16 w-16 cursor-pointer" 
-                          onClick={() => navigate(`/profile/${friend.id}`)}
+                          onClick={() => navigate(profilePath({ username: friend.username || friend.display_name, id: friend.id }))}
                         >
                           <AvatarImage src={friend.avatar_url} />
                           <AvatarFallback>{friend.display_name[0]}</AvatarFallback>
@@ -152,7 +153,7 @@ const FriendsPage = () => {
                         <div className="flex items-center gap-1">
                           <p 
                             className="font-medium truncate cursor-pointer hover:underline"
-                            onClick={() => navigate(`/profile/${friend.id}`)}
+                            onClick={() => navigate(profilePath({ username: friend.username || friend.display_name, id: friend.id }))}
                           >
                             {friend.display_name}
                           </p>
@@ -221,7 +222,7 @@ const FriendsPage = () => {
                     <div className="flex items-start gap-3">
                       <Avatar 
                         className="h-16 w-16 cursor-pointer"
-                        onClick={() => navigate(`/profile/${follow.following.id}`)}
+                        onClick={() => navigate(profilePath({ username: follow.following.username || follow.following.display_name, id: follow.following.id }))}
                       >
                         <AvatarImage src={follow.following.avatar_url} />
                         <AvatarFallback>{follow.following.display_name[0]}</AvatarFallback>
@@ -230,7 +231,7 @@ const FriendsPage = () => {
                         <div className="flex items-center gap-1">
                           <p 
                             className="font-medium truncate cursor-pointer hover:underline"
-                            onClick={() => navigate(`/profile/${follow.following.id}`)}
+                            onClick={() => navigate(profilePath({ username: follow.following.username || follow.following.display_name, id: follow.following.id }))}
                           >
                             {follow.following.display_name}
                           </p>
@@ -295,7 +296,7 @@ const FriendsPage = () => {
                     <div className="flex items-start gap-3">
                       <Avatar 
                         className="h-16 w-16 cursor-pointer"
-                        onClick={() => navigate(`/profile/${follow.follower.id}`)}
+                        onClick={() => navigate(profilePath({ username: follow.follower.username || follow.follower.display_name, id: follow.follower.id }))}
                       >
                         <AvatarImage src={follow.follower.avatar_url} />
                         <AvatarFallback>{follow.follower.display_name[0]}</AvatarFallback>
@@ -304,7 +305,7 @@ const FriendsPage = () => {
                         <div className="flex items-center gap-1">
                           <p 
                             className="font-medium truncate cursor-pointer hover:underline"
-                            onClick={() => navigate(`/profile/${follow.follower.id}`)}
+                            onClick={() => navigate(profilePath({ username: follow.follower.username || follow.follower.display_name, id: follow.follower.id }))}
                           >
                             {follow.follower.display_name}
                           </p>
@@ -325,7 +326,7 @@ const FriendsPage = () => {
                           </Button>
                           <Button 
                             size="sm"
-                            onClick={() => navigate(`/profile/${follow.follower.id}`)}
+                            onClick={() => navigate(profilePath({ username: follow.follower.username || follow.follower.display_name, id: follow.follower.id }))}
                           >
                             View Profile
                           </Button>
@@ -355,7 +356,7 @@ const FriendsPage = () => {
                       <div className="relative">
                         <Avatar 
                           className="h-16 w-16 cursor-pointer"
-                          onClick={() => navigate(`/profile/${friend.id}`)}
+                          onClick={() => navigate(profilePath({ username: friend.username || friend.display_name, id: friend.id }))}
                         >
                           <AvatarImage src={friend.avatar_url} />
                           <AvatarFallback>{friend.display_name[0]}</AvatarFallback>
@@ -366,7 +367,7 @@ const FriendsPage = () => {
                         <div className="flex items-center gap-1">
                           <p 
                             className="font-medium truncate cursor-pointer hover:underline"
-                            onClick={() => navigate(`/profile/${friend.id}`)}
+                            onClick={() => navigate(profilePath({ username: friend.username || friend.display_name, id: friend.id }))}
                           >
                             {friend.display_name}
                           </p>

@@ -228,7 +228,17 @@ export const EnhancedMessageBubble = ({
   // Call-log messages (missed/declined/completed calls) get a compact,
   // centered row instead of the normal chat bubble — matching how
   // WhatsApp shows call history inline in the thread.
-  if (mediaType === 'call') {
+  // Defensively detect call records even when media_type isn't 'call'
+  // (some legacy/migrated messages can have null media_type but JSON
+  // content shaped like {"kind":"voice","status":"..."}); without this,
+  // the raw JSON would leak through as a text message.
+  const contentLooksLikeCallRecord = (() => {
+    if (typeof content !== 'string') return false;
+    const trimmed = content.trim();
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
+    try { const p = JSON.parse(trimmed); return 'kind' in p && 'status' in p; } catch { return false; }
+  })();
+  if (mediaType === 'call' || contentLooksLikeCallRecord) {
     const callInfo = parseCallRecord(content) ?? { kind: 'voice' as const, status: 'unknown' as const };
     const isVideo = callInfo.kind === 'video';
     const isMissedForMe = !isOwn && callInfo.status === 'missed';
