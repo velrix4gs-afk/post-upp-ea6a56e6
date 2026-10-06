@@ -34,7 +34,7 @@ export const useCallNotifications = () => {
 
     // Subscribe to call signals for incoming calls
     const channel = supabase
-      .channel('incoming_calls')
+      .channel(`incoming_calls:${Math.random().toString(36).slice(2, 10)}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',

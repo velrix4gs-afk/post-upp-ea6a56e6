@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Video, VideoOff, Mic, MicOff, PhoneOff, RefreshCw, Loader2 } from 'lucide-react';
+import { Video, VideoOff, Mic, MicOff, PhoneOff, RefreshCw, Loader2, Volume2, VolumeX } from 'lucide-react';
 import {
   StreamVideo,
   StreamCall,
   ParticipantView,
   useCallStateHooks,
+  useCall,
   type Call,
   CallingState,
 } from '@stream-io/video-react-sdk';
@@ -304,6 +305,22 @@ const VideoCallInner = ({
     }
   };
 
+  const activeCall = useCall();
+  const [speakerOn, setSpeakerOn] = useState(true);
+  const toggleSpeaker = () => {
+    haptic('light');
+    const next = !speakerOn;
+    setSpeakerOn(next);
+    try {
+      activeCall?.speaker.setVolume(next ? 1 : 0);
+    } catch (error) {
+      console.error('[VideoCall] could not change speaker volume', error);
+    }
+    document.querySelectorAll('audio').forEach((el) => {
+      (el as HTMLAudioElement).muted = !next;
+    });
+  };
+
   const statusText = connected ? formatDuration(duration) : 'Connecting…';
 
   const controls = (
@@ -316,6 +333,15 @@ const VideoCallInner = ({
         aria-label="Flip camera"
       >
         <RefreshCw className="h-5 w-5" />
+      </Button>
+      <Button
+        size="icon"
+        variant="secondary"
+        onClick={toggleSpeaker}
+        className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation"
+        aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
+      >
+        {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
       </Button>
       <Button
         size="icon"

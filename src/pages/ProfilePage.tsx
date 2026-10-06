@@ -19,6 +19,8 @@ import { StoryHighlights } from '@/components/StoryHighlights';
 import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
+import { Helmet } from 'react-helmet-async';
+import { EXTRA_SOCIAL_PLATFORMS } from '@/lib/socialPlatforms';
 import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2, Instagram, Twitter, Music2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -222,6 +224,27 @@ const ProfilePage = () => {
     canViewFull: profile.can_view_full,
   });
   return <div className="min-h-screen bg-background pb-20 md:pb-0">
+      {profile && (() => {
+        const shareTitle = `${profile.display_name || profile.username} (@${profile.username}) | POST UPP`;
+        const shareDescription = (profile.bio || `See ${profile.display_name || profile.username}'s posts and showcases on POST UPP.`).slice(0, 200);
+        const shareUrl = `https://post-upp.lovable.app/profile/${profile.username}`;
+        return (
+          <Helmet>
+            <title>{shareTitle}</title>
+            <meta name="description" content={shareDescription} />
+            <link rel="canonical" href={shareUrl} />
+            <meta property="og:type" content="profile" />
+            <meta property="og:title" content={shareTitle} />
+            <meta property="og:description" content={shareDescription} />
+            <meta property="og:url" content={shareUrl} />
+            {profile.avatar_url && <meta property="og:image" content={profile.avatar_url} />}
+            <meta name="twitter:card" content={profile.avatar_url ? 'summary_large_image' : 'summary'} />
+            <meta name="twitter:title" content={shareTitle} />
+            <meta name="twitter:description" content={shareDescription} />
+            {profile.avatar_url && <meta name="twitter:image" content={profile.avatar_url} />}
+          </Helmet>
+        );
+      })()}
     {/* Sticky Profile Header */}
     <ProfileHeader displayName={profile?.display_name || ''} username={profile?.username || ''} postsCount={userPosts.length} isOwnProfile={isOwnProfile} />
 
@@ -344,6 +367,7 @@ const ProfilePage = () => {
             { key: 'instagram', label: 'Instagram', domain: 'instagram.com', Icon: Instagram },
             { key: 'twitter', label: 'X', domain: 'x.com', Icon: Twitter },
             { key: 'tiktok', label: 'TikTok', domain: 'tiktok.com', Icon: Music2 },
+            ...EXTRA_SOCIAL_PLATFORMS.map(({ key, label, domain }) => ({ key, label, domain, Icon: LinkIcon })),
           ].map(({ key, label, domain, Icon }) => {
             const value = profile.social_links?.[key] || profile.social_links?.[`${key}_url`];
             const href = value ? getSocialHref(value, domain) : null;
@@ -363,7 +387,7 @@ const ProfilePage = () => {
               </a>
             );
           })}
-          {isOwnProfile && !['instagram', 'twitter', 'tiktok'].some((key) => profile.social_links?.[key] || profile.social_links?.[`${key}_url`]) && (
+          {isOwnProfile && !['instagram', 'twitter', 'tiktok', ...EXTRA_SOCIAL_PLATFORMS.map(({ key }) => key)].some((key) => profile.social_links?.[key] || profile.social_links?.[`${key}_url`]) && (
             <button type="button" onClick={() => setShowProfileEdit(true)} className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">
               <LinkIcon className="h-3.5 w-3.5" />
               <span>Add social links</span>

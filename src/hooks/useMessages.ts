@@ -286,7 +286,7 @@ export const useMessages = (chatId?: string) => {
       // Set up real-time subscription for chats
       let refreshTimeout: ReturnType<typeof setTimeout> | undefined;
       const chatsChannel = supabase
-        .channel('chats-changes')
+        .channel(`chats-changes:${Math.random().toString(36).slice(2, 10)}`)
         .on(
           'postgres_changes',
           {
@@ -343,7 +343,7 @@ export const useMessages = (chatId?: string) => {
 
       // Set up real-time subscription for messages
       const channel = supabase
-        .channel(`messages:${chatId}`)
+        .channel(`messages:${chatId}:${Math.random().toString(36).slice(2, 10)}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',

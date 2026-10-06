@@ -237,7 +237,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
 
       // Real-time subscription for posts
       const channel = supabase
-        .channel(`feed-realtime-${feedType}`)
+        .channel(`feed-realtime-${feedType}:${Math.random().toString(36).slice(2, 10)}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',

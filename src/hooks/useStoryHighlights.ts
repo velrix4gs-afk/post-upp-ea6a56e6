@@ -33,10 +33,10 @@ export const useStoryHighlights = (userId?: string) => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('story_highlights')
+        .from('showcase_highlights')
         .select(`
           *,
-          story_highlight_items(count)
+          showcase_highlight_items(count)
         `)
         .eq('user_id', targetUserId!)
         .order('created_at', { ascending: false });
@@ -51,7 +51,7 @@ export const useStoryHighlights = (userId?: string) => {
             return undefined;
           })
           : undefined,
-        story_count: highlight.story_highlight_items?.[0]?.count || 0,
+        story_count: highlight.showcase_highlight_items?.[0]?.count || 0,
       })));
 
       setHighlights(formattedHighlights);
@@ -73,7 +73,7 @@ export const useStoryHighlights = (userId?: string) => {
     try {
       const coverPath = coverImage ? storyObjectPath(coverImage) || coverImage : null;
       const { data, error } = await supabase
-        .from('story_highlights')
+        .from('showcase_highlights')
         .insert({
           user_id: user.id,
           title,
@@ -104,7 +104,7 @@ export const useStoryHighlights = (userId?: string) => {
     if (!user || storyIds.length === 0) return false;
     try {
       const { error } = await supabase
-        .from('story_highlight_items')
+        .from('showcase_highlight_items')
         .upsert(
           storyIds.map((storyId) => ({ highlight_id: highlightId, story_id: storyId })),
           { onConflict: 'highlight_id,story_id', ignoreDuplicates: true },
@@ -128,8 +128,8 @@ export const useStoryHighlights = (userId?: string) => {
   const fetchHighlightStories = async (highlightId: string): Promise<Story[]> => {
     try {
       const { data, error } = await supabase
-        .from('story_highlight_items')
-        .select('story:stories!story_highlight_items_story_id_fkey(*, profiles(username, display_name, avatar_url))')
+        .from('showcase_highlight_items')
+        .select('story:showcases!story_highlight_items_story_id_fkey(*, profiles(username, display_name, avatar_url))')
         .eq('highlight_id', highlightId)
         .order('added_at', { ascending: true });
       if (error) throw error;
@@ -160,7 +160,7 @@ export const useStoryHighlights = (userId?: string) => {
   const deleteHighlight = async (highlightId: string) => {
     try {
       const { error } = await supabase
-        .from('story_highlights')
+        .from('showcase_highlights')
         .delete()
         .eq('id', highlightId);
 

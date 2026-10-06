@@ -135,15 +135,15 @@ export const GroupInfoDialog = ({ chatId, open, onOpenChange }: GroupInfoDialogP
               >
                 <div className="flex items-center gap-3">
                   <Avatar>
-                    <AvatarImage src={participant.profiles.avatar_url} />
+                    <AvatarImage src={participant.profiles?.avatar_url} />
                     <AvatarFallback>
-                      {participant.profiles.display_name[0]}
+                      {participant.profiles?.display_name?.[0] || 'U'}
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium">{participant.profiles.display_name}</p>
+                    <p className="font-medium">{participant.profiles?.display_name || 'User'}</p>
                     <p className="text-sm text-muted-foreground">
-                      @{participant.profiles.username}
+                      @{participant.profiles?.username || ''}
                     </p>
                   </div>
                 </div>

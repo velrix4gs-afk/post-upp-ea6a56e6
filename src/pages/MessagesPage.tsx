@@ -408,7 +408,7 @@ const MessagesPage = () => {
     window.addEventListener('chat-settings-updated', onSettingsUpdated);
 
     const channel = supabase
-      .channel(`chat-list-settings:${user.id}`)
+      .channel(`chat-list-settings:${user.id}:${Math.random().toString(36).slice(2, 10)}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',

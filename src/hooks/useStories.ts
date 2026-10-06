@@ -60,7 +60,7 @@ export const useStories = () => {
   const fetchStories = useCallback(async () => {
     try {
       const { data, error } = await supabase
-        .from('stories')
+        .from('showcases')
         .select(`
           *,
           profiles (
@@ -113,18 +113,18 @@ export const useStories = () => {
       
       // Real-time: handle INSERT/DELETE directly in state
       const channel = supabase
-        .channel('stories-realtime')
+        .channel(`stories-realtime:${Math.random().toString(36).slice(2, 10)}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',
-          table: 'stories'
+          table: 'showcases'
         }, () => {
           void fetchStories();
         })
         .on('postgres_changes', {
           event: 'DELETE',
           schema: 'public',
-          table: 'stories'
+          table: 'showcases'
         }, (payload) => {
           const deletedId = payload.old.id as string;
           setStories(prev => {
@@ -136,7 +136,7 @@ export const useStories = () => {
         .on('postgres_changes', {
           event: 'UPDATE',
           schema: 'public',
-          table: 'stories'
+          table: 'showcases'
         }, () => {
           void fetchStories();
         })
@@ -197,7 +197,7 @@ export const useStories = () => {
       }
 
       const { error } = await supabase
-        .from('stories')
+        .from('showcases')
         .insert({
           user_id: user.id,
           content: content?.trim() || null,
@@ -210,7 +210,7 @@ export const useStories = () => {
       if (error) {
         if (uploadedPath) {
           const { data: confirmedStory, error: confirmationError } = await supabase
-            .from('stories')
+            .from('showcases')
             .select('id')
             .eq('user_id', user.id)
             .eq('media_url', uploadedPath)
@@ -256,9 +256,9 @@ export const useStories = () => {
 
     try {
       const { error } = await supabase
-        .from('story_views')
+        .from('showcase_views')
         .insert({
-          story_id: storyId,
+          showcase_id: storyId,
           viewer_id: user.id
         });
 
@@ -272,7 +272,7 @@ export const useStories = () => {
     try {
       const story = stories.find((item) => item.id === storyId);
       const { error } = await supabase
-        .from('stories')
+        .from('showcases')
         .delete()
         .eq('id', storyId);
 

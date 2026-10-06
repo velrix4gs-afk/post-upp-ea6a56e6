@@ -1,24 +1,22 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { acquireTypingChannel } from '@/lib/typingChannel';
+
+type TypingHandle = ReturnType<typeof acquireTypingChannel>;
 
 export const useTypingIndicator = (chatId: string | undefined) => {
   const { user } = useAuth();
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const subscribedRef = useRef(false);
+  const handleRef = useRef<TypingHandle | null>(null);
   const typingActiveRef = useRef(false);
   const displayNameRef = useRef('User');
 
   useEffect(() => {
     if (!chatId || !user) return;
 
-    const channel = supabase.channel(`typing:${chatId}`, {
-      config: { broadcast: { self: false, ack: true } },
-    });
-    channelRef.current = channel;
-    subscribedRef.current = false;
+    const handle = acquireTypingChannel(chatId);
+    handleRef.current = handle;
     typingActiveRef.current = false;
 
     void supabase
@@ -34,65 +32,36 @@ export const useTypingIndicator = (chatId: string | undefined) => {
         if (data?.display_name) displayNameRef.current = data.display_name;
       });
 
-    channel.subscribe((status) => {
-      subscribedRef.current = status === 'SUBSCRIBED';
-      if (subscribedRef.current && typingActiveRef.current) {
-        void channel.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: {
-            user_id: user.id,
-            display_name: displayNameRef.current,
-            is_typing: true,
-          },
-        });
+    const offStatus = handle.onStatus((subscribed) => {
+      if (subscribed && typingActiveRef.current) {
+        void handle.send({ user_id: user.id, display_name: displayNameRef.current, is_typing: true });
       }
     });
 
     return () => {
+      offStatus();
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingActiveRef.current = false;
-      if (subscribedRef.current) {
-        void channel.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: { user_id: user.id, display_name: displayNameRef.current, is_typing: false },
-        }).finally(() => void supabase.removeChannel(channel));
-      } else {
-        void supabase.removeChannel(channel);
-      }
-      if (channelRef.current === channel) channelRef.current = null;
-      subscribedRef.current = false;
+      void Promise.resolve(
+        handle.send({ user_id: user.id, display_name: displayNameRef.current, is_typing: false }),
+      ).finally(() => handle.release());
+      if (handleRef.current === handle) handleRef.current = null;
     };
   }, [chatId, user]);
 
   const handleTyping = useCallback(() => {
     typingActiveRef.current = true;
-    if (subscribedRef.current && channelRef.current && user) {
-      void channelRef.current.send({
-        type: 'broadcast',
-        event: 'typing',
-        payload: {
-          user_id: user.id,
-          display_name: displayNameRef.current,
-          is_typing: true,
-        },
-      });
+    const handle = handleRef.current;
+    if (handle && user) {
+      void handle.send({ user_id: user.id, display_name: displayNameRef.current, is_typing: true });
     }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     typingTimeoutRef.current = setTimeout(() => {
       typingActiveRef.current = false;
-      if (subscribedRef.current && channelRef.current && user) {
-        void channelRef.current.send({
-          type: 'broadcast',
-          event: 'typing',
-          payload: {
-            user_id: user.id,
-            display_name: displayNameRef.current,
-            is_typing: false,
-          },
-        });
+      const current = handleRef.current;
+      if (current && user) {
+        void current.send({ user_id: user.id, display_name: displayNameRef.current, is_typing: false });
       }
     }, 2500);
   }, [user]);

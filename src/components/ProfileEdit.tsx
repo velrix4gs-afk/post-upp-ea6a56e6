@@ -12,6 +12,7 @@ import {
   Camera, Save, X, ImagePlus, User, Shield, MapPin, Loader2, 
   Check, AlertCircle, Link2, Instagram, Twitter, Trash2, Eye
 } from 'lucide-react';
+import { EXTRA_SOCIAL_PLATFORMS } from '@/lib/socialPlatforms';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -62,6 +63,9 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
     tiktok_url: profile?.social_links?.tiktok || profile?.social_links?.tiktok_url || ''
   });
 
+  const [extraSocialLinks, setExtraSocialLinks] = useState<Record<string, string>>({});
+  const originalExtraLinks = useRef<Record<string, string>>({});
+
   // Pre-fill form data when profile loads
   useEffect(() => {
     if (profile && !hasInitialized) {
@@ -82,6 +86,11 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
       };
       setFormData(initialData);
       originalFormData.current = initialData;
+      const initialExtras = Object.fromEntries(
+        EXTRA_SOCIAL_PLATFORMS.map(({ key }) => [key, profile.social_links?.[key] || ''])
+      );
+      setExtraSocialLinks(initialExtras);
+      originalExtraLinks.current = initialExtras;
       setHasInitialized(true);
     }
   }, [profile, hasInitialized]);
@@ -89,10 +98,11 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
   // Track changes
   useEffect(() => {
     if (originalFormData.current) {
-      const changed = JSON.stringify(formData) !== JSON.stringify(originalFormData.current);
+      const changed = JSON.stringify(formData) !== JSON.stringify(originalFormData.current)
+        || JSON.stringify(extraSocialLinks) !== JSON.stringify(originalExtraLinks.current);
       setHasChanges(changed);
     }
-  }, [formData]);
+  }, [formData, extraSocialLinks]);
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = () => {
@@ -287,6 +297,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
         instagram: formData.instagram_url.trim(),
         twitter: formData.twitter_url.trim(),
         tiktok: formData.tiktok_url.trim(),
+        ...Object.fromEntries(Object.entries(extraSocialLinks).map(([key, value]) => [key, value.trim()])),
       }).filter(([, value]) => value.length > 0)
     );
     const success = await updateProfile({ ...formData, social_links: socialLinks });
@@ -294,6 +305,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
     
     if (success) {
       originalFormData.current = { ...formData };
+      originalExtraLinks.current = { ...extraSocialLinks };
       setHasChanges(false);
       onClose();
     }
@@ -732,6 +744,21 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                       className="h-10 flex-1"
                     />
                   </div>
+
+                  {EXTRA_SOCIAL_PLATFORMS.map(({ key, label, placeholder }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-[10px] font-bold text-foreground">
+                        {label.slice(0, 2).toUpperCase()}
+                      </div>
+                      <Input
+                        value={extraSocialLinks[key] || ''}
+                        onChange={(e) => setExtraSocialLinks((prev) => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        aria-label={`${label} link`}
+                        className="h-10 flex-1"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 

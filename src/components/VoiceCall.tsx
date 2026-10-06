@@ -6,6 +6,7 @@ import {
   StreamCall,
   ParticipantsAudio,
   useCallStateHooks,
+  useCall,
   type Call,
   CallingState,
 } from '@stream-io/video-react-sdk';
@@ -67,7 +68,9 @@ export const VoiceCall = ({
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
-    const c = client.call('audio_room', callId);
+    // 'default' lets both people talk immediately; 'audio_room' starts in
+    // backstage mode, so the person answering could never be heard.
+    const c = client.call('default', callId);
     (async () => {
       try {
         await c.join({ create: true });
@@ -290,11 +293,18 @@ const VoiceCallInner = ({
     await microphone.toggle();
   };
 
+  const activeCall = useCall();
   const toggleSpeaker = () => {
     haptic('light');
-    setSpeakerOn((v) => !v);
-    document.querySelectorAll('audio[data-stream-audio]').forEach((el) => {
-      (el as HTMLAudioElement).muted = speakerOn;
+    const next = !speakerOn;
+    setSpeakerOn(next);
+    try {
+      activeCall?.speaker.setVolume(next ? 1 : 0);
+    } catch (error) {
+      console.error('[VoiceCall] could not change speaker volume', error);
+    }
+    document.querySelectorAll('audio').forEach((el) => {
+      (el as HTMLAudioElement).muted = !next;
     });
   };
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { acquireTypingChannel, type TypingEvent } from '@/lib/typingChannel';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -7,11 +7,6 @@ interface TypingIndicatorProps {
   chatId: string;
 }
 
-interface TypingEvent {
-  user_id: string;
-  display_name: string;
-  is_typing: boolean;
-}
 
 const FADE_MS = 260;
 const STALE_TYPING_MS = 4500;
@@ -29,10 +24,8 @@ const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
     if (!chatId || !user) return;
 
     const timers = typingTimers.current;
-    const channel = supabase
-      .channel(`typing:${chatId}`)
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const event = payload.payload as TypingEvent;
+    const handle = acquireTypingChannel(chatId);
+    const offEvent = handle.onEvent((event: TypingEvent) => {
 
         if (event.user_id !== user.id) {
           if (event.is_typing) {
@@ -53,13 +46,13 @@ const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
             setTypingUsers((prev) => prev.filter((typingUser) => typingUser.id !== event.user_id));
           }
         }
-      })
-      .subscribe();
+    });
 
     return () => {
+      offEvent();
+      handle.release();
       timers.forEach(clearTimeout);
       timers.clear();
-      supabase.removeChannel(channel);
     };
   }, [chatId, user]);
 

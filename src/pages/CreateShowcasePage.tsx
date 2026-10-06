@@ -335,7 +335,7 @@ const CreateShowcasePage = () => {
         media_type = mediaType;
       }
 
-      const { error: insErr } = await supabase.from('stories').insert({
+      const { error: insErr } = await supabase.from('showcases').insert({
         user_id: user.id,
         media_url,
         media_type,
@@ -346,7 +346,7 @@ const CreateShowcasePage = () => {
       if (insErr) {
         if (uploadedPath) {
           const { data: confirmedStory, error: confirmationError } = await supabase
-            .from('stories')
+            .from('showcases')
             .select('id')
             .eq('user_id', user.id)
             .eq('media_url', uploadedPath)
