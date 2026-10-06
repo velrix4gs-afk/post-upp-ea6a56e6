@@ -20,7 +20,7 @@ export const useMessageReactions = (messageId: string) => {
 
       // Subscribe to reaction changes
       const channel = supabase
-        .channel(`reactions:${messageId}`)
+        .channel(`reactions:${messageId}:${Math.random().toString(36).slice(2, 10)}`)
         .on('postgres_changes', {
           event: '*',
           schema: 'public',

@@ -13,7 +13,7 @@ export const RealtimeFeed = ({ onNewPost }: RealtimeFeedProps) => {
     if (!user) return;
 
     const channel = supabase
-      .channel('feed-updates')
+      .channel(`feed-updates:${Math.random().toString(36).slice(2, 10)}`)
       .on(
         'postgres_changes',
         {

@@ -113,7 +113,7 @@ export const useStories = () => {
       
       // Real-time: handle INSERT/DELETE directly in state
       const channel = supabase
-        .channel('stories-realtime')
+        .channel(`stories-realtime:${Math.random().toString(36).slice(2, 10)}`)
         .on('postgres_changes', {
           event: 'INSERT',
           schema: 'public',

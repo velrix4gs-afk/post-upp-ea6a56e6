@@ -89,7 +89,7 @@ export const useUserLikes = (userId?: string) => {
 
     // Real-time subscription for user's reactions
     const channel = supabase
-      .channel(`user-likes-${userId}`)
+      .channel(`user-likes-${userId}:${Math.random().toString(36).slice(2, 10)}`)
       .on(
         'postgres_changes',
         {

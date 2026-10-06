@@ -105,7 +105,7 @@ export const useComments = (postId: string) => {
     if (!postId) return;
 
     const channel = supabase
-      .channel(`comments:${postId}`)
+      .channel(`comments:${postId}:${Math.random().toString(36).slice(2, 10)}`)
       .on(
         'postgres_changes',
         {
