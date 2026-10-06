@@ -172,7 +172,9 @@ async function walkDirectory(
   depth = 0,
 ): Promise<void> {
   if (acc.length >= 400 || depth > 6) return;
-  for await (const [name, handle] of (dir as DirectoryEntriesHandle).entries()) {
+  // FileSystemDirectoryHandle.entries() is not in the DOM lib's type for
+  // this handle in every TS version, hence the cast through unknown.
+  for await (const [name, handle] of (dir as unknown as DirectoryEntriesHandle).entries()) {
     if (acc.length >= 400) return;
     if (handle.kind === 'directory') {
       if (SKIP_DIRS.has(name.toLowerCase())) continue;

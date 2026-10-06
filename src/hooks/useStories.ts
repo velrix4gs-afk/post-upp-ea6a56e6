@@ -41,7 +41,14 @@ export const resolveStoryMediaUrl = async (mediaUrl?: string | null): Promise<st
   const path = storyObjectPath(mediaUrl);
   if (!path) return mediaUrl;
   const { data, error } = await supabase.storage.from('stories').createSignedUrl(path, 60 * 60);
-  if (error) throw error;
+  if (error || !data?.signedUrl) {
+    // Never throw here. This runs inside a map over every Showcase item, so a
+    // single row pointing at a missing object used to reject the whole list
+    // and blank the entire Showcase strip (plus a "Failed to load stories"
+    // toast). One dead file should cost one item, not the feature.
+    console.warn('[showcase] Could not sign media for a Showcase item; skipping it:', error?.message ?? 'no signed url');
+    return undefined;
+  }
   return data.signedUrl;
 };
 
@@ -66,12 +73,18 @@ export const useStories = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      const storiesData: Story[] = await Promise.all((data || []).map(async (story) => ({
+      const resolved: Story[] = await Promise.all((data || []).map(async (story) => ({
         ...story,
         audience: story.audience as Story['audience'],
         media_path: storyObjectPath(story.media_url) || undefined,
         media_url: await resolveStoryMediaUrl(story.media_url),
       })));
+      // Drop items whose media could not be resolved (missing object, failed
+      // signing). A text-only item is legitimate and has no media_url but does
+      // have content, so keep those.
+      const storiesData = resolved.filter(
+        (story) => Boolean(story.media_url) || Boolean(story.content && story.content.trim()),
+      );
       setStories(storiesData);
       await CacheHelper.saveStories(storiesData);
     } catch (err) {
