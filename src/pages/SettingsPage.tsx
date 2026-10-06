@@ -210,7 +210,7 @@ const SettingsPage = () => {
         supabase.from('posts').select('*').eq('user_id', user?.id),
         supabase.from('friendships').select('*').or(`requester_id.eq.${user?.id},addressee_id.eq.${user?.id}`),
         supabase.from('bookmarks').select('*').eq('user_id', user?.id),
-        supabase.from('stories').select('*').eq('user_id', user?.id),
+        supabase.from('showcases').select('*').eq('user_id', user?.id),
         supabase.from('post_comments').select('*').eq('user_id', user?.id)
       ]);
 
@@ -309,7 +309,7 @@ const SettingsPage = () => {
         supabase.from('friendships').delete().eq('requester_id', user.id),
         supabase.from('friendships').delete().eq('addressee_id', user.id),
         supabase.from('posts').delete().eq('user_id', user.id),
-        supabase.from('stories').delete().eq('user_id', user.id),
+        supabase.from('showcases').delete().eq('user_id', user.id),
       ];
 
       // Execute all deletions
