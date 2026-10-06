@@ -19,6 +19,7 @@ import { StoryHighlights } from '@/components/StoryHighlights';
 import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
+import { EXTRA_SOCIAL_PLATFORMS } from '@/lib/socialPlatforms';
 import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2, Instagram, Twitter, Music2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -344,6 +345,7 @@ const ProfilePage = () => {
             { key: 'instagram', label: 'Instagram', domain: 'instagram.com', Icon: Instagram },
             { key: 'twitter', label: 'X', domain: 'x.com', Icon: Twitter },
             { key: 'tiktok', label: 'TikTok', domain: 'tiktok.com', Icon: Music2 },
+            ...EXTRA_SOCIAL_PLATFORMS.map(({ key, label, domain }) => ({ key, label, domain, Icon: LinkIcon })),
           ].map(({ key, label, domain, Icon }) => {
             const value = profile.social_links?.[key] || profile.social_links?.[`${key}_url`];
             const href = value ? getSocialHref(value, domain) : null;
@@ -363,7 +365,7 @@ const ProfilePage = () => {
               </a>
             );
           })}
-          {isOwnProfile && !['instagram', 'twitter', 'tiktok'].some((key) => profile.social_links?.[key] || profile.social_links?.[`${key}_url`]) && (
+          {isOwnProfile && !['instagram', 'twitter', 'tiktok', ...EXTRA_SOCIAL_PLATFORMS.map(({ key }) => key)].some((key) => profile.social_links?.[key] || profile.social_links?.[`${key}_url`]) && (
             <button type="button" onClick={() => setShowProfileEdit(true)} className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary">
               <LinkIcon className="h-3.5 w-3.5" />
               <span>Add social links</span>
