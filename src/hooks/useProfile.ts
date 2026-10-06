@@ -35,6 +35,27 @@ export interface Profile {
 }
 
 /**
+ * True when a profile load failure is worth retrying rather than reporting.
+ *
+ * On a hard refresh the first request can beat session restore, and a
+ * PostgREST request sent without the access token returns a permission or
+ * auth error for a profile that exists. Those are transient; a genuinely
+ * missing profile is not.
+ */
+const isTransientProfileError = (err: unknown): boolean => {
+  if (!err) return false;
+  const code = (err as { code?: string }).code ?? '';
+  const message = String((err as { message?: string }).message ?? '').toLowerCase();
+  if (code === '42501' || code === 'PGRST301' || code === '401' || code === '403') return true;
+  if (message.includes('jwt') || message.includes('permission denied')) return true;
+  if (message.includes('failed to fetch') || message.includes('networkerror')) return true;
+  if (message.includes('timeout') || message.includes('fetch failed')) return true;
+  // "Profile not found" from an empty first attempt is already retried by the
+  // caller; anything else that looks like a missing row is a real answer.
+  return false;
+};
+
+/**
  * Columns of `public.profiles` that every role (anon included) may read.
  *
  * Column-level SELECT is revoked on phone/birth_date/gender for all roles,
@@ -113,6 +134,9 @@ export const useProfile = (userId?: string) => {
 
   const fetchProfile = async (attempt = 0) => {
     const requestedTarget = targetUserId;
+    // Set when this attempt schedules a retry, so the finally block below
+    // leaves the skeleton up instead of flashing "Profile not found".
+    let isRetrying = false;
     try {
       if (!profile) setLoading(true);
       // Public card never includes phone / birth_date / gender. The owner
@@ -219,12 +243,29 @@ export const useProfile = (userId?: string) => {
       });
     } catch (err: any) {
       if (currentTargetRef.current !== requestedTarget) return;
-      setError(err.message);
+      // A hard refresh can lose the race against session restore: the RPC
+      // fires before the access token is attached and comes back as a
+      // transient failure. Retrying once or twice turns that into a brief
+      // skeleton instead of a hard "Profile not found" on a profile that
+      // plainly exists.
+      const transient = attempt < 2 && isTransientProfileError(err);
+      if (transient) {
+        isRetrying = true;
+        setTimeout(() => {
+          if (currentTargetRef.current === requestedTarget) void fetchProfile(attempt + 1);
+        }, 300 * (attempt + 1));
+        return;
+      }
+      setError(err?.message ?? 'Could not load profile');
       // Silent — profile load failures are covered by the global offline
       // indicator; a repeating toast here just spams the user.
       reportSilently('PROFILE_LOAD', err);
     } finally {
-      if (currentTargetRef.current === requestedTarget) setLoading(false);
+      // Only settle the spinner when this attempt is final. A retry in flight
+      // must keep the skeleton up rather than flash "Profile not found".
+      if (currentTargetRef.current === requestedTarget && !isRetrying) {
+        setLoading(false);
+      }
     }
   };
 
