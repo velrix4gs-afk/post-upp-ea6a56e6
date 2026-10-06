@@ -91,6 +91,38 @@ const run = <T,>(
 export const recentMediaKey = (file: File): string =>
   `file:${file.name}:${file.size}:${file.lastModified}`;
 
+/** Longest edge of a stored preview, in px. */
+const THUMB_EDGE = 160;
+/** Previews larger than this are dropped rather than stored. */
+const MAX_THUMB_CHARS = 24_000;
+
+/**
+ * Builds a small square-ish preview for the recents row. Images only — a
+ * video preview would need a decoder, and the row falls back to a label.
+ * Returns undefined on any failure; the preview is decoration.
+ */
+const makeThumb = async (file: File): Promise<string | undefined> => {
+  if (!file.type.startsWith('image/') || typeof document === 'undefined') return undefined;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, THUMB_EDGE / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      bitmap.close?.();
+      return undefined;
+    }
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+    return dataUrl.length > MAX_THUMB_CHARS ? undefined : dataUrl;
+  } catch {
+    return undefined;
+  }
+};
+
 /** Reads the store, newest first, pruning anything expired. */
 export const listRecentMedia = async (): Promise<RecentMediaItem[]> => {
   const rows = await run<RecentMediaItem[]>('readonly', (store) => store.getAll() as IDBRequest<RecentMediaItem[]>);
@@ -118,16 +150,19 @@ export const rememberRecentMedia = async (files: File[]): Promise<void> => {
   if (!usable.length) return;
 
   const now = Date.now();
-  const entries: RecentMediaItem[] = usable.map((file) => ({
-    id: recentMediaKey(file),
-    name: file.name,
-    type: file.type,
-    size: file.size,
-    lastModified: file.lastModified,
-    addedAt: now,
-    kind: file.type.startsWith('video/') ? 'video' : 'image',
-    blob: file,
-  }));
+  const entries: RecentMediaItem[] = await Promise.all(
+    usable.map(async (file) => ({
+      id: recentMediaKey(file),
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified,
+      addedAt: now,
+      kind: file.type.startsWith('video/') ? 'video' : 'image',
+      blob: file,
+      thumb: await makeThumb(file),
+    })),
+  );
 
   await run('readwrite', (store) => {
     entries.forEach((entry) => store.put(entry));

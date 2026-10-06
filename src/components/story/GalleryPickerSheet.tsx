@@ -4,6 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
+import {
+  listRecentMedia,
+  rememberRecentMedia,
+  recentItemToFile,
+  type RecentMediaItem,
+} from '@/lib/recentMedia';
 import { toast } from '@/hooks/use-toast';
 import { reportSilently } from '@/lib/errorSuppression';
 import {
@@ -56,6 +62,10 @@ export const GalleryPickerSheet = ({
   // Set when we hold permission but the media read failed. Distinct from
   // `access === 'denied'` so the user is never asked to grant twice.
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Media used recently anywhere in the app. Shown as a row above the camera
+  // roll so a photo picked in chat is immediately available in the feed
+  // instead of having to be hunted down again.
+  const [recent, setRecent] = useState<RecentMediaItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -70,7 +80,17 @@ export const GalleryPickerSheet = ({
       setFilter('all');
       setQuantity(120);
       setBusyId(null);
+      return;
     }
+    // Refresh the recent row each time the sheet opens, so it reflects picks
+    // made elsewhere since the last time it was shown.
+    let cancelled = false;
+    void listRecentMedia().then((rows) => {
+      if (!cancelled) setRecent(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -187,6 +207,9 @@ export const GalleryPickerSheet = ({
           .filter((item): item is DeviceGalleryItem => Boolean(item));
         const files = await Promise.all(chosen.map((item) => deviceItemToFile(item)));
         emitFiles(files);
+        // Remember only what the user actually committed to, and only after
+        // delivery succeeded, so an abandoned selection is not stored.
+        void rememberRecentMedia(files);
         onOpenChange(false);
       } catch (err) {
         reportSilently('GALLERY_003', err);
@@ -255,6 +278,36 @@ export const GalleryPickerSheet = ({
       setAccess('web');
     },
     [multiple],
+  );
+
+  /** Re-uses an item from the shared recent list without re-picking. */
+  const pickRecent = useCallback(
+    async (item: RecentMediaItem) => {
+      haptic('light');
+      if (multiple) {
+        // Re-adding a recent item in multi-select would need a File now, so
+        // deliver it immediately instead of toggling — matches how a tapped
+        // recents entry behaves elsewhere.
+        setConfirming(true);
+        try {
+          emitFiles([recentItemToFile(item)]);
+          onOpenChange(false);
+        } finally {
+          setConfirming(false);
+        }
+        return;
+      }
+      setConfirming(true);
+      try {
+        emitFiles([recentItemToFile(item)]);
+        onOpenChange(false);
+      } catch (err) {
+        reportSilently('GALLERY_004', err);
+      } finally {
+        setConfirming(false);
+      }
+    },
+    [multiple, emitFiles, onOpenChange],
   );
 
   const openFolder = useCallback(async () => {
@@ -414,14 +467,49 @@ export const GalleryPickerSheet = ({
                 </div>
               )}
             </div>
-          ) : visible.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center py-10 px-6">
-              <ImagePlus className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">No {filter === 'all' ? 'media' : filter} found.</p>
-            </div>
           ) : (
             <>
-              <div className="grid grid-cols-4 gap-0.5 px-0.5">
+              {recent.length > 0 && (
+                <div className="px-2 pt-2 pb-1">
+                  <p className="px-0.5 pb-1.5 text-[11px] font-medium text-muted-foreground">
+                    Recently used
+                  </p>
+                  <div className="flex gap-1.5 overflow-x-auto pb-1">
+                    {recent.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        disabled={confirming}
+                        onClick={() => pickRecent(item)}
+                        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-muted touch-manipulation active:scale-95 transition-transform disabled:opacity-60"
+                      >
+                        {item.thumb ? (
+                          <img src={item.thumb} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                            {item.kind === 'video' ? 'Video' : 'Photo'}
+                          </span>
+                        )}
+                        {item.kind === 'video' && (
+                          <span className="absolute left-1 bottom-1 rounded bg-black/65 px-1 py-0.5 text-[9px] text-white">
+                            ▶
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {visible.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center py-10 px-6">
+                  <ImagePlus className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    No {filter === 'all' ? 'media' : filter} found.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-4 gap-0.5 px-0.5">
                 {visible.map((item) => {
                   const isSel = selected.includes(item.id);
                   const selIndex = selected.indexOf(item.id);
@@ -471,7 +559,8 @@ export const GalleryPickerSheet = ({
                     </button>
                   );
                 })}
-              </div>
+                </div>
+              )}
               {access === 'ready' && items.length >= quantity && quantity < 400 && (
                 <div className="p-3">
                   <Button
