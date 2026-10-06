@@ -12,6 +12,7 @@ import { useFollowers } from '@/hooks/useFollowers';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { debug } from '@/lib/logger';
 
 interface GroupChatDialogProps {
   open: boolean;
@@ -56,7 +57,7 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
   };
 
   const handleCreateGroup = async () => {
-    console.log('[GroupChatDialog] Creating group with:', {
+    debug('[GroupChatDialog] Creating group with:', {
       groupName,
       selectedMembers: selectedMembers.length,
       hasAvatar: !!avatarFile
@@ -87,7 +88,7 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
       // Upload avatar if provided
       let avatarUrl = null;
       if (avatarFile) {
-        console.log('[GroupChatDialog] Uploading avatar...');
+        debug('[GroupChatDialog] Uploading avatar...');
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${user.id}/group-${Date.now()}.${fileExt}`;
         
@@ -105,11 +106,11 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
           .getPublicUrl(fileName);
 
         avatarUrl = publicUrl;
-        console.log('[GroupChatDialog] Avatar uploaded:', avatarUrl);
+        debug('[GroupChatDialog] Avatar uploaded:', avatarUrl);
       }
 
       // Create group chat with database function
-      console.log('[GroupChatDialog] Creating group chat with participants:', {
+      debug('[GroupChatDialog] Creating group chat with participants:', {
         creator: user.id,
         members: selectedMembers,
         name: groupName.trim()
@@ -134,8 +135,6 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
         throw new Error('Failed to create group - no ID returned');
       }
 
-      console.log('[GroupChatDialog] Group created successfully:', chatId);
-
       // The RPC creates the chat + participants atomically. Only apply the
       // extras (avatar / description) it doesn't handle.
       if (avatarUrl) {
@@ -148,7 +147,7 @@ export const GroupChatDialog = ({ open, onOpenChange, onGroupCreated }: GroupCha
         }
       }
 
-      console.log('[GroupChatDialog] Group created successfully!');
+      debug('[GroupChatDialog] Group created successfully:', chatId);
       toast({ 
         title: 'Group created successfully!',
         description: `${groupName} was created with ${selectedMembers.length} members`

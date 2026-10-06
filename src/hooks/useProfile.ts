@@ -6,6 +6,7 @@ import { CacheHelper } from '@/lib/asyncStorage';
 import { reportSilently } from '@/lib/errorSuppression';
 import { useAuthReady } from './useAuthReady';
 import { isProfileOwner, stripOwnerOnlyProfileFields } from '@/lib/profilePrivacy';
+import { debug } from '@/lib/logger';
 
 export interface Profile {
   id: string;
@@ -363,13 +364,13 @@ export const useProfile = (userId?: string) => {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
       
-      console.log('[COVER] Uploading to path:', filePath);
+      debug('[COVER] Uploading to path:', filePath);
       
       // Delete old cover if exists
       if (profile?.cover_url) {
         const oldPath = profile.cover_url.split('/covers/').pop();
         if (oldPath) {
-          console.log('[COVER] Removing old cover:', oldPath);
+          debug('[COVER] Removing old cover:', oldPath);
           await supabase.storage.from('covers').remove([oldPath]);
         }
       }
@@ -386,13 +387,13 @@ export const useProfile = (userId?: string) => {
         throw new Error(`UPLOAD_006: ${uploadError.message}`);
       }
 
-      console.log('[COVER] Upload successful:', uploadData);
+      debug('[COVER] Upload successful:', uploadData);
 
       const { data: { publicUrl } } = supabase.storage
         .from('covers')
         .getPublicUrl(filePath);
 
-      console.log('[COVER] Public URL:', publicUrl);
+      debug('[COVER] Public URL:', publicUrl);
 
       await updateProfile({ cover_url: publicUrl });
       
@@ -441,13 +442,13 @@ export const useProfile = (userId?: string) => {
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
       
-      console.log('[AVATAR] Uploading to path:', filePath);
+      debug('[AVATAR] Uploading to path:', filePath);
       
       // Delete old avatar if exists
       if (profile?.avatar_url) {
         const oldPath = profile.avatar_url.split('/avatars/').pop();
         if (oldPath) {
-          console.log('[AVATAR] Removing old avatar:', oldPath);
+          debug('[AVATAR] Removing old avatar:', oldPath);
           await supabase.storage.from('avatars').remove([oldPath]);
         }
       }
@@ -464,13 +465,13 @@ export const useProfile = (userId?: string) => {
         throw new Error(`UPLOAD_003: ${uploadError.message}`);
       }
 
-      console.log('[AVATAR] Upload successful:', uploadData);
+      debug('[AVATAR] Upload successful:', uploadData);
 
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
-      console.log('[AVATAR] Public URL:', publicUrl);
+      debug('[AVATAR] Public URL:', publicUrl);
 
       await updateProfile({ avatar_url: publicUrl });
       

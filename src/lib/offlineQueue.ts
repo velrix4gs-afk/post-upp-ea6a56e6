@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { debug } from './logger';
 
 const QUEUE_KEY = 'postup_offline_queue';
 const MAX_RETRIES = 3;
@@ -47,7 +48,7 @@ export const enqueueOfflineAction = (
   const queue = getQueue();
   queue.push(entry);
   saveQueue(queue);
-  console.log('[OfflineQueue] Enqueued:', action, table, id);
+  debug('[OfflineQueue] Enqueued:', action, table, id);
   return id;
 };
 
@@ -119,7 +120,7 @@ export const flushOfflineQueue = async (): Promise<{ processed: number; failed: 
   const queue = getQueue();
   if (queue.length === 0) return { processed: 0, failed: 0 };
 
-  console.log('[OfflineQueue] Flushing', queue.length, 'items');
+  debug('[OfflineQueue] Flushing', queue.length, 'items');
 
   let processed = 0;
   let failed = 0;
@@ -135,7 +136,7 @@ export const flushOfflineQueue = async (): Promise<{ processed: number; failed: 
     const success = await processAction(item);
     if (success) {
       processed++;
-      console.log('[OfflineQueue] Processed:', item.id);
+      debug('[OfflineQueue] Processed:', item.id);
     } else {
       item.retryCount++;
       item.status = item.retryCount >= MAX_RETRIES ? 'failed' : 'pending';
@@ -145,6 +146,6 @@ export const flushOfflineQueue = async (): Promise<{ processed: number; failed: 
   }
 
   saveQueue(remaining);
-  console.log('[OfflineQueue] Flush complete:', { processed, failed, remaining: remaining.length });
+  debug('[OfflineQueue] Flush complete:', { processed, failed, remaining: remaining.length });
   return { processed, failed };
 };

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
 import { enqueueOfflineAction } from '@/lib/offlineQueue';
+import { debug } from '@/lib/logger';
 
 export interface Post {
   id: string;
@@ -123,7 +124,7 @@ export const usePosts = (userId?: string, enabled = true) => {
         return { queued: true };
       }
 
-      console.log('Creating post with data:', postData);
+      debug('Creating post with data:', postData);
       
       const { data, error } = await supabase.functions.invoke('posts', {
         body: postData,
@@ -131,7 +132,7 @@ export const usePosts = (userId?: string, enabled = true) => {
 
       if (error) throw error;
 
-      console.log('Post creation response:', data);
+      debug('Post creation response:', data);
       if (!data || typeof data !== 'object' || typeof data.id !== 'string') {
         throw new Error('Post service returned an invalid response');
       }

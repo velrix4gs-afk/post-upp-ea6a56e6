@@ -117,6 +117,12 @@ interface EnhancedMessageBubbleProps {
   /** Bubble grouping: first/last message of a same-sender run. */
   isFirstOfGroup?: boolean;
   isLastOfGroup?: boolean;
+  /**
+   * Whether to reserve the avatar column for incoming messages. Only a group
+   * chat needs it — in a 1:1 thread the sender is obvious, and showing a
+   * circle beside every message is noise (WhatsApp does not).
+   */
+  showSenderAvatar?: boolean;
   /** 0-100 while a large media/voice/video upload is still in flight. */
   uploadProgress?: number;
   reactions?: MessageReaction[];
@@ -149,6 +155,7 @@ export const EnhancedMessageBubble = ({
   status = 'sent',
   isFirstOfGroup = true,
   isLastOfGroup = true,
+  showSenderAvatar = true,
   uploadProgress,
   reactions: _reactions = [],
   bubbleColor,
@@ -279,7 +286,7 @@ export const EnhancedMessageBubble = ({
           {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
 
-        {!isOwn && (
+        {!isOwn && showSenderAvatar && (
           isFirstOfGroup ? (
             <Avatar className="h-8 w-8 flex-shrink-0 mt-1">
               <AvatarImage src={sender.avatar_url} alt={sender.display_name} />

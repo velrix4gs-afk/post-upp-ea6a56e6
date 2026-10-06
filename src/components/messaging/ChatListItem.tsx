@@ -213,7 +213,12 @@ export const ChatListItem = ({
             <AvatarFallback className="bg-muted">{name[0]?.toUpperCase()}</AvatarFallback>
           </Avatar>
           {isOnline && !isGroup && (
-            <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-card" />
+            // Brand purple rather than the green success colour, so the
+            // online dot reads as part of the app's identity.
+            <span
+              aria-label="Online"
+              className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-[hsl(262_83%_62%)] border-2 border-card shadow-[0_0_0_1px_hsl(262_83%_62%)]"
+            />
           )}
         </div>
 
@@ -275,7 +280,12 @@ export const ChatListItem = ({
               {isMuted && <BellOff className="h-3.5 w-3.5 text-muted-foreground" />}
               {isPinned && <Pin className="h-3.5 w-3.5 text-muted-foreground rotate-45" />}
               {unreadCount > 0 && (
-                <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-success text-success-foreground text-[11px] font-bold flex items-center justify-center animate-scale-in">
+                // Unread badge follows the brand purple. Uses the `primary`
+                // token so a theme that overrides it still wins.
+                <span
+                  aria-label={`${unreadCount} unread`}
+                  className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center animate-scale-in"
+                >
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}

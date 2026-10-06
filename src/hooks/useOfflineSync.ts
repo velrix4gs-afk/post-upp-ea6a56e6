@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { flushOfflineQueue, getQueueLength } from '@/lib/offlineQueue';
+import { debug } from '@/lib/logger';
 
 export const useOfflineSync = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const handleOnline = async () => {
-      console.log('[OfflineSync] Back online — flushing queue');
+      debug('[OfflineSync] Back online — flushing queue');
       try { await flushOfflineQueue(); } catch { /* silent — networkMonitor surfaces UX */ }
     };
 

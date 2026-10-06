@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { debug } from '@/lib/logger';
 
 export interface UserPresence {
   user_id: string;
@@ -46,10 +47,10 @@ export const usePresence = (chatId?: string) => {
         setOnlineUsers(users);
       })
       .on('presence', { event: 'join' }, ({ newPresences }) => {
-        console.log('User joined:', newPresences);
+        debug('User joined:', newPresences);
       })
       .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-        console.log('User left:', leftPresences);
+        debug('User left:', leftPresences);
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {

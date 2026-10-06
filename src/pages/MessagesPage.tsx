@@ -1103,6 +1103,9 @@ const MessagesPage = () => {
                       }}
                       timestamp={message.created_at}
                       isOwn={isOwn}
+                      // Only group chats need the sender's face on every
+                      // message; in a 1:1 thread it is just clutter.
+                      showSenderAvatar={!!selectedChat?.is_group}
                       mediaUrl={message.media_url}
                       mediaType={message.media_type}
                       isEdited={message.is_edited}

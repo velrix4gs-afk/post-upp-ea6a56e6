@@ -181,7 +181,11 @@ export const CallShell = ({
             'fixed inset-0 z-[200] h-[100dvh] w-screen text-foreground',
             kind === 'video'
               ? 'bg-black text-white'
-              : 'bg-[#101827] text-white',
+              // Solid brand surface for audio calls. Previously a flat slate
+              // (#101827) that read as murky grey; this uses the app's own
+              // purple accent so a call looks like POST-UPP rather than a
+              // generic overlay.
+              : 'bg-[hsl(262_83%_28%)] text-white',
           )}
           onClick={() => autoHideControls && setChromeVisible((v) => !v)}
           onTouchStart={onCallTouchStart}
@@ -198,7 +202,7 @@ export const CallShell = ({
           {setupError && (
             <div
               role="alert"
-              className="absolute inset-x-6 top-1/2 z-20 mx-auto max-w-sm -translate-y-1/2 rounded-2xl border border-destructive/30 bg-[#101827] p-5 text-center text-white shadow-2xl"
+              className="absolute inset-x-6 top-1/2 z-20 mx-auto max-w-sm -translate-y-1/2 rounded-2xl border border-destructive/40 bg-[hsl(262_83%_20%)] p-5 text-center text-white shadow-2xl"
               onClick={(event) => event.stopPropagation()}
             >
               <AlertCircle className="mx-auto h-8 w-8 text-destructive" />
@@ -253,7 +257,7 @@ export const CallShell = ({
           {/* Voice-call hero (avatar + name) */}
           {kind === 'voice' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-8 text-center">
-              <div className="pointer-events-none absolute h-[30rem] w-[30rem] rounded-full bg-primary/15 blur-3xl" />
+              <div className="pointer-events-none absolute h-[30rem] w-[30rem] rounded-full bg-[hsl(262_83%_70%)]/20 blur-3xl" />
               <Avatar className="relative h-36 w-36 ring-4 ring-primary/50 shadow-[0_0_60px_rgba(59,130,246,0.2)]">
                 <AvatarImage src={participantAvatar} />
                 <AvatarFallback className="bg-slate-800 text-5xl text-white">
@@ -289,7 +293,7 @@ export const CallShell = ({
             onClick={(e) => e.stopPropagation()}
             data-call-gesture-ignore
           >
-            <div className="mx-auto w-fit max-w-full rounded-[2rem] border border-white/10 bg-slate-950/80 p-2 shadow-2xl">
+            <div className="mx-auto w-fit max-w-full rounded-[2rem] border border-white/15 bg-black/35 p-2 shadow-2xl">
               {controls}
             </div>
           </div>

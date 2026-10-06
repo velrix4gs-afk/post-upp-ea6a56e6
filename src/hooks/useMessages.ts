@@ -5,6 +5,7 @@ import { toast } from './use-toast';
 import { AsyncStorage, CacheHelper } from '@/lib/asyncStorage';
 import { enqueueOfflineAction } from '@/lib/offlineQueue';
 import { ensurePrivateChat } from '@/lib/chatCreation';
+import { debug } from '@/lib/logger';
 
 // In-memory profile cache to avoid repeated fetches during real-time updates
 const profileCache = new Map<string, { username: string; display_name: string; avatar_url?: string; fetchedAt: number }>();
@@ -382,16 +383,30 @@ export const useMessages = (chatId?: string) => {
               if (!m.is_optimistic) return true;
               if (m.sender_id !== messageWithProfile.sender_id) return true;
 
-              // Check if content matches (or both are media messages)
+              // An optimistic row whose real id the server has already
+              // confirmed is stale: sendMessage swapped it in place, so the
+              // confirmed copy is present and this one must go. This is the
+              // common case and it is exact, unlike guessing from content.
+              if (locallySentMessageIdsRef.current.has(m.id)) return false;
+
+              // Fallback match for optimistic rows we have no id for.
+              // Deliberately strict: the previous version compared content
+              // and media only, so a media message (content null on both
+              // sides) could match the WRONG optimistic row and leave the
+              // real one behind — which is what kept a stale 'sending' spinner
+              // (the little dot) next to delivered messages.
               const contentMatches = m.content === messageWithProfile.content ||
                 (!m.content && !messageWithProfile.content);
               const mediaMatches = m.media_url === messageWithProfile.media_url;
               const timeClose = Math.abs(
                 new Date(m.created_at).getTime() - new Date(messageWithProfile.created_at).getTime()
               ) < 30000;
+              if (!(contentMatches && mediaMatches && timeClose)) return true;
 
-              // Remove if it's the same message
-              return !(contentMatches && mediaMatches && timeClose);
+              // Only drop the optimistic row when the confirmed row carries
+              // the same kind of payload, so a text echo cannot swallow a
+              // pending media message.
+              return !((m.media_type || null) === (messageWithProfile.media_type || null));
             });
 
             return [...withoutOptimistic, messageWithProfile].sort(
@@ -474,7 +489,7 @@ export const useMessages = (chatId?: string) => {
       setMessages((previous) => previous.filter((message) =>
         !message.expires_at || new Date(message.expires_at).getTime() > Date.now()
       ));
-      await purgeExpiredMessages(chatId, 'expiry timer');
+      void purgeExpiredMessages(chatId, 'expiry timer');
     }, Math.max(0, nextExpiry - Date.now()) + 25);
 
     return () => window.clearTimeout(timeout);
@@ -488,7 +503,7 @@ export const useMessages = (chatId?: string) => {
         if (prev.length === 0) setChatsLoading(true);
         return prev;
       });
-      console.log('[useMessages] Fetching chats via get_chat_list RPC');
+      debug('[useMessages] Fetching chats via get_chat_list RPC');
 
       // Use the optimized RPC that returns everything in one query
       const { data: chatList, error } = await supabase.rpc('get_chat_list');
@@ -576,7 +591,7 @@ export const useMessages = (chatId?: string) => {
       // Cache chats
       await CacheHelper.saveChats(validChats);
 
-      console.log('[useMessages] Successfully loaded', validChats.length, 'chats');
+      debug('[useMessages] Successfully loaded', validChats.length, 'chats');
     } catch (err: any) {
       console.error('[CHAT_001] Failed to load chats:', err);
 
@@ -607,9 +622,12 @@ export const useMessages = (chatId?: string) => {
       fetchingChatRef.current = fetchingFor;
       realtimeMessagesDuringFetchRef.current = new Map();
       setMessagesLoading(true);
-      console.log('[useMessages] Fetching messages for chat:', fetchingFor);
 
-      await purgeExpiredMessages(fetchingFor, 'chat opening');
+      // Fire-and-forget. This is server-side housekeeping for disappearing
+      // messages, and awaiting it put a maintenance RPC in front of every
+      // chat open: if it was slow, opening a chat stalled; if it errored, the
+      // fetch never ran. Nothing the user needs depends on it completing.
+      void purgeExpiredMessages(fetchingFor, 'chat opening');
 
       const { data: messagesData, error } = await supabase
         .from('messages')
@@ -707,7 +725,7 @@ export const useMessages = (chatId?: string) => {
 
       await CacheHelper.saveMessages(fetchingFor, merged);
 
-      console.log('[useMessages] Successfully loaded', messagesWithProfiles.length, 'messages');
+      debug('[useMessages] Successfully loaded', messagesWithProfiles.length, 'messages');
     } catch (err: any) {
       if (chatIdRef.current !== fetchingFor || requestId !== fetchRequestIdRef.current) return;
       console.error('[MSG_001] Failed to load messages:', err);
