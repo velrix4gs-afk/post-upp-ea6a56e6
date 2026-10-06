@@ -19,6 +19,7 @@ import { StoryHighlights } from '@/components/StoryHighlights';
 import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
+import { Helmet } from 'react-helmet-async';
 import { EXTRA_SOCIAL_PLATFORMS } from '@/lib/socialPlatforms';
 import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2, Instagram, Twitter, Music2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
