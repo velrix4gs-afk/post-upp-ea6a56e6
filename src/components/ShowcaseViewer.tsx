@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ChevronLeft, ChevronRight, Heart, Loader2, MoreVertical, Send, X } from 'lucide-react';
 import type { Story } from '@/hooks/useStories';
+import { getCachedThumbnail } from '@/lib/videoThumbnail';
 
 interface ShowcaseViewerProps {
   stories: Story[];
@@ -268,11 +269,25 @@ const ShowcaseViewer = ({
               )}
             </header>
 
-            {currentStory.media_url ? currentStory.media_type === 'video' ? (
+            {!currentStory.media_url && currentStory.content ? (
+              // Text-only Showcase item: no media was uploaded, so there is
+              // nothing to render as an image or video. Previously this fell
+              // through to a blank black screen.
+              <div
+                key={currentStory.id}
+                className="flex h-full w-full items-center justify-center px-8"
+              >
+                <p className="max-w-xl whitespace-pre-wrap text-center text-2xl font-semibold leading-snug text-white drop-shadow-lg sm:text-3xl">
+                  {currentStory.content}
+                </p>
+              </div>
+            ) : currentStory.media_url ? currentStory.media_type === 'video' ? (
               <video
                 key={currentStory.id}
                 ref={videoRef}
                 src={currentStory.media_url}
+                // Poster so the frame is never black while the video buffers.
+                poster={getCachedThumbnail(currentStory.media_url) ?? undefined}
                 className="h-full w-full object-contain"
                 autoPlay
                 muted
@@ -293,8 +308,10 @@ const ShowcaseViewer = ({
                 onError={() => setImageFailed(true)}
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/40 via-background to-accent/30 px-8 text-center text-foreground">
-                <p className="max-w-lg text-2xl font-semibold leading-relaxed">{currentStory.content}</p>
+              // No media and no content: nothing to show. Should not happen,
+              // but never leave the user staring at a black screen.
+              <div className="flex h-full w-full items-center justify-center px-8 text-center text-white/70">
+                <p className="text-base">This Showcase item is empty.</p>
               </div>
             )}
             {imageFailed && (

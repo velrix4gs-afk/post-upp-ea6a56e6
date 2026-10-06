@@ -584,7 +584,7 @@ export const PostCardModern = ({
             {/* Media */}
             {mediaItems.length === 1 && <>
                 {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3">
-                    <VideoViewer videoUrl={mediaItems[0]} />
+                    <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
                   </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
               e.stopPropagation();
               captureOriginRect(e.currentTarget as HTMLElement);
@@ -600,7 +600,7 @@ export const PostCardModern = ({
                 <Carousel className="w-full">
                   <CarouselContent>
                     {mediaItems.map((url, i) => <CarouselItem key={url + i}>
-                        {isVideoUrl(url) ? <VideoViewer videoUrl={url} /> : <div className="bg-black cursor-pointer" onClick={e => {
+                        {isVideoUrl(url) ? <VideoViewer videoUrl={url} playOnFocus objectFit="cover" /> : <div className="bg-black cursor-pointer" onClick={e => {
                     captureOriginRect(e.currentTarget as HTMLElement);
                     setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
                     setGalleryStartIndex(i);

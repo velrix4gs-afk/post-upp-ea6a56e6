@@ -1,24 +1,18 @@
-import { useEffect } from 'react';
-import { Toaster as Sonner, toast } from 'sonner';
-import { X } from 'lucide-react';
+import { Toaster as Sonner } from 'sonner';
 
 // Auto-dismiss duration in milliseconds
 const AUTO_DISMISS_DURATION = 2000;
 
-// Override default toast to add swipe-to-dismiss and auto-close
+/**
+ * Mobile toast surface: same sonner queue as the desktop `Toaster`, but
+ * anchored top-center with a shorter dismiss time and swipe-to-dismiss.
+ *
+ * It must never be mounted at the same time as the desktop `Toaster` — two
+ * live <Sonner> instances both subscribe to the same event bus and render
+ * every toast, which is what made notifications appear twice. Mount exactly
+ * one, chosen by viewport. See `ToastHost`.
+ */
 export function ToasterMobile() {
-  useEffect(() => {
-    // Override toast dismiss duration
-    const originalToast = toast;
-    const enhancedToast = (...args: Parameters<typeof toast>) => {
-      const result = originalToast(...args);
-      return result;
-    };
-    
-    // Copy all toast methods
-    Object.assign(enhancedToast, originalToast);
-  }, []);
-
   return (
     <Sonner
       position="top-center"

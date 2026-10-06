@@ -1,6 +1,4 @@
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { ToasterMobile } from "@/components/ui/sonner-mobile";
+import { ToastHost } from "@/components/ui/toast-host";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
@@ -262,8 +260,7 @@ const App = () => (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <TooltipProvider>
-          <Toaster />
-          <ToasterMobile />
+          <ToastHost />
           <LiquidGlassRoot />
           <BrowserRouter>
             <RouteMeta />

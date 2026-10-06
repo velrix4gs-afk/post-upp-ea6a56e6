@@ -34,6 +34,18 @@ export interface Profile {
   can_view_full?: boolean;
 }
 
+/**
+ * Columns of `public.profiles` that every role (anon included) may read.
+ *
+ * Column-level SELECT is revoked on phone/birth_date/gender for all roles,
+ * and on relationship_status/social_links for anon. Postgres rejects an
+ * entire query with 42501 if any selected column is denied, so `select('*')`
+ * always fails here. Keep this list in sync with the migrations that grant
+ * column access.
+ */
+export const PUBLIC_PROFILE_COLUMNS =
+  'id, username, display_name, avatar_url, cover_url, bio, location, website, theme_color, is_private, is_verified, verification_type, verified_at, created_at, updated_at';
+
 export const useProfile = (userId?: string) => {
   const { user } = useAuth();
   const channelInstanceId = useId().replace(/:/g, '');
@@ -114,9 +126,15 @@ export const useProfile = (userId?: string) => {
         : await looseRpc.call(supabase, 'get_profile_card_by_username', { p_username: targetUserId || '' });
       if (cardResult.error) {
         // Fallback when the profile card functions are not available on the database.
+        //
+        // NOTE: never select('*') here. Column-level SELECT on phone/birth_date/
+        // gender (and relationship_status/social_links for anon) is revoked, and
+        // Postgres rejects the whole query with 42501 if ANY selected column is
+        // denied. That made /profile/<username> render "Profile not found".
+        // List only columns that are readable by every role.
         const fallback = await supabase
           .from('profiles')
-          .select('*')
+          .select(PUBLIC_PROFILE_COLUMNS)
           .filter(targetIsUuid ? 'id' : 'username', targetIsUuid ? 'eq' : 'ilike', targetUserId || '')
           .maybeSingle();
         cardResult = { data: fallback.data, error: fallback.error };
@@ -151,8 +169,14 @@ export const useProfile = (userId?: string) => {
         const extras: PromiseLike<unknown>[] = [];
         if (isOwner) extras.push(supabase.rpc('get_my_sensitive_profile'));
         if (merged.can_view_full !== false && resolvedProfileId) {
+          // social_links is column-revoked for anon, so this must name its
+          // columns too — select('*') would 401 the whole query.
           extras.push(
-            supabase.from('profiles').select('*').eq('id', resolvedProfileId).maybeSingle()
+            supabase
+              .from('profiles')
+              .select('id, username, social_links')
+              .eq('id', resolvedProfileId)
+              .maybeSingle()
           );
         }
         const results = await Promise.all(extras);
