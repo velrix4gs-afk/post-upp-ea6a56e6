@@ -224,6 +224,27 @@ const ProfilePage = () => {
     canViewFull: profile.can_view_full,
   });
   return <div className="min-h-screen bg-background pb-20 md:pb-0">
+      {profile && (() => {
+        const shareTitle = `${profile.display_name || profile.username} (@${profile.username}) | POST UPP`;
+        const shareDescription = (profile.bio || `See ${profile.display_name || profile.username}'s posts and showcases on POST UPP.`).slice(0, 200);
+        const shareUrl = `https://post-upp.lovable.app/profile/${profile.username}`;
+        return (
+          <Helmet>
+            <title>{shareTitle}</title>
+            <meta name="description" content={shareDescription} />
+            <link rel="canonical" href={shareUrl} />
+            <meta property="og:type" content="profile" />
+            <meta property="og:title" content={shareTitle} />
+            <meta property="og:description" content={shareDescription} />
+            <meta property="og:url" content={shareUrl} />
+            {profile.avatar_url && <meta property="og:image" content={profile.avatar_url} />}
+            <meta name="twitter:card" content={profile.avatar_url ? 'summary_large_image' : 'summary'} />
+            <meta name="twitter:title" content={shareTitle} />
+            <meta name="twitter:description" content={shareDescription} />
+            {profile.avatar_url && <meta name="twitter:image" content={profile.avatar_url} />}
+          </Helmet>
+        );
+      })()}
     {/* Sticky Profile Header */}
     <ProfileHeader displayName={profile?.display_name || ''} username={profile?.username || ''} postsCount={userPosts.length} isOwnProfile={isOwnProfile} />
 
