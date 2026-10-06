@@ -55,4 +55,13 @@
     <!-- Network & Internet Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!--
+      Haptic feedback. The app calls navigator.vibrate in src/lib/haptics.ts
+      from 30+ places (likes, long-press, post published, errors). Without
+      this permission the WebView drops every vibrate() call silently, so
+      haptics appeared wired up but never fired on device.
+      Normal permission: no runtime prompt.
+    -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
 </manifest>

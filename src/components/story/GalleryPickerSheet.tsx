@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, Shield } from 'lucide-react';
+import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
 import { toast } from '@/hooks/use-toast';
@@ -53,6 +53,9 @@ export const GalleryPickerSheet = ({
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const [access, setAccess] = useState<AccessState>('checking');
   const [quantity, setQuantity] = useState(120);
+  // Set when we hold permission but the media read failed. Distinct from
+  // `access === 'denied'` so the user is never asked to grant twice.
+  const [loadError, setLoadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,7 +94,8 @@ export const GalleryPickerSheet = ({
       const next = await Promise.race([
         listNativeDeviceMedia(count, nextFilter),
         new Promise<DeviceGalleryItem[]>((_, reject) => {
-          timeoutId = window.setTimeout(() => reject(new Error('Gallery loading timed out')), 15000);
+          // A large camera roll legitimately takes a while on first open.
+          timeoutId = window.setTimeout(() => reject(new Error('Gallery loading timed out')), 30000);
         }),
       ]).then((media) => media.filter((item) => item.kind === 'image' || item.kind === 'video'));
       setItems((prev) => {
@@ -99,14 +103,15 @@ export const GalleryPickerSheet = ({
         return next;
       });
       setAccess('ready');
+      setLoadError(null);
     } catch (err) {
       reportSilently('GALLERY_001', err);
-      setAccess('denied');
-      toast({
-        title: "Couldn't load media",
-        description: err instanceof Error ? err.message : 'Check photo permissions and try again.',
-        variant: 'destructive',
-      });
+      // Permission is NOT the problem here — we already hold it, the read
+      // just failed or was slow. Flipping back to the "Allow access" wall
+      // made the user re-grant permission they had already given, and the
+      // sheet could never recover because the ready effect never re-ran.
+      // Stay in 'ready' and surface a retry instead.
+      setLoadError(err instanceof Error ? err.message : 'Could not load your gallery.');
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);
       setLoading(false);
@@ -124,6 +129,8 @@ export const GalleryPickerSheet = ({
       }
       setAccess('checking');
       setLoading(true);
+      // Ask once. If the user already granted it, this resolves immediately
+      // without showing a prompt, so the gallery opens straight away.
       const already = await checkDeviceGalleryAccess();
       const granted = already || (await requestDeviceGalleryAccess());
       if (cancelled) return;
@@ -281,6 +288,7 @@ export const GalleryPickerSheet = ({
   });
 
   const showGrant = access === 'denied' || (access === 'web' && items.length === 0 && !loading);
+  const showLoadError = !showGrant && access === 'ready' && !!loadError && items.length === 0 && !loading;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -328,6 +336,38 @@ export const GalleryPickerSheet = ({
                 <span className="rounded-full bg-background/90 px-4 py-2 text-sm text-muted-foreground shadow">
                   Loading your photos...
                 </span>
+              </div>
+            </div>
+          ) : showLoadError ? (
+            <div className="h-full flex flex-col items-center justify-center text-center px-8 py-10">
+              <div className="h-16 w-16 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center mb-4">
+                <Images className="h-8 w-8" />
+              </div>
+              <p className="text-base font-semibold mb-1">Couldn't open your gallery</p>
+              <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+                {loadError}
+              </p>
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <Button
+                  className="rounded-xl h-11"
+                  onClick={() => {
+                    setLoadError(null);
+                    void loadNative(quantity, filter);
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Try again
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-xl h-11"
+                  onClick={() => {
+                    setAccess('web');
+                    inputRef.current?.click();
+                  }}
+                >
+                  Use system picker instead
+                </Button>
               </div>
             </div>
           ) : showGrant ? (
