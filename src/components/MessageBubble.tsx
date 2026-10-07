@@ -74,8 +74,8 @@ export const MessageBubble = ({
   return (
     <div className={cn(
       "flex gap-2 group mb-1",
-        isOwn ? "flex-row-reverse" : "flex-row"
-      )}>
+      isOwn ? "flex-row-reverse" : "flex-row"
+    )}>
       {!isOwn && (
         <div className="flex items-center gap-1 mb-0.5">
           <Avatar className="h-8 w-8 flex-shrink-0">
@@ -88,7 +88,7 @@ export const MessageBubble = ({
           </span>
         </div>
       )}
-      
+
       <div className={cn(
         "flex flex-col max-w-[75%]",
         isOwn ? "items-end" : "items-start"
@@ -105,20 +105,20 @@ export const MessageBubble = ({
             className={cn(
               "rounded-lg px-3 py-2 shadow-sm relative min-w-[60px]",
               isOwn
-                ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-white rounded-tr-none"
+                ? "bg-[#6e3cfd] dark:bg-[#005c4b] text-[#111b21] dark:text-white rounded-tr-none"
                 : "bg-white dark:bg-[#202c33] text-[#111b21] dark:text-white rounded-tl-none"
             )}
           >
             {isStarred && (
               <Star className="absolute -top-1 -right-1 h-3 w-3 fill-yellow-400 text-yellow-400" />
             )}
-            
+
             {mediaUrl && (
               <div className="mb-1 -mx-1 -mt-1">
                 {mediaType?.startsWith('image/') ? (
-                  <img 
-                    src={mediaUrl} 
-                    alt="Message attachment" 
+                  <img
+                    src={mediaUrl}
+                    alt="Message attachment"
                     className="rounded-lg max-w-full max-h-64 cursor-pointer hover:opacity-95 active:opacity-90"
                     onClick={() => window.open(mediaUrl, '_blank')}
                   />
@@ -132,7 +132,7 @@ export const MessageBubble = ({
                 {content}
               </p>
             )}
-            
+
             {/* WhatsApp-style timestamp and status */}
             <div className={cn(
               "flex items-center gap-1 text-[11px] absolute bottom-1 right-2",
@@ -143,7 +143,7 @@ export const MessageBubble = ({
               {isOwn && <ReadReceiptIndicator status={status} isOwn={isOwn} />}
             </div>
           </div>
-          
+
           {(onEdit || onDelete || onReply || onReact || onStar || onForward) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -178,8 +178,8 @@ export const MessageBubble = ({
                   </DropdownMenuItem>
                 )}
                 {(onStar || onUnstar) && (
-                  <DropdownMenuItem 
-                    onClick={() => isStarred ? onUnstar?.(id) : onStar?.(id)} 
+                  <DropdownMenuItem
+                    onClick={() => isStarred ? onUnstar?.(id) : onStar?.(id)}
                     className="py-2.5"
                   >
                     <Star className={cn("h-4 w-4 mr-3", isStarred && "fill-yellow-400 text-yellow-400")} />
@@ -196,7 +196,7 @@ export const MessageBubble = ({
                   </>
                 )}
                 {isOwn && onDelete && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={() => onDelete(id)}
                     className="text-destructive focus:text-destructive py-2.5"
                   >

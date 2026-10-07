@@ -76,6 +76,16 @@ export const StreamVideoClientProvider = ({ children }: { children: ReactNode })
         if (status === 401 || status === 403) {
           throw new Error('Supabase did not authorize the call-token request. Refresh your sign-in session and verify the function JWT settings.');
         }
+        if (status === 500) {
+          // The function signs the Stream token itself, so a 500 here is almost
+          // always a missing or wrong STREAM_API_SECRET rather than a client
+          // problem. Say so, instead of "could not retrieve credentials".
+          throw new Error(
+            failureBody?.error === 'STREAM_API_SECRET not configured'
+              ? 'Calls are not configured: the stream-token function has no STREAM_API_SECRET. Set it in Supabase → Edge Functions → Secrets.'
+              : failureBody?.error || 'The call service failed to sign a token.',
+          );
+        }
         throw new Error(failureBody?.error || error.message || 'Could not retrieve call credentials.');
       }
       if (!data?.token || !data?.api_key) {
@@ -90,7 +100,33 @@ export const StreamVideoClientProvider = ({ children }: { children: ReactNode })
         token: data.token as string,
       });
       clientRef.current = client;
+      // NOTE: do not call connectUser here. The <StreamVideo client={...}>
+      // provider in VideoCall/VoiceCall performs the connection; connecting in
+      // both places would open two websockets for one user.
       setState({ userId, client, error: null });
+
+      // Attach listeners to capture connection errors (e.g., token signature mismatch)
+      // so the UI can surface them instead of silently failing in the console.
+      const errorHandler = (error: ErrorEvent) => {
+        // The SDK may emit errors via the 'error' event; wrap in Error if needed.
+        const err = error instanceof Error ? error : new Error(error.message);
+        setState(prev => ({ ...prev, error: err }));
+      };
+      // The StreamVideoClient type does not expose a standard event emitter, but we
+      // can try to guard against runtime errors.
+      if (client.on) {
+        client.on('error', errorHandler);
+      } else if (typeof client.addEventListener === 'function') {
+        // Some SDKs expose addEventListener (e.g., for WebSocket errors)
+        client.addEventListener('error', errorHandler);
+      }
+      const cleanupRef = { current: () => {
+        if (client.off) client.off('error', errorHandler);
+        if (typeof client.removeEventListener === 'function') client.removeEventListener('error', errorHandler);
+      } };
+      return () => {
+        cleanupRef.current();
+      };
     };
 
     void loadClient().catch((error: unknown) => {

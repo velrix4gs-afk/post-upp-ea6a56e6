@@ -65,7 +65,7 @@ const getBubbleColorValue = (color: string): string => {
     teal: '#14b8a6',
     yellow: '#eab308',
     indigo: '#6366f1',
-    'whatsapp-sent': '#d9fdd3', // Light mode
+    'whatsapp-sent': '#6e3cfd', // Light mode
     'whatsapp-sent-dark': '#005c4b', // Dark mode
     'whatsapp-received': '#ffffff', // Light mode
     'whatsapp-received-dark': '#202c33', // Dark mode
@@ -348,7 +348,7 @@ export const EnhancedMessageBubble = ({
                       // pale green (#d9fdd3), not blue; dark mode already
                       // matched WhatsApp's actual dark colors.
                       !isImageOnly && !customBg && (isOwn
-                        ? "bg-[#d9fdd3] dark:bg-[#005c4b] text-black dark:text-white"
+                        ? "bg-[#b84ae8] dark:bg-[#9500bb] text-black dark:text-white"
                         : "bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5"),
                       typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}
@@ -365,7 +365,7 @@ export const EnhancedMessageBubble = ({
                           "absolute bottom-0 pointer-events-none",
                           isOwn ? "-right-[7px] -scale-x-100" : "-left-[7px]",
                           !customBg && (isOwn
-                            ? "text-[#d9fdd3] dark:text-[#005c4b]"
+                            ? "text-[#b315db] dark:text-[#005c4b]"
                             : "text-white dark:text-[#202c33]")
                         )}
                         style={customBg ? { color: customBg } : undefined}

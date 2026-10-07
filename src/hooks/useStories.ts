@@ -23,7 +23,12 @@ export interface Story {
   };
 }
 
-export const storyObjectPath = (mediaUrl: string): string | null => {
+export const storyObjectPath = (mediaUrl?: string | null): string | null => {
+  // A text-only Showcase has media_url = null. This used to take a required
+  // string and call .includes() on it, so a single text post threw inside the
+  // map over every row and the whole list was rejected — taking the image
+  // Showcases down with it.
+  if (!mediaUrl) return null;
   const marker = '/storage/v1/object/public/stories/';
   const signedMarker = '/storage/v1/object/sign/stories/';
   const pathMarker = mediaUrl.includes(marker) ? marker : mediaUrl.includes(signedMarker) ? signedMarker : null;
@@ -80,12 +85,23 @@ export const useStories = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      const resolved: Story[] = await Promise.all((data || []).map(async (story) => ({
-        ...story,
-        audience: story.audience as Story['audience'],
-        media_path: storyObjectPath(story.media_url) || undefined,
-        media_url: await resolveStoryMediaUrl(story.media_url),
-      })));
+      // One malformed or unreadable row must not cost the whole list. Each row
+      // is resolved independently and a failure drops that row only.
+      const resolved: Story[] = (
+        await Promise.all((data || []).map(async (story) => {
+          try {
+            return {
+              ...story,
+              audience: story.audience as Story['audience'],
+              media_path: storyObjectPath(story.media_url) || undefined,
+              media_url: await resolveStoryMediaUrl(story.media_url),
+            } as Story;
+          } catch (rowError) {
+            console.warn('[showcase] skipping an unresolvable Showcase row', story?.id, rowError);
+            return null;
+          }
+        }))
+      ).filter((story): story is Story => story !== null);
       // Drop items whose media could not be resolved (missing object, failed
       // signing). A text-only item is legitimate and has no media_url but does
       // have content, so keep those.
