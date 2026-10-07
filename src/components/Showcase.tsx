@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { storyObjectPath, useStories, type Story } from '@/hooks/useStories';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { Clapperboard } from 'lucide-react';
+import { Clapperboard, Plus } from 'lucide-react';
 import ShowcaseViewer from '@/components/ShowcaseViewer';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { supabase } from '@/integrations/supabase/client';
@@ -144,23 +144,41 @@ const Showcase = () => {
 
   return <>
       <section aria-label="Showcase" className="px-4 py-3">
-        <div className="mb-3 flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold tracking-tight">Showcase</h2>
-            <p className="text-xs text-muted-foreground">Recent moments, gathered in one place</p>
-          </div>
-          <Clapperboard className="h-5 w-5 text-primary" aria-hidden="true" />
+        {/* Compact label row. The previous two-line heading plus icon took a
+            full card's worth of vertical space above the tray. */}
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold tracking-tight">Showcase</h2>
+          <Clapperboard className="h-4 w-4 text-primary" aria-hidden="true" />
         </div>
         <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 scrollbar-hide">
           <style>{`
             .scrollbar-hide::-webkit-scrollbar { display: none; }
             .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
           `}</style>
+          {/* Always offer a way to post, whether or not you have an active item.
+              Without this the tray was read-only and posting meant finding the
+              create menu. */}
+          <div className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
+            <button
+              type="button"
+              className="relative grid h-[68px] w-[68px] place-items-center rounded-full border-2 border-dashed border-primary/60 bg-primary/10 transition-transform duration-200 hover:scale-105 active:scale-95"
+              onClick={() => navigate('/create/showcase')}
+              aria-label="Add to your Showcase"
+            >
+              <Plus className="h-6 w-6 text-primary" aria-hidden="true" />
+            </button>
+            <span className="max-w-full truncate text-[11px] font-medium text-primary">
+              Your Showcase
+            </span>
+          </div>
           {storyGroups.map(({ userId, stories: userStories }) => {
             const story = userStories[userStories.length - 1];
             const firstStory = userStories[0];
             const isOwnStory = userId === user?.id;
-            const displayName = story.profiles.display_name || story.profiles.username || 'User';
+            // profiles is an embedded join and can be null (deleted profile, or a
+            // row this viewer may not read). Unguarded this threw and blanked
+            // the whole Showcase strip.
+            const displayName = story.profiles?.display_name || story.profiles?.username || 'User';
             return (
               <div key={userId} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
                 <button
@@ -183,7 +201,7 @@ const Showcase = () => {
                     </span>
                   )}
                 </button>
-                <span className="max-w-full truncate text-[11px] text-muted-foreground">{isOwnStory ? 'Your Showcase' : displayName}</span>
+                <span className="max-w-full truncate text-[11px] text-muted-foreground">{isOwnStory ? 'You' : displayName}</span>
               </div>
             );
           })}
@@ -206,7 +224,10 @@ const Showcase = () => {
           onShareToFeed={viewerStories[selectedStoryIndex].user_id === user?.id
             ? handleShareToFeed
             : undefined}
-          onViewProfile={(story) => navigate(`/profile/${story.profiles.username}`)}
+          onViewProfile={(story) => {
+            const handle = story.profiles?.username;
+            if (handle) navigate(`/profile/${handle}`);
+          }}
           canReply={viewerStories[selectedStoryIndex].user_id !== user?.id}
         />
       )}

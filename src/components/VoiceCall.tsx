@@ -52,6 +52,9 @@ export const VoiceCall = ({
   const [signalError, setSignalError] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  // Speaker state for the pre-connect screen. The inner component owns its own
+  // copy once the call is live; this one only covers ringing/connecting.
+  const [speakerOn, setSpeakerOn] = useState(true);
   const callId = useMemo(() => callIdForChat(chatId, 'voice'), [chatId]);
 
   const hasConnectedRef = useRef(false);
@@ -198,7 +201,31 @@ export const VoiceCall = ({
         setupError={clientError?.message || callError || signalError || undefined}
         onRetry={retry}
         controls={
-          <div className="flex justify-center">
+          <div className="flex items-center justify-center gap-4 sm:gap-6">
+            {/* Speaker toggle while ringing / connecting.
+                The active-call controls already have one, but they only mount
+                once Stream connects — so during the connecting screen there
+                was no way to change the output. Stream's call object is not
+                available this early, so this mutes the rendered audio elements
+                directly, which is the same mechanism the active toggle uses. */}
+            <Button
+              size="icon"
+              variant="secondary"
+              onClick={() => {
+                haptic('light');
+                setSpeakerOn((on) => {
+                  const next = !on;
+                  document.querySelectorAll('audio').forEach((el) => {
+                    (el as HTMLAudioElement).muted = !next;
+                  });
+                  return next;
+                });
+              }}
+              className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation"
+              aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}
+            >
+              {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+            </Button>
             <Button
               size="icon"
               variant="destructive"

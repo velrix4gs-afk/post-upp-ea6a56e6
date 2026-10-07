@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, User, FileText, Users as UsersIcon, Hash } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useSearch } from "@/hooks/useSearch";
-import { profilePath } from "@/lib/profilePath";
+import { profilePathFor } from "@/lib/profilePath";
 import { useFollowers } from '@/hooks/useFollowers';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -106,7 +106,7 @@ const SearchPage = () => {
                         <div key={result.id} className="flex items-center justify-between p-2 hover:bg-muted rounded">
                           <div 
                             className="flex items-center gap-3 flex-1 cursor-pointer"
-                            onClick={() => navigate(`/profile/${result.id}`)}
+                            onClick={() => navigate(profilePathFor(result.id, result.data?.username))}
                           >
                             <Avatar>
                               <AvatarImage src={result.avatar} />
@@ -182,7 +182,7 @@ const SearchPage = () => {
                     <div key={result.id} className="flex items-center justify-between p-2 hover:bg-muted rounded">
                       <div 
                         className="flex items-center gap-3 flex-1 cursor-pointer"
-                        onClick={() => navigate(`/profile/${result.id}`)}
+                        onClick={() => navigate(profilePathFor(result.id, result.data?.username))}
                       >
                         <Avatar>
                           <AvatarImage src={result.avatar} />

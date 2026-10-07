@@ -17,6 +17,7 @@ import { StoryCropTool } from '@/components/story/StoryCropTool';
 import { StoryAdjustments, AdjustmentValues, defaultAdjustments, adjustmentsToCss } from '@/components/story/StoryAdjustments';
 import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
 import { normalizeMediaFile } from '@/lib/deviceGallery';
+import { CacheHelper } from '@/lib/asyncStorage';
 import { cn } from '@/lib/utils';
 
 interface TextOverlayItem {
@@ -367,8 +368,16 @@ const CreateShowcasePage = () => {
       }
       uploadedPath = null;
 
+      // Drop the cached list before navigating. The feed mounts and reads
+      // this cache on arrival; if it still holds the pre-post list the new
+      // item is treated as missing until the 2-minute window lapses.
+      await CacheHelper.clearStories();
+
       toast({ title: 'Showcase shared 🎉' });
-      navigate('/feed');
+      // Ask the feed to refetch on mount rather than waiting for the
+      // realtime INSERT event, which is best-effort and can arrive late or
+      // not at all on a flaky connection.
+      navigate('/feed', { state: { refreshShowcase: Date.now() } });
     } catch (err) {
       console.error('Share Showcase error', err);
       if (uploadedPath) {

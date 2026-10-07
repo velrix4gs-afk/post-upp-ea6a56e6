@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
@@ -54,6 +55,7 @@ export const resolveStoryMediaUrl = async (mediaUrl?: string | null): Promise<st
 
 export const useStories = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -98,6 +100,15 @@ export const useStories = () => {
       setLoading(false);
     }
   }, []);
+
+  // The composer navigates to /feed with { refreshShowcase } in state after a
+  // successful post. Consume it so the new item is fetched immediately instead
+  // of depending on the realtime INSERT event, which can arrive late or never.
+  const refreshSignal = (location.state as { refreshShowcase?: number } | null)?.refreshShowcase;
+  useEffect(() => {
+    if (!refreshSignal) return;
+    void fetchStories();
+  }, [refreshSignal, fetchStories]);
 
   useEffect(() => {
     if (user) {

@@ -57,5 +57,16 @@ verify_jwt = true
 [functions.ai-chat]
 verify_jwt = false
 
+# verify_jwt = false on purpose.
+#
+# With it true, the Supabase Edge Gateway rejects the request before the
+# function runs whenever the caller's session does not line up with the
+# gateway's expectations — which is what made calls fail on the Vercel and
+# preview domains with UNAUTHORIZED_NO_AUTH_HEADER, and left the call stuck
+# on the connecting screen.
+#
+# This does NOT make the endpoint public. The function verifies the caller
+# itself with supabase.auth.getUser(token) and returns 401 unless it gets a
+# real user back. Same pattern as the posts and messages functions.
 [functions.stream-token]
-verify_jwt = true
+verify_jwt = false

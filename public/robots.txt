@@ -13,4 +13,5 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://post-upp.lovable.app/sitemap.xml
+# Production host. Keep in step with the Supabase Auth Site URL.
+Sitemap: https://post-upp.vercel.app/sitemap.xml

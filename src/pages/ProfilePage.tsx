@@ -227,7 +227,15 @@ const ProfilePage = () => {
       {profile && (() => {
         const shareTitle = `${profile.display_name || profile.username} (@${profile.username}) | POST UPP`;
         const shareDescription = (profile.bio || `See ${profile.display_name || profile.username}'s posts and showcases on POST UPP.`).slice(0, 200);
-        const shareUrl = `https://post-upp.lovable.app/profile/${profile.username}`;
+        // Use the origin the visitor is actually on. Hardcoding the Lovable
+        // host meant anyone sharing from the Vercel deployment sent people to
+        // the other domain (and vice versa).
+        const origin = typeof window !== 'undefined' ? window.location.origin : 'https://post-upp.vercel.app';
+        const shareUrl = `${origin}/profile/${profile.username}`;
+        // Prefer the avatar for the preview image; fall back to the cover so a
+        // profile without a picture still produces a visual card rather than
+        // a bare link.
+        const previewImage = profile.avatar_url || profile.cover_url || undefined;
         return (
           <Helmet>
             <title>{shareTitle}</title>
@@ -237,11 +245,14 @@ const ProfilePage = () => {
             <meta property="og:title" content={shareTitle} />
             <meta property="og:description" content={shareDescription} />
             <meta property="og:url" content={shareUrl} />
-            {profile.avatar_url && <meta property="og:image" content={profile.avatar_url} />}
-            <meta name="twitter:card" content={profile.avatar_url ? 'summary_large_image' : 'summary'} />
+            <meta property="og:site_name" content="POST UPP" />
+            <meta property="profile:username" content={profile.username} />
+            {previewImage && <meta property="og:image" content={previewImage} />}
+            {previewImage && <meta property="og:image:alt" content={`${profile.display_name || profile.username}'s profile picture`} />}
+            <meta name="twitter:card" content={previewImage ? 'summary_large_image' : 'summary'} />
             <meta name="twitter:title" content={shareTitle} />
             <meta name="twitter:description" content={shareDescription} />
-            {profile.avatar_url && <meta name="twitter:image" content={profile.avatar_url} />}
+            {previewImage && <meta name="twitter:image" content={previewImage} />}
           </Helmet>
         );
       })()}

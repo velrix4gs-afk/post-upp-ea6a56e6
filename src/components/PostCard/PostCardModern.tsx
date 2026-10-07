@@ -1,4 +1,5 @@
 import { haptic } from '@/lib/haptics';
+import { profilePathFor } from '@/lib/profilePath';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -362,7 +363,8 @@ export const PostCardModern = ({
     if (isPagePost && post.page_username) {
       navigate(`/page/${post.page_username}`);
     } else {
-      navigate(`/profile/${post.author_id}`);
+      // Prefer the username the post already carries; fall back to the id.
+      navigate(profilePathFor(post.author_id, post.author_username));
     }
   };
   return <TooltipProvider>
@@ -527,7 +529,7 @@ export const PostCardModern = ({
                     </> : <>
                       <DropdownMenuItem onClick={e => {
                     e.stopPropagation();
-                    navigate(`/profile/${post.author_id}`);
+                    navigate(profilePathFor(post.author_id, post.author_username));
                   }}>
                         <UserCircle className="h-4 w-4 mr-2" />View Profile
                       </DropdownMenuItem>

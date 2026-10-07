@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Static routes only. Profiles and posts are per-user and would need to be
+  generated at request time, which this build cannot do.
+  Host must match the Supabase Auth Site URL (see README).
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://post-upp.lovable.app/</loc>
+    <loc>https://post-upp.vercel.app/</loc>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://post-upp.lovable.app/signin</loc>
+    <loc>https://post-upp.vercel.app/signin</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://post-upp.lovable.app/signup</loc>
+    <loc>https://post-upp.vercel.app/signup</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

@@ -23,6 +23,7 @@ import {
 import { ChevronLeft, ChevronRight, Heart, Loader2, MoreVertical, Send, X } from 'lucide-react';
 import type { Story } from '@/hooks/useStories';
 import { getCachedThumbnail } from '@/lib/videoThumbnail';
+import { cn } from '@/lib/utils';
 
 interface ShowcaseViewerProps {
   stories: Story[];
@@ -167,7 +168,11 @@ const ShowcaseViewer = ({
     setPaused(false);
   };
 
-  const storyName = currentStory.profiles.display_name || currentStory.profiles.username || 'User';
+  // profiles is an embedded join and can come back null (deleted profile, or
+  // a row the viewer may not read). Without optional chaining this threw and
+  // took the whole Showcase down.
+  const storyName =
+    currentStory.profiles?.display_name || currentStory.profiles?.username || 'User';
 
   return (
     <>
@@ -200,7 +205,7 @@ const ShowcaseViewer = ({
             </div>
             <header className="absolute inset-x-4 top-[max(calc(env(safe-area-inset-top)+24px),40px)] z-20 flex items-center gap-2 text-white">
               <Avatar className="h-9 w-9 border border-white/70">
-                <AvatarImage src={currentStory.profiles.avatar_url} />
+                <AvatarImage src={currentStory.profiles?.avatar_url} />
                 <AvatarFallback>{storyName[0]?.toUpperCase() || 'U'}</AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
@@ -342,7 +347,17 @@ const ShowcaseViewer = ({
             </Button>
 
             {currentStory.content && currentStory.media_url && (
-              <p className="absolute inset-x-5 bottom-5 line-clamp-3 rounded-2xl border border-white/15 bg-black/65 px-4 py-3 text-center text-sm font-medium text-white shadow-xl md:hidden">
+              // Sits ABOVE the reply bar. Previously bottom-5, which put the
+              // caption underneath the reply form on every device that showed
+              // both, hiding the text behind the input.
+              <p
+                className={cn(
+                  'absolute inset-x-5 line-clamp-3 rounded-2xl border border-white/15 bg-black/65 px-4 py-3 text-center text-sm font-medium text-white shadow-xl',
+                  canReply
+                    ? 'bottom-[calc(env(safe-area-inset-bottom)+5.5rem)]'
+                    : 'bottom-5',
+                )}
+              >
                 {currentStory.content}
               </p>
             )}

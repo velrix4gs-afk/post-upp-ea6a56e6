@@ -9,7 +9,11 @@ const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-const STREAM_API_KEY = 'byeg282tjdhu'; // publishable
+// Publishable key: it is already shipped to the browser as VITE_STREAM_API_KEY,
+// so it is not a secret. Read it from the environment when set, so rotating the
+// key is a config change rather than a redeploy, and fall back to the current
+// value so an unconfigured project keeps working.
+const STREAM_API_KEY = Deno.env.get('STREAM_API_KEY') || 'byeg282tjdhu';
 
 function base64url(input: ArrayBuffer | string): string {
   const bytes =
@@ -56,20 +60,28 @@ Deno.serve(async (req) => {
       });
     }
 
+    // verify_jwt is false in config.toml, so the gateway no longer screens
+    // this request. That is deliberate: the gateway rejected legitimate
+    // sessions on the Vercel and preview domains. The check below is now the
+    // ONLY gate, so it must be a real verification.
+    //
+    // getUser() calls the Auth server with the token and returns a user only
+    // if the token is valid and unexpired — it cannot be spoofed by a
+    // client-supplied payload the way decoding the JWT locally could be.
+    // Same approach as the posts and messages functions.
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
     );
     const token = authHeader.replace('Bearer ', '');
-    const { data, error } = await supabase.auth.getClaims(token);
-    if (error || !data?.claims) {
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    if (error || !user?.id) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
-    const userId = data.claims.sub as string;
+    const userId = user.id;
 
     const secret = Deno.env.get('STREAM_API_SECRET');
     if (!secret) {

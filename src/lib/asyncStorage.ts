@@ -129,6 +129,18 @@ export const CacheHelper = {
     return JSON.parse(data);
   },
 
+  /**
+   * Drop the cached Showcase list.
+   *
+   * Called after a new Showcase is posted. Without this the feed mounts,
+   * reads a cache written seconds ago, treats it as fresh, and keeps
+   * rendering a list that does not contain the item the user just posted.
+   */
+  async clearStories() {
+    await AsyncStorage.removeItem('stories_cache');
+    await AsyncStorage.removeItem('stories_timestamp');
+  },
+
   async saveNotifications(userId: string, notifications: unknown[]) {
     await AsyncStorage.setItem(`notifications_${userId}_cache`, JSON.stringify(notifications));
     await AsyncStorage.setItem(`notifications_${userId}_timestamp`, Date.now().toString());
