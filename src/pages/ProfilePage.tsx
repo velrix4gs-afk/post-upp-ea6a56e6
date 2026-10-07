@@ -20,6 +20,7 @@ import { usePinnedPosts } from '@/hooks/usePinnedPosts';
 import { useUserReplies } from '@/hooks/useUserReplies';
 import { useUserLikes } from '@/hooks/useUserLikes';
 import { Helmet } from 'react-helmet-async';
+import { copyToClipboard } from '@/lib/clipboard';
 import { EXTRA_SOCIAL_PLATFORMS } from '@/lib/socialPlatforms';
 import { Edit, MapPin, Calendar, Link as LinkIcon, Heart, Camera, UserPlus, UserCheck, MessageCircle, Pin, MessageSquare, Share2, MoreHorizontal, ExternalLink, Lock, Loader2, Instagram, Twitter, Music2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -150,24 +151,34 @@ const ProfilePage = () => {
     }
   };
   const handleShare = async () => {
+    const name = profile?.display_name || profile?.username || 'this user';
     const profileUrl = `${window.location.origin}/profile/${profile?.username}`;
+    // The URL is repeated inside `text` on purpose: several share targets
+    // (Android Chrome and some WebViews) ignore the separate `url` field and
+    // share only `text`, so the recipient got a sentence with no link.
+    const shareText = `Check out ${name}'s profile on Post Up! ${profileUrl}`;
+
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `${profile?.display_name}'s Profile`,
-          text: `Check out ${profile?.display_name}'s profile!`,
-          url: profileUrl
+          title: `${name}'s Profile`,
+          text: shareText,
+          url: profileUrl,
         });
-      } catch {
-        // Sharing can be dismissed without taking action.
+        return;
+      } catch (error) {
+        // AbortError is the user dismissing the sheet, not a failure.
+        if ((error as DOMException)?.name === 'AbortError') return;
+        // Anything else falls through to copying rather than doing nothing.
       }
-    } else {
-      await navigator.clipboard.writeText(profileUrl);
-      toast({
-        title: 'Link copied!',
-        description: 'Profile link copied to clipboard'
-      });
     }
+
+    const copied = await copyToClipboard(profileUrl);
+    toast(
+      copied
+        ? { title: 'Link copied!', description: profileUrl }
+        : { title: 'Could not copy the link', description: profileUrl, variant: 'destructive' },
+    );
   };
   const tabs = [{
     id: 'posts',

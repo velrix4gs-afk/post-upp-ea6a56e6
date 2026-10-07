@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
+import { copyToClipboard } from '@/lib/clipboard';
 
 interface ProfileHeaderProps {
   displayName: string;
@@ -36,24 +37,38 @@ export const ProfileHeader = ({
 
   const handleShare = async () => {
     const profileUrl = `${window.location.origin}/profile/${username}`;
-    
+    // The URL is repeated inside `text` on purpose. Several share targets
+    // (notably Android Chrome and some WebViews) ignore the separate `url`
+    // field and share only `text`, so the recipient received "Check out X's
+    // profile" with no link at all.
+    const shareText = `Check out ${displayName}'s profile on Post Up! ${profileUrl}`;
+
     if (navigator.share) {
       try {
         await navigator.share({
           title: `${displayName}'s Profile`,
-          text: `Check out ${displayName}'s profile on Post Up!`,
+          text: shareText,
           url: profileUrl,
         });
+        return;
       } catch (error) {
-        // User cancelled or error
+        // AbortError is the user dismissing the sheet: not a failure, and not
+        // something to fall back from.
+        if ((error as DOMException)?.name === 'AbortError') return;
+        // Any other failure falls through to copying instead of doing nothing.
       }
-    } else {
-      await navigator.clipboard.writeText(profileUrl);
-      toast({
-        title: 'Link copied!',
-        description: 'Profile link copied to clipboard',
-      });
     }
+
+    const copied = await copyToClipboard(profileUrl);
+    toast(
+      copied
+        ? { title: 'Link copied!', description: profileUrl }
+        : {
+            title: 'Could not copy the link',
+            description: profileUrl,
+            variant: 'destructive',
+          },
+    );
   };
 
   return (

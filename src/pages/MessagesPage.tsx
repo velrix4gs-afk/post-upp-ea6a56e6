@@ -254,6 +254,39 @@ const MessagesPage = () => {
     }
   }, [messages, user?.id, messagesInitialLoaded]);
 
+  /**
+   * Keep the newest message in view while the thread is still settling.
+   *
+   * The initial scroll runs once, but images and videos in the thread finish
+   * loading afterwards and grow the container. The one-shot scroll then leaves
+   * the view above the real bottom, so opening a chat showed the second-to-last
+   * message with the latest one just below the fold. This pins to the bottom on
+   * every size change for a short window after the initial load, and only while
+   * the user has not deliberately scrolled away.
+   */
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || !messagesInitialLoaded) return;
+    if (typeof ResizeObserver === 'undefined') return;
+
+    let settled = false;
+    const settleTimer = window.setTimeout(() => { settled = true; }, 3000);
+
+    const observer = new ResizeObserver(() => {
+      if (settled) return;
+      // Respect a deliberate scroll away from the bottom.
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (distanceFromBottom > 200) return;
+      container.scrollTop = container.scrollHeight;
+    });
+    observer.observe(container);
+
+    return () => {
+      window.clearTimeout(settleTimer);
+      observer.disconnect();
+    };
+  }, [messagesInitialLoaded, selectedChatId]);
+
   useEffect(() => {
     isInitialLoadRef.current = true;
     setPinnedMessageId(null);

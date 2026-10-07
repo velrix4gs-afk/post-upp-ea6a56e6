@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -58,8 +58,13 @@ export const useStories = () => {
   const location = useLocation();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
+  // Once a real fetch has produced a list, the cache must never overwrite it.
+  // The cached read is async and used to land AFTER the network fetch, putting
+  // a stale list back on screen the moment a new Showcase had been posted.
+  const freshFetchDoneRef = useRef(false);
 
   const fetchStories = useCallback(async () => {
+    let storiesData: Story[] = [];
     try {
       const { data, error } = await supabase
         .from('showcases')
@@ -84,11 +89,11 @@ export const useStories = () => {
       // Drop items whose media could not be resolved (missing object, failed
       // signing). A text-only item is legitimate and has no media_url but does
       // have content, so keep those.
-      const storiesData = resolved.filter(
+      storiesData = resolved.filter(
         (story) => Boolean(story.media_url) || Boolean(story.content && story.content.trim()),
       );
       setStories(storiesData);
-      await CacheHelper.saveStories(storiesData);
+      freshFetchDoneRef.current = true;
     } catch (err) {
       console.error('Error loading stories:', err);
       toast({
@@ -96,8 +101,19 @@ export const useStories = () => {
         description: 'Failed to load stories',
         variant: 'destructive'
       });
+      return;
     } finally {
       setLoading(false);
+    }
+
+    // Cache write is a best-effort side effect and runs OUTSIDE the try above.
+    // It used to sit inside, so a storage failure (quota, private mode, a
+    // WebView with localStorage disabled) threw into the catch and reported
+    // "Failed to load stories" even though the list had loaded and rendered.
+    try {
+      await CacheHelper.saveStories(storiesData);
+    } catch (cacheError) {
+      console.warn('[showcase] could not cache the Showcase list', cacheError);
     }
   }, []);
 
@@ -107,13 +123,16 @@ export const useStories = () => {
   const refreshSignal = (location.state as { refreshShowcase?: number } | null)?.refreshShowcase;
   useEffect(() => {
     if (!refreshSignal) return;
+    freshFetchDoneRef.current = false;
     void fetchStories();
   }, [refreshSignal, fetchStories]);
 
   useEffect(() => {
     if (user) {
-      // Load cached stories first
+      // Load cached stories first, for an instant paint on a cold open. Skipped
+      // once a real fetch has completed, so it cannot resurrect a stale list.
       CacheHelper.getStories().then(cached => {
+        if (freshFetchDoneRef.current) return;
         if (cached && cached.length > 0) {
           setStories(cached);
           setLoading(false);
