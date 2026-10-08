@@ -22,7 +22,7 @@ export const useUserLikes = (userId?: string) => {
   const [loading, setLoading] = useState(true);
 
   const fetchLikedPosts = async () => {
-    if (!userId) {
+    if (!userId || !enabled) {
       setLoading(false);
       return;
     }

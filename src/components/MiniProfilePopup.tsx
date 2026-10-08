@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import { FollowersDialog } from "@/components/FollowersDialog";
 import { ensurePrivateChat } from "@/lib/chatCreation";
 import { canViewFullProfile } from "@/lib/profilePrivacy";
+import { profilePathFor } from '@/lib/profilePath';
 
 interface MiniProfilePopupProps {
   userId: string;
@@ -57,19 +58,19 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
   // Check if users are mutual followers
   const isMutualFollower = useMemo(() => {
     if (!user || isOwnProfile) return false;
-    
+
     // Check if current user follows target
     const currentUserFollowsTarget = viewerFollowing.some(f => f.following_id === userId);
     // Check if target follows current user (target's followers include current user)
     const targetFollowsCurrentUser = targetFollowers.some(f => f.follower_id === user.id);
-    
+
     return currentUserFollowsTarget && targetFollowsCurrentUser;
   }, [user, userId, viewerFollowing, targetFollowers, isOwnProfile]);
 
   const handleMessage = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) return;
-    
+
     // Check mutual follow status before allowing message
     if (!isMutualFollower) {
       toast({
@@ -79,7 +80,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
       });
       return;
     }
-    
+
     try {
       const chatId = await ensurePrivateChat(user.id, userId);
       // Preserve breadcrumb: remember which popup was open so back-navigation
@@ -97,8 +98,8 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
   const handleViewProfile = (e: React.MouseEvent) => {
     e.stopPropagation();
-    navigate(`/profile/${userId}`, { state: { overlayProfileId: userId } });
-    onClose?.();
+    navigate(profilePathFor(profile || { id: userId }), { state: { overlayProfileId: userId } });
+
   };
 
   // Build user lists for dialogs
@@ -153,7 +154,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
   return (
     <>
-      <Card 
+      <Card
         className="w-80 overflow-hidden border-border/30 shadow-2xl mini-profile-popup animate-in fade-in-0 zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -169,8 +170,8 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
           {/* Centered Avatar */}
           <div className="flex justify-center -mt-12 mb-4">
             <div className="relative">
-              <Avatar 
-                className="h-24 w-24 border-4 border-card ring-4 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all shadow-xl" 
+              <Avatar
+                className="h-24 w-24 border-4 border-card ring-4 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all shadow-xl"
                 onClick={handleViewProfile}
               >
                 <AvatarImage src={profile.avatar_url} alt={profile.display_name} className="object-cover" />
@@ -180,7 +181,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               </Avatar>
               {profile.is_verified && (
                 <div className="absolute -bottom-1 -right-1 bg-card rounded-full p-0.5 shadow-md">
-                  <VerificationBadge 
+                  <VerificationBadge
                     isVerified={profile.is_verified}
                     verificationType={profile.verification_type}
                     className="!w-5 !h-5"
@@ -192,13 +193,13 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
           {/* Name and Username */}
           <div className="text-center mb-3">
-            <h3 
+            <h3
               className="font-bold text-lg flex items-center justify-center gap-1.5 cursor-pointer hover:underline"
               onClick={handleViewProfile}
             >
               {profile.display_name}
               {profile.is_verified && (
-                <VerificationBadge 
+                <VerificationBadge
                   isVerified={profile.is_verified}
                   verificationType={profile.verification_type}
                   className="!w-5 !h-5"
@@ -230,9 +231,9 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
                 </div>
               )}
               {profile.website && (
-                <a 
-                  href={profile.website} 
-                  target="_blank" 
+                <a
+                  href={profile.website}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 hover:text-primary transition-colors"
                   onClick={(e) => e.stopPropagation()}
@@ -248,7 +249,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
           {/* Stats Row - Clickable */}
           <div className="flex items-center justify-center gap-8 mb-5">
-            <button 
+            <button
               className="text-center hover:bg-muted/50 px-3 py-2 rounded-lg transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
@@ -258,7 +259,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               <div className="font-bold text-lg text-foreground">{formatCount(targetFollowing.length)}</div>
               <div className="text-xs text-muted-foreground">Following</div>
             </button>
-            <button 
+            <button
               className="text-center hover:bg-muted/50 px-3 py-2 rounded-lg transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
@@ -268,7 +269,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               <div className="font-bold text-lg text-foreground">{formatCount(targetFollowers.length)}</div>
               <div className="text-xs text-muted-foreground">Followers</div>
             </button>
-            <button 
+            <button
               className="text-center hover:bg-muted/50 px-3 py-2 rounded-lg transition-colors"
               onClick={handleViewProfile}
             >

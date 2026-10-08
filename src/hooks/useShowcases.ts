@@ -46,17 +46,22 @@ export const resolveStoryMediaUrl = async (mediaUrl?: string | null): Promise<st
   if (!mediaUrl) return undefined;
   const path = storyObjectPath(mediaUrl);
   if (!path) return mediaUrl;
+
+  // 1. Instant public URL resolve (zero network latency, no RLS failure)
+  const { data: publicData } = supabase.storage.from('stories').getPublicUrl(path);
+  if (publicData?.publicUrl) {
+    return publicData.publicUrl;
+  }
+
+  // 2. Fallback to signed URL if required
   const { data, error } = await supabase.storage.from('stories').createSignedUrl(path, 60 * 60);
   if (error || !data?.signedUrl) {
-    // Never throw here. This runs inside a map over every Showcase item, so a
-    // single row pointing at a missing object used to reject the whole list
-    // and blank the entire Showcase strip (plus a "Failed to load stories"
-    // toast). One dead file should cost one item, not the feature.
-    console.warn('[showcase] Could not sign media for a Showcase item; skipping it:', error?.message ?? 'no signed url');
-    return undefined;
+    console.warn('[showcase] Could not resolve media; using fallback:', error?.message ?? 'no url');
+    return mediaUrl.startsWith('http') ? mediaUrl : undefined;
   }
   return data.signedUrl;
 };
+
 
 export const useStories = () => {
   const { user } = useAuth();
@@ -156,7 +161,7 @@ export const useStories = () => {
       });
 
       fetchStories();
-      
+
       // Real-time: handle INSERT/DELETE directly in state
       const channel = supabase
         .channel(`stories-realtime:${Math.random().toString(36).slice(2, 10)}`)
@@ -228,7 +233,7 @@ export const useStories = () => {
         const fileExt = mediaFile.type.split('/')[1]?.split(';')[0]?.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'bin';
         const uploadId = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const fileName = `${user.id}/${uploadId}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('stories')
           .upload(fileName, mediaFile, { upsert: false, contentType: mediaFile.type, cacheControl: '3600' });
@@ -279,7 +284,7 @@ export const useStories = () => {
       toast({
         description: 'Story created successfully!',
       });
-      
+
       // Real-time will handle adding to state
       return true;
     } catch (err: unknown) {

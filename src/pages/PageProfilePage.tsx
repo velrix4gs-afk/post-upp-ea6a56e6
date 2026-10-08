@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Users, Settings, Send, ImageIcon, CheckCircle, Globe, Mail, X, ThumbsUp, FileText } from 'lucide-react';
 import { PostCardModern } from '@/components/PostCard/PostCardModern';
 import { toast } from '@/hooks/use-toast';
-import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
+import { GalleryPickerSheet } from '@/components/showcase/GalleryPickerSheet';
 
 const PageProfilePage = () => {
   const { username } = useParams<{ username: string }>();

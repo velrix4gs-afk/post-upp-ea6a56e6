@@ -69,11 +69,11 @@ export const useUserReplies = (userId?: string) => {
         post_id: item.post_id,
         post: postMap[item.post_id]
           ? {
-              id: postMap[item.post_id].id,
-              content: postMap[item.post_id].content,
-              user_id: postMap[item.post_id].user_id,
-              profiles: postMap[item.post_id].profiles,
-            }
+            id: postMap[item.post_id].id,
+            content: postMap[item.post_id].content,
+            user_id: postMap[item.post_id].user_id,
+            profiles: postMap[item.post_id].profiles,
+          }
           : undefined,
       }));
 

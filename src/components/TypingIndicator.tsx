@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { acquireTypingChannel } from '@/lib/typingChannel';
 
 interface TypingIndicatorProps {
   chatId: string;
@@ -28,99 +29,103 @@ const TypingIndicator = ({ chatId }: TypingIndicatorProps) => {
   useEffect(() => {
     if (!chatId || !user) return;
 
-    const timers = typingTimers.current;
-    const channel = supabase
-      .channel(`typing:${chatId}`)
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const event = payload.payload as TypingEvent;
 
-        if (event.user_id !== user.id) {
-          if (event.is_typing) {
-            const previousTimer = timers.get(event.user_id);
-            if (previousTimer) clearTimeout(previousTimer);
-            timers.set(event.user_id, setTimeout(() => {
+
+    // In useEffect (replacing lines 32–64):
+    const timers = typingTimers.current;
+    const handle = acquireTypingChannel(chatId);
+
+    const offEvent = handle.onEvent((event) => {
+      if (event.user_id !== user.id) {
+        if (event.is_typing) {
+          const previousTimer = timers.get(event.user_id);
+          if (previousTimer) clearTimeout(previousTimer);
+          timers.set(
+            event.user_id,
+            setTimeout(() => {
               timers.delete(event.user_id);
-              setTypingUsers((previous) => previous.filter((typingUser) => typingUser.id !== event.user_id));
-            }, STALE_TYPING_MS));
-            setTypingUsers((prev) => [
-              ...prev.filter((typingUser) => typingUser.id !== event.user_id),
-              { id: event.user_id, name: event.display_name || 'Someone' },
-            ]);
-          } else {
-            const previousTimer = timers.get(event.user_id);
-            if (previousTimer) clearTimeout(previousTimer);
-            timers.delete(event.user_id);
-            setTypingUsers((prev) => prev.filter((typingUser) => typingUser.id !== event.user_id));
-          }
+              setTypingUsers((prev) => prev.filter((u) => u.id !== event.user_id));
+            }, STALE_TYPING_MS)
+          );
+          setTypingUsers((prev) => {
+            if (prev.some((u) => u.id === event.user_id)) return prev;
+            return [...prev, { id: event.user_id, name: event.display_name || 'Someone' }];
+          });
+        } else {
+          const previousTimer = timers.get(event.user_id);
+          if (previousTimer) clearTimeout(previousTimer);
+          timers.delete(event.user_id);
+          setTypingUsers((prev) => prev.filter((u) => u.id !== event.user_id));
         }
-      })
-      .subscribe();
+      }
+    });
 
     return () => {
       timers.forEach(clearTimeout);
       timers.clear();
-      supabase.removeChannel(channel);
+      offEvent();
+      handle.release();
     };
-  }, [chatId, user]);
 
-  // Reset when switching conversations so a stale bubble never carries over.
-  useEffect(() => {
-    typingTimers.current.forEach(clearTimeout);
-    typingTimers.current.clear();
-    setTypingUsers([]);
-  }, [chatId]);
 
-  useEffect(() => {
-    if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    // Reset when switching conversations so a stale bubble never carries over.
+    useEffect(() => {
+      typingTimers.current.forEach(clearTimeout);
+      typingTimers.current.clear();
+      setTypingUsers([]);
+    }, [chatId]);
 
-    if (typingUsers.length > 0) {
-      setMounted(true);
-      // Next frame so the enter transition actually runs.
-      const raf = requestAnimationFrame(() => setVisible(true));
-      return () => cancelAnimationFrame(raf);
-    }
-
-    setVisible(false);
-    fadeTimer.current = setTimeout(() => setMounted(false), FADE_MS);
-    return () => {
+    useEffect(() => {
       if (fadeTimer.current) clearTimeout(fadeTimer.current);
-    };
-  }, [typingUsers]);
 
-  useEffect(() => () => {
-    if (fadeTimer.current) clearTimeout(fadeTimer.current);
-  }, []);
+      if (typingUsers.length > 0) {
+        setMounted(true);
+        // Next frame so the enter transition actually runs.
+        const raf = requestAnimationFrame(() => setVisible(true));
+        return () => cancelAnimationFrame(raf);
+      }
 
-  if (!mounted) return null;
+      setVisible(false);
+      fadeTimer.current = setTimeout(() => setMounted(false), FADE_MS);
+      return () => {
+        if (fadeTimer.current) clearTimeout(fadeTimer.current);
+      };
+    }, [typingUsers]);
 
-  const label =
-    typingUsers.length === 0
-      ? ''
-      : typingUsers.length === 1
-      ? `${typingUsers[0].name} is typing`
-      : `${typingUsers.slice(0, 2).map((typingUser) => typingUser.name).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} are typing`;
+    useEffect(() => () => {
+      if (fadeTimer.current) clearTimeout(fadeTimer.current);
+    }, []);
 
-  return (
-    <div
-      aria-live="polite"
-      className={cn(
-        'flex items-end gap-2 px-4 pb-1 pt-0.5',
-        'transition-all duration-300 ease-out will-change-transform',
-        visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-1.5 scale-95'
-      )}
-    >
-      <div className="relative">
-        <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-[8px] bg-[#ffffff] dark:bg-[#202c33] border border-border/50 px-3.5 py-2.5 shadow-sm">
-          <span className="typing-dot h-2 w-2 rounded-full bg-muted-foreground/70" />
-          <span className="typing-dot h-2 w-2 rounded-full bg-muted-foreground/70" />
-          <span className="typing-dot h-2 w-2 rounded-full bg-muted-foreground/70" />
+    if (!mounted) return null;
+
+    const label =
+      typingUsers.length === 0
+        ? ''
+        : typingUsers.length === 1
+          ? `${typingUsers[0].name} is typing`
+          : `${typingUsers.slice(0, 2).map((typingUser) => typingUser.name).join(', ')}${typingUsers.length > 2 ? ' and others' : ''} are typing`;
+
+    return (
+      <div
+        aria-live="polite"
+        className={cn(
+          'flex items-end gap-2 px-4 pb-1 pt-0.5',
+          'transition-all duration-300 ease-out will-change-transform',
+          visible ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-1.5 scale-95'
+        )}
+      >
+        <div className="relative">
+          <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-[8px] bg-[#ffffff] dark:bg-[#202c33] border border-border/50 px-3.5 py-2.5 shadow-sm">
+            <span className="typing-dot h-2 w-2 rounded-full bg-muted-foreground/70" />
+            <span className="typing-dot h-2 w-2 rounded-full bg-muted-foreground/70" />
+            <span className="typing-dot h-2 w-2 rounded-full bg-muted-foreground/70" />
+          </div>
         </div>
+        {label && (
+          <span className="text-[11px] text-muted-foreground mb-1 truncate max-w-[55%]">{label}</span>
+        )}
       </div>
-      {label && (
-        <span className="text-[11px] text-muted-foreground mb-1 truncate max-w-[55%]">{label}</span>
-      )}
-    </div>
-  );
-};
+    );
+  };
 
-export default TypingIndicator;
+  export default TypingIndicator;

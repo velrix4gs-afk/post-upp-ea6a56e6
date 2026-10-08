@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { VerificationBadge } from '@/components/premium/VerificationBadge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useNavigate } from 'react-router-dom';
+import { profilePathFor } from '@/lib/profilePath';
 
 interface User {
   id: string;
@@ -40,7 +41,7 @@ export const FollowersDialog = ({ open, onClose, users, title }: FollowersDialog
               users.map((user) => (
                 <div key={user.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/70 transition-colors">
                   <ProfileHoverCard userId={user.id}>
-                    <Avatar className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate(`/profile/${user.id}`)}>
+                    <Avatar className="h-12 w-12 cursor-pointer hover:opacity-80 transition-opacity" onClick={() => navigate(profilePathFor(user))}>
                       <AvatarImage src={user.avatar_url} />
                       <AvatarFallback>{user.display_name[0]}</AvatarFallback>
                     </Avatar>
@@ -54,7 +55,7 @@ export const FollowersDialog = ({ open, onClose, users, title }: FollowersDialog
                     </ProfileHoverCard>
                     <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
                   </div>
-                  <Button size="sm" variant="outline" onClick={() => navigate(`/profile/${user.id}`)}>View</Button>
+                  <Button size="sm" variant="outline" onClick={() => navigate(profilePathFor(user))}>View</Button>
                 </div>
               ))
             )}

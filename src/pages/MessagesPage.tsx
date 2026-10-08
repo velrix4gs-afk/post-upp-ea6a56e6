@@ -28,7 +28,7 @@ import { LocationShareDialog } from '@/components/messaging/LocationShareDialog'
 import { ContactShareDialog } from '@/components/messaging/ContactShareDialog';
 import { ChatMenu } from '@/components/ChatMenu';
 import { DisappearingMessagesDialog } from '@/components/messaging/DisappearingMessagesDialog';
-import { GalleryPickerSheet } from '@/components/story/GalleryPickerSheet';
+import { GalleryPickerSheet } from '@/components/showcase/GalleryPickerSheet';
 import { ChatAttachmentsSheet } from '@/components/messaging/ChatAttachmentsSheet';
 import { ScheduleMessageDialog } from '@/components/messaging/ScheduleMessageDialog';
 import { ChatListItem } from '@/components/messaging/ChatListItem';
@@ -654,10 +654,10 @@ const MessagesPage = () => {
       const extension = audioMime.includes('mp4')
         ? 'm4a'
         : audioMime.includes('mpeg')
-        ? 'mp3'
-        : audioMime.includes('ogg')
-        ? 'ogg'
-        : 'webm';
+          ? 'mp3'
+          : audioMime.includes('ogg')
+            ? 'ogg'
+            : 'webm';
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       // The `messages` bucket rejects audio mime types, so voice notes live in the
       // dedicated `voice-notes` bucket which accepts the real audio mime.
@@ -1079,15 +1079,15 @@ const MessagesPage = () => {
             'flex-1 min-h-0 overflow-y-auto px-2 py-2 smooth-scroll relative transition-[background-color] duration-300 ease-out',
             !chatSettings?.wallpaper_url && 'chat-wallpaper',
             chatSettings?.wallpaper_url && !isWallpaperUrl(chatSettings.wallpaper_url) &&
-              (WALLPAPER_PRESETS[chatSettings.wallpaper_url] || '')
+            (WALLPAPER_PRESETS[chatSettings.wallpaper_url] || '')
           )}
           style={
             chatSettings?.wallpaper_url && isWallpaperUrl(chatSettings.wallpaper_url)
               ? {
-                  backgroundImage: `url(${chatSettings.wallpaper_url})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }
+                backgroundImage: `url(${chatSettings.wallpaper_url})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }
               : undefined
           }
         >
@@ -1109,17 +1109,17 @@ const MessagesPage = () => {
                 const senderProfile = selectedParticipants.find((p) => p.user_id === message.sender_id)?.profiles;
                 const replyToData = message.reply_to
                   ? (() => {
-                      const replyMsg = messages.find((m) => m.id === message.reply_to);
-                      if (!replyMsg) return undefined;
-                      const rsp = selectedParticipants.find((p) => p.user_id === replyMsg.sender_id)?.profiles;
-                      return {
-                        id: replyMsg.id,
-                        content: replyMsg.content || '',
-                        sender_name: rsp?.display_name || 'Unknown',
-                        media_url: replyMsg.media_url,
-                        media_type: replyMsg.media_type,
-                      };
-                    })()
+                    const replyMsg = messages.find((m) => m.id === message.reply_to);
+                    if (!replyMsg) return undefined;
+                    const rsp = selectedParticipants.find((p) => p.user_id === replyMsg.sender_id)?.profiles;
+                    return {
+                      id: replyMsg.id,
+                      content: replyMsg.content || '',
+                      sender_name: rsp?.display_name || 'Unknown',
+                      media_url: replyMsg.media_url,
+                      media_type: replyMsg.media_type,
+                    };
+                  })()
                   : undefined;
 
                 return (
@@ -1174,8 +1174,8 @@ const MessagesPage = () => {
                     {pendingUpload.mediaType.startsWith('audio')
                       ? 'Sending voice note…'
                       : pendingUpload.mediaType.startsWith('video')
-                      ? 'Sending video…'
-                      : 'Sending photo…'}
+                        ? 'Sending video…'
+                        : 'Sending photo…'}
                   </p>
                   <span className="text-[11px] opacity-80">{Math.round(pendingUpload.progress)}%</span>
                   <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">

@@ -1,3 +1,4 @@
+
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -6,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { profilePathFor } from '@/lib/profilePath';
 import { Home, MessageCircle, Users, Compass, Bookmark, BarChart3, Settings, Crown, BadgeCheck, FileText, Receipt, HelpCircle, LogOut, ChevronRight, type LucideIcon } from 'lucide-react';
 interface MenuPanelProps {
   isOpen: boolean;
@@ -59,7 +61,7 @@ export const MenuPanel = ({
     {trigger && <SheetTrigger asChild>{trigger}</SheetTrigger>}
     <SheetContent side="right" className="w-[400px] p-6 overflow-y-auto bg-background border-l">
       {/* Profile Section */}
-      <div onClick={() => handleNavigation(`/profile/${user?.id}`)} className="group gap-3 p-4 rounded-2xl hover:bg-gradient-to-r hover:from-primary/10 hover:to-primary/5 cursor-pointer transition-all duration-300 mb-6 border border-transparent hover:border-primary/20 hover:scale-[1.02] flex items-center justify-end shadow-md">
+      <div onClick={() => handleNavigation(profilePathFor(profile || { id: user?.id }))} className="group gap-3 p-4 rounded-2xl ...">
         <div className="relative">
           <Avatar className="h-14 w-14 ring-2 ring-background group-hover:ring-primary/50 transition-all duration-300">
             <AvatarImage src={profile?.avatar_url} />

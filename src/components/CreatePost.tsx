@@ -5,11 +5,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { 
-  Image, 
-  Video, 
-  Smile, 
-  MapPin, 
+import {
+  Image,
+  Video,
+  Smile,
+  MapPin,
   Users,
   X,
   Save,
@@ -31,7 +31,7 @@ import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
 import { MentionTextarea } from "@/components/composer/MentionTextarea";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
-import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
+import { GalleryPickerSheet } from "@/components/showcase/GalleryPickerSheet";
 import { normalizeMediaFile } from "@/lib/deviceGallery";
 
 const FEELINGS = [
@@ -122,8 +122,8 @@ const CreatePost = () => {
       // Allow 100MB for videos, 10MB for images
       const maxSize = normalizedFile.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
       if (normalizedFile.size > maxSize) {
-        showCleanError({ 
-          code: 'POST_003', 
+        showCleanError({
+          code: 'POST_003',
           message: `${file.name} exceeds ${normalizedFile.type.startsWith('video/') ? '100MB' : '10MB'} limit`
         }, toast);
         return [];
@@ -170,13 +170,13 @@ const CreatePost = () => {
   const uploadPostMedia = async (files: File[]): Promise<string[]> => {
     const uploadedUrls: string[] = [];
     setUploadProgress(0);
-    
+
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const fileExt = file.name.split('.').pop();
         const fileName = `${user?.id}/${Date.now()}-${Math.random()}.${fileExt}`;
-        
+
         const { error: uploadError } = await supabase.storage
           .from('posts')
           .upload(fileName, file);
@@ -194,7 +194,7 @@ const CreatePost = () => {
         uploadedUrls.push(publicUrl);
         setUploadProgress(Math.round(((i + 1) / files.length) * 100));
       }
-      
+
       return uploadedUrls;
     } catch (error: any) {
       showCleanError(error, toast, 'Upload Failed');
@@ -237,11 +237,11 @@ const CreatePost = () => {
       const postData: any = {
         privacy: 'public'
       };
-      
+
       if (contentWithFeeling) {
         postData.content = contentWithFeeling;
       }
-      
+
       if (mediaUrls.length > 0) {
         if (mediaUrls.length === 1) {
           postData.media_url = mediaUrls[0];
@@ -300,7 +300,7 @@ const CreatePost = () => {
 
   const handleSaveDraft = async () => {
     if (!postContent.trim() && selectedImages.length === 0) return;
-    
+
     let mediaUrls: string[] = [];
     if (selectedImages.length > 0) {
       mediaUrls = await uploadPostMedia(selectedImages);
@@ -496,15 +496,15 @@ const CreatePost = () => {
               <>
                 {uploadProgress > 0 && uploadProgress < 100 && (
                   <div className="w-full bg-muted rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
                 )}
                 <DraftsDialog onSelectDraft={handleLoadDraft} />
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={handleSaveDraft}
                   disabled={!postContent.trim() && selectedImages.length === 0}
@@ -514,8 +514,8 @@ const CreatePost = () => {
                 </Button>
               </>
             )}
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               className="bg-gradient-primary hover:shadow-glow transition-all duration-300"
               disabled={(!postContent.trim() && selectedImages.length === 0) || isPosting}
               onClick={handlePost}

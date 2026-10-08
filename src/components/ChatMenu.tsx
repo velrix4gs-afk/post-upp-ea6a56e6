@@ -223,7 +223,11 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
         <DropdownMenuContent align="end" className="w-64 max-h-[70vh] overflow-y-auto p-1.5 shadow-xl" onClick={(e) => e.stopPropagation()}>
           {otherUserId && (
             <>
-              <DropdownMenuItem onClick={() => navigate(`/profile/${otherUserId}`)} className="rounded-lg py-2.5 px-3 gap-3">
+              <DropdownMenuItem
+                onClick={() => navigate(profilePathFor(chatUser || { id: otherUserId }))}
+                className="rounded-lg py-2.5 px-3 gap-3"
+              >
+
                 <UserCircle className="h-4 w-4 text-primary" />
                 View Profile
               </DropdownMenuItem>

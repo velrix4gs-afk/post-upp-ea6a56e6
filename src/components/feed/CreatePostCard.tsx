@@ -21,7 +21,7 @@ import DraftsDialog from "../DraftsDialog";
 import { UserTagSelector } from "../UserTagSelector";
 import { ReorderableThumbs } from "@/components/composer/ReorderableThumbs";
 import { MentionTextarea } from "@/components/composer/MentionTextarea";
-import { GalleryPickerSheet } from "@/components/story/GalleryPickerSheet";
+import { GalleryPickerSheet } from "@/components/showcase/GalleryPickerSheet";
 import { useGhostDraft } from "@/hooks/useGhostDraft";
 import { postContentSchema } from "@/lib/validationSchemas";
 import { cn } from "@/lib/utils";
@@ -389,209 +389,209 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
     }
   };
   return <Card className="bg-card border-border shadow-sm w-full max-w-full overflow-hidden rounded-md border-0">
-      <div className="min-w-0 overflow-x-hidden\n">
-        {/* Header with Avatar */}
-        <div className="flex items-center space-x-3 mb-4 pt-[10px] pr-[9px] pl-[5px]">
-          <Avatar className="h-10 w-10 ring-2 ring-border flex-shrink-0">
-            <AvatarImage src={profile?.avatar_url} />
-            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-              {profile?.display_name?.charAt(0) || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          
-          <div className="flex-1 min-w-0 max-w-full overflow-hidden">
-            <MentionTextarea placeholder="Write a caption..." value={postContent} style={{ fontSize: '16px' }} onValueChange={value => {
+    <div className="min-w-0 overflow-x-hidden\n">
+      {/* Header with Avatar */}
+      <div className="flex items-center space-x-3 mb-4 pt-[10px] pr-[9px] pl-[5px]">
+        <Avatar className="h-10 w-10 ring-2 ring-border flex-shrink-0">
+          <AvatarImage src={profile?.avatar_url} />
+          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+            {profile?.display_name?.charAt(0) || 'U'}
+          </AvatarFallback>
+        </Avatar>
+
+        <div className="flex-1 min-w-0 max-w-full overflow-hidden">
+          <MentionTextarea placeholder="Write a caption..." value={postContent} style={{ fontSize: '16px' }} onValueChange={value => {
             if (value.length <= MAX_CHARS) {
               setPostContent(value);
             }
           }} onFocus={() => setIsExpanded(true)} className="border-0 bg-muted/50 resize-none focus-visible:ring-primary min-h-[60px] max-h-[40vh] overflow-y-auto pr-[5px]" />
 
-            {showRestoredNotice && <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
-                <span className="text-xs text-muted-foreground">Picked up where you left off.</span>
-                <button type="button" onClick={() => {
+          {showRestoredNotice && <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
+            <span className="text-xs text-muted-foreground">Picked up where you left off.</span>
+            <button type="button" onClick={() => {
               setPostContent('');
               clearGhostDraft();
             }} className="text-xs font-medium text-primary hover:underline">
-                  Discard
-                </button>
-                <button type="button" onClick={dismissNotice} className="text-xs text-muted-foreground hover:underline">
-                  Dismiss
-                </button>
-              </div>}
-            
-            {/* Character counter */}
-            {isExpanded && postContent.length > 0 && <div className="flex items-center justify-end mt-2 gap-2">
-                <div className="relative h-5 w-5">
-                  <svg className="h-5 w-5 -rotate-90" viewBox="0 0 20 20">
-                    <circle cx="10" cy="10" r="8" fill="none" stroke="hsl(var(--muted))" strokeWidth="2" />
-                    <circle cx="10" cy="10" r="8" fill="none" stroke={charPercentage > 90 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'} strokeWidth="2" strokeDasharray={`${charPercentage * 0.5} 50`} strokeLinecap="round" />
-                  </svg>
-                </div>
-                <span className={cn("text-xs", charPercentage > 90 ? "text-destructive" : "text-muted-foreground")}>
-                  {charCount}/{MAX_CHARS}
-                </span>
-              </div>}
-          </div>
-        </div>;
-
-        {/* Image Previews - BELOW text area as thumbnails */}
-        {previewImages.length > 0 && <div className="px-2">
-            <ReorderableThumbs items={previewImages} onReorder={reorderImages} onRemove={removeImage} />
-            {previewImages.length > 1 && <p className="mt-1 text-[11px] text-muted-foreground">
-                Hold and drag a photo to change its order
-              </p>}
+              Discard
+            </button>
+            <button type="button" onClick={dismissNotice} className="text-xs text-muted-foreground hover:underline">
+              Dismiss
+            </button>
           </div>}
 
-        {/* Upload Progress */}
-        {uploadProgress > 0 && uploadProgress < 100 && <div className="mt-3">
-            <div className="h-1 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{
+          {/* Character counter */}
+          {isExpanded && postContent.length > 0 && <div className="flex items-center justify-end mt-2 gap-2">
+            <div className="relative h-5 w-5">
+              <svg className="h-5 w-5 -rotate-90" viewBox="0 0 20 20">
+                <circle cx="10" cy="10" r="8" fill="none" stroke="hsl(var(--muted))" strokeWidth="2" />
+                <circle cx="10" cy="10" r="8" fill="none" stroke={charPercentage > 90 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'} strokeWidth="2" strokeDasharray={`${charPercentage * 0.5} 50`} strokeLinecap="round" />
+              </svg>
+            </div>
+            <span className={cn("text-xs", charPercentage > 90 ? "text-destructive" : "text-muted-foreground")}>
+              {charCount}/{MAX_CHARS}
+            </span>
+          </div>}
+        </div>
+      </div>;
+
+      {/* Image Previews - BELOW text area as thumbnails */}
+      {previewImages.length > 0 && <div className="px-2">
+        <ReorderableThumbs items={previewImages} onReorder={reorderImages} onRemove={removeImage} />
+        {previewImages.length > 1 && <p className="mt-1 text-[11px] text-muted-foreground">
+          Hold and drag a photo to change its order
+        </p>}
+      </div>}
+
+      {/* Upload Progress */}
+      {uploadProgress > 0 && uploadProgress < 100 && <div className="mt-3">
+        <div className="h-1 bg-muted rounded-full overflow-hidden">
+          <div className="h-full bg-primary transition-all duration-300 rounded-full" style={{
             width: `${uploadProgress}%`
           }} />
+        </div>
+      </div>}
+
+      {/* Divider */}
+      <div className="border-t mt-4 pt-3 border-black/0">
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pb-[7px] pr-[5px] pl-[3px]">
+          <div className="flex items-center gap-1 flex-wrap">
+            {/* Photo/Video */}
+            <div className="relative">
+              <input
+                ref={mediaInputRef}
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                className="hidden"
+                onChange={(event) => {
+                  addMediaFiles(Array.from(event.target.files || []));
+                  event.target.value = '';
+                }}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 px-3 gap-2 cursor-pointer rounded-lg hover:bg-success/10"
+                onClick={handleSelectMedia}
+                title="Choose a folder of photos and videos, or select media files"
+              >
+                <Image className="h-5 w-5 text-success" />
+                <span className="text-sm hidden sm:inline">Select media</span>
+                {selectedImages.length > 0 && <span className="text-xs bg-success/20 text-success px-1.5 rounded-full">
+                  {selectedImages.length}
+                </span>}
+              </Button>
             </div>
-          </div>}
 
-        {/* Divider */}
-        <div className="border-t mt-4 pt-3 border-black/0">
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between flex-wrap gap-2 pb-[7px] pr-[5px] pl-[3px]">
-            <div className="flex items-center gap-1 flex-wrap">
-              {/* Photo/Video */}
-              <div className="relative">
-                <input
-                  ref={mediaInputRef}
-                  type="file"
-                  accept="image/*,video/*"
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    addMediaFiles(Array.from(event.target.files || []));
-                    event.target.value = '';
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-9 px-3 gap-2 cursor-pointer rounded-lg hover:bg-success/10"
-                  onClick={handleSelectMedia}
-                  title="Choose a folder of photos and videos, or select media files"
-                >
-                  <Image className="h-5 w-5 text-success" />
-                  <span className="text-sm hidden sm:inline">Select media</span>
-                  {selectedImages.length > 0 && <span className="text-xs bg-success/20 text-success px-1.5 rounded-full">
-                      {selectedImages.length}
-                    </span>}
+            {/* Feeling */}
+            <Popover open={showFeelings} onOpenChange={setShowFeelings}>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 rounded-lg hover:bg-warning/10">
+                  <Smile className="h-5 w-5 text-warning" />
+                  <span className="text-sm hidden sm:inline">
+                    {feeling ? `${FEELINGS.find(f => f.label === feeling)?.emoji}` : 'Feeling'}
+                  </span>
                 </Button>
-              </div>
-
-              {/* Feeling */}
-              <Popover open={showFeelings} onOpenChange={setShowFeelings}>
-                <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 rounded-lg hover:bg-warning/10">
-                    <Smile className="h-5 w-5 text-warning" />
-                    <span className="text-sm hidden sm:inline">
-                      {feeling ? `${FEELINGS.find(f => f.label === feeling)?.emoji}` : 'Feeling'}
-                    </span>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-3">
-                  <div className="grid grid-cols-5 gap-2">
-                    {FEELINGS.map(f => <Button key={f.label} variant={feeling === f.label ? "secondary" : "ghost"} className="h-12 flex flex-col items-center justify-center p-1" onClick={() => {
+              </PopoverTrigger>
+              <PopoverContent className="w-72 p-3">
+                <div className="grid grid-cols-5 gap-2">
+                  {FEELINGS.map(f => <Button key={f.label} variant={feeling === f.label ? "secondary" : "ghost"} className="h-12 flex flex-col items-center justify-center p-1" onClick={() => {
                     setFeeling(feeling === f.label ? '' : f.label);
                     setShowFeelings(false);
                   }}>
-                        <span className="text-xl">{f.emoji}</span>
-                        <span className="text-[9px] mt-0.5 truncate">{f.label}</span>
-                      </Button>)}
-                  </div>
+                    <span className="text-xl">{f.emoji}</span>
+                    <span className="text-[9px] mt-0.5 truncate">{f.label}</span>
+                  </Button>)}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {isExpanded && <>
+              {/* Tag */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 rounded-lg hover:bg-accent/10">
+                    <Users className="h-5 w-5 text-accent" />
+                    <span className="text-sm hidden sm:inline">Tag</span>
+                    {taggedUsers.length > 0 && <span className="text-xs bg-accent/20 text-accent px-1.5 rounded-full">
+                      {taggedUsers.length}
+                    </span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <UserTagSelector selectedUsers={taggedUsers} onUsersChange={setTaggedUsers} />
                 </PopoverContent>
               </Popover>
 
-              {isExpanded && <>
-                  {/* Tag */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 rounded-lg hover:bg-accent/10">
-                        <Users className="h-5 w-5 text-accent" />
-                        <span className="text-sm hidden sm:inline">Tag</span>
-                        {taggedUsers.length > 0 && <span className="text-xs bg-accent/20 text-accent px-1.5 rounded-full">
-                            {taggedUsers.length}
-                          </span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                      <UserTagSelector selectedUsers={taggedUsers} onUsersChange={setTaggedUsers} />
-                    </PopoverContent>
-                  </Popover>
-
-                  {/* Schedule */}
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 rounded-lg hover:bg-primary/10">
-                        <Clock className="h-5 w-5 text-primary" />
-                        <span className="text-sm hidden sm:inline">Schedule</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} disabled={date => date < new Date()} />
-                    </PopoverContent>
-                  </Popover>
-                </>}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {isExpanded && <>
-                  {/* Privacy Selector */}
-                  <Select value={privacy} onValueChange={(v: any) => setPrivacy(v)}>
-                    <SelectTrigger className="w-auto h-9 gap-2 border-0 bg-muted/50">
-                      {getPrivacyIcon()}
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="public">
-                        <div className="flex items-center gap-2">
-                          <span>Public</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="friends">
-                        <div className="flex items-center gap-2">
-                          <UserCheck className="h-4 w-4" />
-                          <span>Friends</span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="private">
-                        <div className="flex items-center gap-2">
-                          <Lock className="h-4 w-4" />
-                          <span>Only Me</span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-
-                  <DraftsDialog onSelectDraft={handleLoadDraft} />
-                  
-                  <Button variant="outline" size="sm" className="h-9" onClick={handleSaveDraft} disabled={!postContent.trim() && selectedImages.length === 0}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Draft
+              {/* Schedule */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-9 px-3 gap-2 rounded-lg hover:bg-primary/10">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <span className="text-sm hidden sm:inline">Schedule</span>
                   </Button>
-                </>}
-              
-              <Button size="sm" className="h-9 px-6 rounded-full bg-primary hover:bg-primary-hover font-semibold" disabled={!postContent.trim() && selectedImages.length === 0 || isPosting} onClick={handlePost}>
-                {isPosting ? 'Posting...' : scheduledDate ? 'Schedule' : 'Post'}
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} disabled={date => date < new Date()} />
+                </PopoverContent>
+              </Popover>
+            </>}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {isExpanded && <>
+              {/* Privacy Selector */}
+              <Select value={privacy} onValueChange={(v: any) => setPrivacy(v)}>
+                <SelectTrigger className="w-auto h-9 gap-2 border-0 bg-muted/50">
+                  {getPrivacyIcon()}
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">
+                    <div className="flex items-center gap-2">
+                      <span>Public</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="friends">
+                    <div className="flex items-center gap-2">
+                      <UserCheck className="h-4 w-4" />
+                      <span>Friends</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="private">
+                    <div className="flex items-center gap-2">
+                      <Lock className="h-4 w-4" />
+                      <span>Only Me</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <DraftsDialog onSelectDraft={handleLoadDraft} />
+
+              <Button variant="outline" size="sm" className="h-9" onClick={handleSaveDraft} disabled={!postContent.trim() && selectedImages.length === 0}>
+                <Save className="h-4 w-4 mr-2" />
+                Draft
               </Button>
-            </div>
+            </>}
+
+            <Button size="sm" className="h-9 px-6 rounded-full bg-primary hover:bg-primary-hover font-semibold" disabled={!postContent.trim() && selectedImages.length === 0 || isPosting} onClick={handlePost}>
+              {isPosting ? 'Posting...' : scheduledDate ? 'Schedule' : 'Post'}
+            </Button>
           </div>
         </div>
       </div>
-      <GalleryPickerSheet
-        open={showGallerySheet}
-        onOpenChange={setShowGallerySheet}
-        multiple
-        title="Add media to your post"
-        onSelect={(file) => addMediaFiles([file])}
-        onSelectMany={addMediaFiles}
-      />
-    </Card>;
+    </div>
+    <GalleryPickerSheet
+      open={showGallerySheet}
+      onOpenChange={setShowGallerySheet}
+      multiple
+      title="Add media to your post"
+      onSelect={(file) => addMediaFiles([file])}
+      onSelectMany={addMediaFiles}
+    />
+  </Card>;
 };
 export default CreatePostCard;
