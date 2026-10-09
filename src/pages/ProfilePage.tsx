@@ -107,14 +107,11 @@ const ProfilePage = () => {
     likedPosts,
     loading: likesLoading
   } = useUserLikes(profileUserId, activeTab === 'likes');
-
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [showFollowersDialog, setShowFollowersDialog] = useState(false);
   const [showFollowingDialog, setShowFollowingDialog] = useState(false);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [showCoverViewer, setShowCoverViewer] = useState(false);
-
-  const [activeTab, setActiveTab] = useState('posts');
   const [followActionBusy, setFollowActionBusy] = useState(false);
   const [messageActionBusy, setMessageActionBusy] = useState(false);
   const handleProfileEditClose = () => {
