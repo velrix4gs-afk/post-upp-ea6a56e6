@@ -19,6 +19,7 @@ import { AppTour } from "@/components/AppTour";
 import { CallSessionProvider } from "@/components/calls/CallSessionProvider";
 import { StreamVideoClientProvider } from "@/hooks/useStreamVideoClient";
 import { AppSwipeNavigation } from "@/hooks/useAppSwipeNavigation";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { RouteMeta } from "@/components/RouteMeta";
 
 // Eager-load core pages for instant navigation
@@ -271,224 +272,227 @@ const App = () => (
             <AppSwipeNavigation />
             <StreamVideoClientProvider>
               <CallSessionProvider>
-              <Suspense fallback={<PageLoader />}>
-                <PageTransition>
-                  <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/signin" element={<SignIn />} />
-                  <Route path="/signup" element={<SignUp />} />
-                  <Route path="/welcome" element={<Welcome />} />
-                  <Route path="/forgot-password" element={<ForgotPassword />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/auth/verify" element={<EmailVerification />} />
-                  <Route path="/auth/login-verify" element={<LoginVerification />} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/auth/magic-link-sent" element={<MagicLinkSent />} />
-                  <Route
-                    path="/onboarding"
-                    element={
-                      <ProtectedRoute>
-                        <OnboardingPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/dashboard"
-                    element={
-                      <ProtectedRoute>
-                        <Dashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/feed"
-                    element={
-                      <ProtectedRoute>
-                        <Feed />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/search"
-                    element={
-                      <ProtectedRoute>
-                        <SearchPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/messages"
-                    element={
-                      <ProtectedRoute>
-                        <MessagesPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/friends"
-                    element={
-                      <ProtectedRoute>
-                        <FriendsPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/profile/:userId"
-                    element={
-                      <ProtectedRoute>
-                        <ProfilePage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/bookmarks"
-                    element={
-                      <ProtectedRoute>
-                        <BookmarksPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/explore"
-                    element={
-                      <ProtectedRoute>
-                        <ExplorePage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/verification"
-                    element={
-                      <ProtectedRoute>
-                        <VerificationPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/hashtag/:tag"
-                    element={
-                      <ProtectedRoute>
-                        <HashtagPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/post/:postId"
-                    element={
-                      <ProtectedRoute>
-                        <ThreadView />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin/verification"
-                    element={
-                      <ProtectedRoute>
-                        <VerificationCodes />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/creator/:slug"
-                    element={
-                      <ProtectedRoute>
-                        <CreatorPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/admin-setup"
-                    element={
-                      <ProtectedRoute>
-                        <AdminSetup />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/analytics"
-                    element={
-                      <ProtectedRoute>
-                        <AnalyticsDashboard />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/settings"
-                    element={
-                      <ProtectedRoute>
-                        <SettingsPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/premium"
-                    element={
-                      <ProtectedRoute>
-                        <PremiumPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route
-                    path="/pages"
-                    element={
-                      <ProtectedRoute>
-                        <PagesPage />
-                      </ProtectedRoute>
-                    }
-                  />
-                  <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
-                  <Route path="/help-support" element={<ProtectedRoute><HelpSupportPage /></ProtectedRoute>} />
-                  <Route path="/purchases" element={<ProtectedRoute><PurchaseHistoryPage /></ProtectedRoute>} />
-                  <Route path="/admin-setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
-                  <Route path="/starred-messages" element={<ProtectedRoute><StarredMessagesPage /></ProtectedRoute>} />
-                  <Route path="/chat-media" element={<ProtectedRoute><ChatMediaPage /></ProtectedRoute>} />
-                  <Route path="/chat-settings" element={<ProtectedRoute><ChatSettingsPage /></ProtectedRoute>} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="/create/showcase" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <CreateShowcasePage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/create/story" element={<Navigate to="/create/showcase" replace />} />
-                  <Route path="/create/page" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <CreatePagePage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/page/:pageId/edit" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <EditPagePage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/page/:username" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <PageProfilePage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/instructions" element={
-                    <ProtectedRoute>
-                      <Suspense fallback={<PageLoader />}>
-                        <InstructionsPage />
-                      </Suspense>
-                    </ProtectedRoute>
-                  } />
-                  <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </PageTransition>
-              </Suspense>
+                <Suspense fallback={<PageLoader />}>
+                  <PageTransition>
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/signin" element={<SignIn />} />
+                      <Route path="/signup" element={<SignUp />} />
+                      <Route path="/welcome" element={<Welcome />} />
+                      <Route path="/forgot-password" element={<ForgotPassword />} />
+                      <Route path="/reset-password" element={<ResetPassword />} />
+                      <Route path="/auth/verify" element={<EmailVerification />} />
+                      <Route path="/auth/login-verify" element={<LoginVerification />} />
+                      <Route path="/auth/callback" element={<AuthCallback />} />
+                      <Route path="/auth/magic-link-sent" element={<MagicLinkSent />} />
+                      <Route
+                        path="/onboarding"
+                        element={
+                          <ProtectedRoute>
+                            <OnboardingPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/dashboard"
+                        element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/feed"
+                        element={
+                          <ProtectedRoute>
+                            <Feed />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/search"
+                        element={
+                          <ProtectedRoute>
+                            <SearchPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/messages"
+                        element={
+                          <ProtectedRoute>
+                            <MessagesPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/friends"
+                        element={
+                          <ProtectedRoute>
+                            <FriendsPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/profile/:userId"
+                        element={
+                          <ProtectedRoute>
+                            <ProfilePage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/bookmarks"
+                        element={
+                          <ProtectedRoute>
+                            <BookmarksPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/explore"
+                        element={
+                          <ProtectedRoute>
+                            <ExplorePage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/verification"
+                        element={
+                          <ProtectedRoute>
+                            <VerificationPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/hashtag/:tag"
+                        element={
+                          <ProtectedRoute>
+                            <HashtagPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/post/:postId"
+                        element={
+                          <ProtectedRoute>
+                            <ThreadView />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin/verification"
+                        element={
+                          <ProtectedRoute>
+                            <VerificationCodes />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/creator/:slug"
+                        element={
+                          <ProtectedRoute>
+                            <CreatorPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/admin-setup"
+                        element={
+                          <ProtectedRoute>
+                            <AdminSetup />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/analytics"
+                        element={
+                          <ProtectedRoute>
+                            <AnalyticsDashboard />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/settings"
+                        element={
+                          <ProtectedRoute>
+                            <SettingsPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/premium"
+                        element={
+                          <ProtectedRoute>
+                            <PremiumPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route
+                        path="/pages"
+                        element={
+                          <ProtectedRoute>
+                            <PagesPage />
+                          </ProtectedRoute>
+                        }
+                      />
+                      <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
+                      <Route path="/help-support" element={<ProtectedRoute><HelpSupportPage /></ProtectedRoute>} />
+                      <Route path="/purchases" element={<ProtectedRoute><PurchaseHistoryPage /></ProtectedRoute>} />
+                      <Route path="/admin-setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
+                      <Route path="/starred-messages" element={<ProtectedRoute><StarredMessagesPage /></ProtectedRoute>} />
+                      <Route path="/chat-media" element={<ProtectedRoute><ChatMediaPage /></ProtectedRoute>} />
+                      <Route path="/chat-settings" element={<ProtectedRoute><ChatSettingsPage /></ProtectedRoute>} />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="/create/showcase" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<PageLoader />}>
+                            <CreateShowcasePage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/create/story" element={<Navigate to="/create/showcase" replace />} />
+                      <Route path="/create/page" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<PageLoader />}>
+                            <CreatePagePage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/page/:pageId/edit" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<PageLoader />}>
+                            <EditPagePage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/page/:username" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<PageLoader />}>
+                            <PageProfilePage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/instructions" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<PageLoader />}>
+                            <InstructionsPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </PageTransition>
+                </Suspense>
               </CallSessionProvider>
             </StreamVideoClientProvider>
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
+      <GlobalProfilePopupHost />
+      <SpeedInsights />
+
     </QueryClientProvider>
   </ErrorBoundary>
 );
