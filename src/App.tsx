@@ -487,12 +487,10 @@ const App = () => (
                 </Suspense>
               </CallSessionProvider>
             </StreamVideoClientProvider>
+            <SpeedInsights />
           </BrowserRouter>
         </TooltipProvider>
       </AuthProvider>
-      <GlobalProfilePopupHost />
-      <SpeedInsights />
-
     </QueryClientProvider>
   </ErrorBoundary>
 );
