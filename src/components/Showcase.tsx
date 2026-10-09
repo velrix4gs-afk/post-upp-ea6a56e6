@@ -107,16 +107,23 @@ const Showcase = () => {
     if (!user || story.user_id === user.id) return false;
     try {
       const chatId = await ensurePrivateChat(user.id, story.user_id);
+
+      // Tag the message with the Showcase context so recipient sees the source preview
+      const previewText = story.content ? `"${story.content.slice(0, 50)}..."` : 'Showcase item';
+      const formattedContent = text === '❤️'
+        ? `❤️ Reacted to your Showcase`
+        : `Replied to your Showcase (${previewText}):\n${text}`;
+
       const { error } = await supabase.from('messages').insert({
         chat_id: chatId,
         sender_id: user.id,
-        content: text,
+        content: formattedContent,
         status: 'sent',
       });
       if (error) throw error;
-      setSelectedStoryId(null);
-      navigate(`/messages?chat=${chatId}`);
-      toast({ description: 'Showcase reply sent' });
+
+      // DO NOT navigate away or close Showcase - keep the viewer on screen!
+      toast({ description: 'Reaction sent to chat' });
       return true;
     } catch (error) {
       console.error('[showcase] failed to send reply', error);

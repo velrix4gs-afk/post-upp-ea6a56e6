@@ -773,15 +773,15 @@ const PostCardModernComponent = ({
     </>
   </TooltipProvider>;
 };
-
 export const PostCardModern = memo(PostCardModernComponent, (prevProps, nextProps) => {
   return (
     prevProps.post.id === nextProps.post.id &&
-    prevProps.post.likes_count === nextProps.post.likes_count &&
+    prevProps.post.reactions_count === nextProps.post.reactions_count &&
     prevProps.post.comments_count === nextProps.post.comments_count &&
-    prevProps.post.is_liked === nextProps.post.is_liked &&
-    prevProps.post.is_bookmarked === nextProps.post.is_bookmarked &&
+    prevProps.post.shares_count === nextProps.post.shares_count &&
     prevProps.post.content === nextProps.post.content &&
-    prevProps.post.media_urls?.length === nextProps.post.media_urls?.length
+    prevProps.post.is_pinned === nextProps.post.is_pinned &&
+    prevProps.post.media_urls?.length === nextProps.post.media_urls?.length &&
+    prevProps.post.media_url === nextProps.post.media_url
   );
 });

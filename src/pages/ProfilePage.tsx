@@ -85,14 +85,19 @@ const ProfilePage = () => {
   } = useFollowers(profileUserId);
   // Viewer's own following list — used to know if THIS viewer follows the
   // profile being displayed. Without this, `following` above is the profile
-  // owner's list and the Follow button never reflects the viewer's state.
   const {
     following: viewerFollowing,
     pendingFollowing: viewerPendingFollowing,
     followUser: followViewer,
     unfollowUser: unfollowViewer,
   } = useFollowers(user?.id);
-  // Replace lines 98–105:
+
+  const [activeTab, setActiveTab] = useState('posts');
+
+  const {
+    pinnedPostIds = []
+  } = usePinnedPosts(profileUserId);
+
   const {
     replies: userReplies,
     loading: repliesLoading
@@ -108,6 +113,7 @@ const ProfilePage = () => {
   const [showFollowingDialog, setShowFollowingDialog] = useState(false);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [showCoverViewer, setShowCoverViewer] = useState(false);
+
   const [activeTab, setActiveTab] = useState('posts');
   const [followActionBusy, setFollowActionBusy] = useState(false);
   const [messageActionBusy, setMessageActionBusy] = useState(false);
