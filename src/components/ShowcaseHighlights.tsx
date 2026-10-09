@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Plus, Trash2, Loader2, Image as ImageIcon } from 'lucide-react';
 import { useStoryHighlights, type StoryHighlight } from '@/hooks/useShowcaseHighlights';
-import { useStories, type Story } from '@/hooks/useStories';
+import { useStories, type Story } from '@/hooks/useShowcases';
 import { useAuth } from '@/hooks/useAuth';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { supabase } from '@/integrations/supabase/client';

@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from './use-toast';
-import { resolveStoryMediaUrl, storyObjectPath, type Story } from './useStories';
-
+import { resolveStoryMediaUrl, storyObjectPath, type Story } from './useShowcases';
 const errorMessage = (error: unknown): string => (
   error instanceof Error ? error.message : 'Please try again.'
 );
@@ -42,7 +41,7 @@ export const useStoryHighlights = (userId?: string) => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       const formattedHighlights = await Promise.all((data || []).map(async (highlight) => ({
         ...highlight,
         cover_image: highlight.cover_image
