@@ -5124,6 +5124,7 @@ export type Database = {
         }
         Returns: Json
       }
+      clear_chat_for_user: { Args: { p_chat_id: string }; Returns: undefined }
       column_exists: {
         Args: { column_name: string; schema_name: string; table_name: string }
         Returns: boolean
