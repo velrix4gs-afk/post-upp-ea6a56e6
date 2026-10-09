@@ -17,7 +17,8 @@ export interface LikedPost {
   };
 }
 
-export const useUserLikes = (userId?: string) => {
+// Notice `enabled = true` is now a parameter:
+export const useUserLikes = (userId?: string, enabled = true) => {
   const [likedPosts, setLikedPosts] = useState<LikedPost[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,7 +29,6 @@ export const useUserLikes = (userId?: string) => {
     }
 
     try {
-      // Get post IDs that the user has reacted to
       const { data: reactions, error: reactionsError } = await supabase
         .from('post_reactions')
         .select('post_id')
@@ -46,7 +46,6 @@ export const useUserLikes = (userId?: string) => {
 
       const postIds = reactions.map(r => r.post_id);
 
-      // Fetch the actual posts
       const { data: posts, error: postsError } = await supabase
         .from('posts')
         .select(`
@@ -68,7 +67,6 @@ export const useUserLikes = (userId?: string) => {
 
       if (postsError) throw postsError;
 
-      // Sort by the order of reactions (most recent liked first)
       const postsMap = new Map((posts || []).map(p => [p.id, p]));
       const orderedPosts = postIds
         .map(id => postsMap.get(id))
@@ -83,11 +81,10 @@ export const useUserLikes = (userId?: string) => {
   };
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !enabled) return;
 
     fetchLikedPosts();
 
-    // Real-time subscription for user's reactions
     const channel = supabase
       .channel(`user-likes-${userId}:${Math.random().toString(36).slice(2, 10)}`)
       .on(
@@ -107,7 +104,7 @@ export const useUserLikes = (userId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, enabled]);
 
   return { likedPosts, loading };
 };

@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { MoreHorizontal, Pencil, Trash2, UserPlus, UserMinus, BellOff, AlertCircle, Ban, UserCircle, Pin, PinOff, MessageCircle, Repeat2, Share2, Bookmark, Heart, ExternalLink } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, memo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePosts } from "@/hooks/usePosts";
 import { useBookmarks } from "@/hooks/useBookmarks";
@@ -100,7 +100,7 @@ const formatRelativeTime = (dateString: string) => {
   if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)}w`;
   return format(date, 'MMM d');
 };
-export const PostCardModern = ({
+const PostCardModernComponent = ({
   post
 }: PostCardModernProps) => {
   const {
@@ -771,16 +771,7 @@ export const PostCardModern = ({
         </SheetContent>
       </Sheet>
     </>
-  </TooltipProvider>;
-};
-// Rename internal component:
-const PostCardModernComponent = ({ post, ...props }: PostCardModernProps) => {
-  // ... existing component body stays untouched ...
-};
-
-// Export memoized version with custom equality check:
-
-export const PostCardModern = React.memo(PostCardModernComponent, (prevProps, nextProps) => {
+  export const PostCardModern = memo(PostCardModernComponent, (prevProps, nextProps) => {
   return (
     prevProps.post.id === nextProps.post.id &&
     prevProps.post.likes_count === nextProps.post.likes_count &&
@@ -789,5 +780,5 @@ export const PostCardModern = React.memo(PostCardModernComponent, (prevProps, ne
     prevProps.post.is_bookmarked === nextProps.post.is_bookmarked &&
     prevProps.post.content === nextProps.post.content &&
     prevProps.post.media_urls?.length === nextProps.post.media_urls?.length
-  );
+    );
 });

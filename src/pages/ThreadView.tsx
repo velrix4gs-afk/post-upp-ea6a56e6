@@ -103,76 +103,80 @@ export const ThreadView = () => {
                 className="h-12 w-12 cursor-pointer"
                 onClick={() => navigate(profilePathFor(post.profiles || { id: post.user_id }))}
               >
-                ...
-                <button
-                  onClick={() => navigate(profilePathFor(post.profiles || { id: post.user_id }))}
-                  className="block text-left"
-                >
-                </div>
+                <AvatarImage src={post.profiles?.avatar_url || undefined} alt={authorName} />
+                <AvatarFallback>{authorName.charAt(0).toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </ProfileHoverCard>
 
-                {/* Full-size content */}
-                {post.content && (
-                  <p className="mt-3 text-[19px] leading-[1.45] whitespace-pre-wrap break-words">
-                    {post.content}
-                  </p>
+            <div className="min-w-0 flex-1">
+              <button
+                onClick={() => navigate(profilePathFor(post.profiles || { id: post.user_id }))}
+                className="block text-left"
+              >
+                <p className="font-semibold leading-tight truncate">{authorName}</p>
+                {authorHandle && (
+                  <p className="text-sm text-muted-foreground truncate">{authorHandle}</p>
                 )}
-
-                {/* Media, full aspect ratio */}
-                {media.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    {media.map((url: string, i: number) =>
-                      /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ? (
-                        <video
-                          key={i}
-                          src={url}
-                          controls
-                          playsInline
-                          className="w-full rounded-2xl border border-border bg-black"
-                        />
-                      ) : (
-                        <img
-                          key={i}
-                          src={url}
-                          alt={`Post media ${i + 1}`}
-                          loading="lazy"
-                          className="w-full rounded-2xl border border-border object-contain"
-                        />
-                      ),
-                    )}
-                  </div>
-                )}
-
-                {/* Timestamp line */}
-                {created && (
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    {format(created, 'h:mm a')} · {format(created, 'MMM d, yyyy')}
-                  </p>
-                )}
-
-                {/* Stats bar */}
-                <div className="mt-3 py-3 border-y border-border flex items-center gap-5 text-sm">
-                  <span>
-                    <strong>{post.reactions_count || 0}</strong>{' '}
-                    <span className="text-muted-foreground">Likes</span>
-                  </span>
-                  <span>
-                    <strong>{post.comments_count || 0}</strong>{' '}
-                    <span className="text-muted-foreground">Comments</span>
-                  </span>
-                  <span>
-                    <strong>{post.shares_count || 0}</strong>{' '}
-                    <span className="text-muted-foreground">Shares</span>
-                  </span>
-                </div>
-              </article>
-
-              {/* Comments Thread */}
-              <div className="p-4">
-                <ThreadedCommentsSection postId={postId!} />
-              </div>
-            </main>
+              </button>
+            </div>
           </div>
-          );
+
+          {/* Media, full aspect ratio */}
+          {media.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {media.map((url: string, i: number) =>
+                /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ? (
+                  <video
+                    key={i}
+                    src={url}
+                    controls
+                    playsInline
+                    className="w-full rounded-2xl border border-border bg-black"
+                  />
+                ) : (
+                  <img
+                    key={i}
+                    src={url}
+                    alt={`Post media ${i + 1}`}
+                    loading="lazy"
+                    className="w-full rounded-2xl border border-border object-contain"
+                  />
+                ),
+              )}
+            </div>
+          )}
+
+          {/* Timestamp line */}
+          {created && (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {format(created, 'h:mm a')} · {format(created, 'MMM d, yyyy')}
+            </p>
+          )}
+
+          {/* Stats bar */}
+          <div className="mt-3 py-3 border-y border-border flex items-center gap-5 text-sm">
+            <span>
+              <strong>{post.reactions_count || 0}</strong>{' '}
+              <span className="text-muted-foreground">Likes</span>
+            </span>
+            <span>
+              <strong>{post.comments_count || 0}</strong>{' '}
+              <span className="text-muted-foreground">Comments</span>
+            </span>
+            <span>
+              <strong>{post.shares_count || 0}</strong>{' '}
+              <span className="text-muted-foreground">Shares</span>
+            </span>
+          </div>
+        </article>
+
+        {/* Comments Thread */}
+        <div className="p-4">
+          <ThreadedCommentsSection postId={postId!} />
+        </div>
+      </main>
+    </div>
+  );
 };
 
-          export default ThreadView;
+export default ThreadView;

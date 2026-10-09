@@ -18,20 +18,18 @@ export interface UserReply {
   };
 }
 
-export const useUserReplies = (userId?: string) => {
+// Notice `enabled = true` is in the arguments:
+export const useUserReplies = (userId?: string, enabled = true) => {
   const [replies, setReplies] = useState<UserReply[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchReplies = async () => {
-    if (!userId) {
+    if (!userId || !enabled) {
       setLoading(false);
       return;
     }
 
     try {
-      // Two-step fetch: comments (public.comments has no declared FK to posts,
-      // which is why the embedded join returned PGRST200). Fetch comments,
-      // then fetch the referenced posts + their author profile separately.
       const { data: commentRows, error } = await supabase
         .from('comments')
         .select('id, content, created_at, post_id')
@@ -86,11 +84,10 @@ export const useUserReplies = (userId?: string) => {
   };
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !enabled) return;
 
     fetchReplies();
 
-    // Real-time subscription for user's comments/replies
     const channel = supabase
       .channel(`user-replies-${userId}:${Math.random().toString(36).slice(2, 10)}`)
       .on(
@@ -110,7 +107,7 @@ export const useUserReplies = (userId?: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, enabled]);
 
   return { replies, loading };
 };
