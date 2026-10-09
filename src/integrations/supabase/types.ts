@@ -382,18 +382,21 @@ export type Database = {
       chat_participants: {
         Row: {
           chat_id: string
+          cleared_at: string | null
           joined_at: string | null
           role: string | null
           user_id: string
         }
         Insert: {
           chat_id: string
+          cleared_at?: string | null
           joined_at?: string | null
           role?: string | null
           user_id: string
         }
         Update: {
           chat_id?: string
+          cleared_at?: string | null
           joined_at?: string | null
           role?: string | null
           user_id?: string
