@@ -771,7 +771,10 @@ const PostCardModernComponent = ({
         </SheetContent>
       </Sheet>
     </>
-  export const PostCardModern = memo(PostCardModernComponent, (prevProps, nextProps) => {
+  </TooltipProvider>;
+};
+
+export const PostCardModern = memo(PostCardModernComponent, (prevProps, nextProps) => {
   return (
     prevProps.post.id === nextProps.post.id &&
     prevProps.post.likes_count === nextProps.post.likes_count &&
@@ -780,5 +783,5 @@ const PostCardModernComponent = ({
     prevProps.post.is_bookmarked === nextProps.post.is_bookmarked &&
     prevProps.post.content === nextProps.post.content &&
     prevProps.post.media_urls?.length === nextProps.post.media_urls?.length
-    );
+  );
 });
