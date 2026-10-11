@@ -124,7 +124,7 @@ export const SearchInChatDialog = ({
           </div>
 
           <ScrollArea className="h-[400px]">
-            {results.length === 0 && normalizedQuery.length >= 3 && !loading && (
+            {results.length === 0 && normalizedQuery.length >= 1 && !loading && (
               <p className="text-center text-muted-foreground py-8">No messages found</p>
             )}
 
