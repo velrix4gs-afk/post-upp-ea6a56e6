@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MoreVertical, User, Image, BellOff, Download, AlertCircle, Star, Palette, Sparkles, Trash2, Search, Ban, Unlock, UserCircle, Link as LinkIcon, Clock, Video, Phone } from 'lucide-react';
+import { MoreVertical, User, Image, BellOff, AlertCircle, Star, Palette, Trash2, Search, Ban, Unlock, UserCircle, Link as LinkIcon, Video, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -26,7 +26,6 @@ import { profilePathFor } from '@/lib/profilePath';
 interface ChatMenuProps {
   chatId: string;
   otherUserId?: string;
-  onExportChat?: () => void;
   onViewMedia?: () => void;
   onReport?: () => void;
   onClearChat?: () => void;
@@ -35,12 +34,11 @@ interface ChatMenuProps {
   onViewStarred?: () => void;
   onWallpaperChange?: () => void;
   onViewSharedLinks?: () => void;
-  onDisappearingMessages?: () => void;
   onVoiceCall?: () => void;
   onVideoCall?: () => void;
 }
 
-export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onDisappearingMessages, onVoiceCall, onVideoCall }: ChatMenuProps) => {
+export const ChatMenu = ({ chatId, otherUserId, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onVoiceCall, onVideoCall }: ChatMenuProps) => {
   const navigate = useNavigate();
   const { settings, setNickname, muteChat, unmuteChat, togglePin, setTheme } = useChatSettings(chatId, otherUserId);
   const chatMuted = isChatMuted(settings);
@@ -49,9 +47,6 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
   const [showMuteDialog, setShowMuteDialog] = useState(false);
   const [showThemeDialog, setShowThemeDialog] = useState(false);
   const [showLinksDialog, setShowLinksDialog] = useState(false);
-  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
-  const [summary, setSummary] = useState('');
-  const [summaryLoading, setSummaryLoading] = useState(false);
   const [nickname, setNicknameInput] = useState('');
   const [muteDuration, setMuteDuration] = useState<string>('30');
 
@@ -77,142 +72,9 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
     if (await setTheme(color)) setShowThemeDialog(false);
   };
 
-  const handleExportChat = async () => {
-    try {
-      // Fetch all messages for export
-      const { data: messages, error } = await supabase
-        .from('messages')
-        .select('*, sender:profiles!messages_sender_id_fkey(display_name)')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: true });
-      if (error) throw error;
 
-      if (!messages || messages.length === 0) {
-        toast({
-          title: 'No messages to export',
-          description: 'This chat is empty',
-        });
-        return;
-      }
 
-      // Create text export
-      const exportText = messages
-        .map(msg => {
-          const timestamp = new Date(msg.created_at).toLocaleString();
-          const sender = msg.sender?.display_name || 'Unknown';
-          return `[${timestamp}] ${sender}: ${msg.content || '[Media]'}`;
-        })
-        .join('\n');
 
-      // Download as text file
-      const blob = new Blob([exportText], { type: 'text/plain' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `chat-export-${new Date().toISOString().split('T')[0]}.txt`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast({
-        title: 'Chat exported',
-        description: 'Chat history downloaded successfully',
-      });
-    } catch (error) {
-      console.error('Export error:', error);
-      toast({
-        title: 'Export failed',
-        description: 'Could not export chat',
-        variant: 'destructive',
-      });
-    }
-    onExportChat?.();
-  };
-
-  const handleAISummary = async () => {
-    setSummaryLoading(true);
-    try {
-      const { data: messages, error } = await supabase
-        .from('messages')
-        .select('content, media_type, created_at')
-        .eq('chat_id', chatId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-
-      if (!messages || messages.length === 0) {
-        toast({
-          title: 'No messages',
-          description: 'This chat has no messages to summarize',
-        });
-        return;
-      }
-
-      const transcript = [...messages].reverse().map((message) => {
-        const time = message.created_at ? new Date(message.created_at).toLocaleString() : '';
-        const body = message.content?.trim() || `[${message.media_type || 'media'}]`;
-        return `[${time}] ${body.slice(0, 1000)}`;
-      }).join('\n');
-      const { data, error: aiError } = await supabase.functions.invoke('ai-chat', {
-        body: {
-          messages: [{
-            role: 'user',
-            content: `Summarize this recent chat conversation in concise bullet points. State key topics, decisions, and any clear follow-ups. Do not invent information.\n\n${transcript}`,
-          }],
-        },
-      });
-      if (aiError) throw aiError;
-
-      const response = data as {
-        choices?: Array<{ message?: { content?: string }; delta?: { content?: string } }>;
-        content?: string;
-        message?: string;
-      } | string | null;
-      let generated = '';
-      if (typeof response === 'string') {
-        generated = response.split(/\r?\n/)
-          .filter((line) => line.startsWith('data:'))
-          .map((line) => line.slice(5).trim())
-          .filter((line) => line && line !== '[DONE]')
-          .map((line) => {
-            try {
-              const chunk = JSON.parse(line) as { choices?: Array<{ delta?: { content?: string }; message?: { content?: string } }> };
-              return chunk.choices?.[0]?.delta?.content || chunk.choices?.[0]?.message?.content || '';
-            } catch {
-              return '';
-            }
-          })
-          .join('');
-        if (!generated) {
-          try {
-            const parsed = JSON.parse(response) as { choices?: Array<{ message?: { content?: string } }>; content?: string; message?: string };
-            generated = parsed.choices?.[0]?.message?.content || parsed.content || parsed.message || '';
-          } catch {
-            generated = response.trim();
-          }
-        }
-      } else if (response) {
-        generated = response.choices?.[0]?.message?.content
-          || response.choices?.[0]?.delta?.content
-          || response.content
-          || response.message
-          || '';
-      }
-      if (!generated.trim()) throw new Error('The AI returned an empty summary.');
-      setSummary(generated.trim());
-      setShowSummaryDialog(true);
-    } catch (error) {
-      console.error('Chat summary error:', error);
-      toast({
-        title: 'Summary failed',
-        description: error instanceof Error ? error.message : 'Could not summarize this chat.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSummaryLoading(false);
-    }
-  };
 
   return (
     <>
@@ -291,12 +153,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
               Change Wallpaper
             </DropdownMenuItem>
           )}
-          {onDisappearingMessages && (
-            <DropdownMenuItem onClick={onDisappearingMessages} className="rounded-lg py-2.5 px-3 gap-3">
-              <Clock className="h-4 w-4 text-orange-500" />
-              Disappearing Messages
-            </DropdownMenuItem>
-          )}
+
           <DropdownMenuItem onClick={togglePin} className="rounded-lg py-2.5 px-3 gap-3">
             <Star className={`h-4 w-4 text-amber-500 ${settings?.is_pinned ? 'fill-current' : ''}`} />
             {settings?.is_pinned ? 'Remove from Favorites' : 'Add to Favorites'}
@@ -306,16 +163,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
             {chatMuted ? 'Unmute Chat' : 'Mute Chat'}
           </DropdownMenuItem>
 
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-3 py-1.5">More</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => void handleAISummary()} disabled={summaryLoading} className="rounded-lg py-2.5 px-3 gap-3">
-            <Sparkles className="h-4 w-4 text-violet-500" />
-            {summaryLoading ? 'Creating summary…' : 'AI Summary'}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleExportChat} className="rounded-lg py-2.5 px-3 gap-3">
-            <Download className="h-4 w-4 text-muted-foreground" />
-            Export Chat
-          </DropdownMenuItem>
+
 
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-destructive/60 px-3 py-1.5">Danger Zone</DropdownMenuLabel>
@@ -437,17 +285,7 @@ export const ChatMenu = ({ chatId, otherUserId, onExportChat, onViewMedia, onRep
         </DialogContent>
       </Dialog>
 
-      <Dialog open={showSummaryDialog} onOpenChange={setShowSummaryDialog}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Chat summary</DialogTitle>
-            <DialogDescription>Summary of the most recent messages in this conversation.</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[60dvh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
-            {summary}
-          </div>
-        </DialogContent>
-      </Dialog>
+
     </>
   );
 };
