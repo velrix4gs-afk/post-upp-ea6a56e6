@@ -14,13 +14,18 @@ export const VerificationBadge: React.FC<VerificationBadgeProps> = ({
 
   return (
     <svg
-      className={`w-5 h-5 text-sky-500 fill-current inline-block align-middle ml-1 select-none ${className}`}
+      className={`w-4 h-4 text-purple-600 dark:text-purple-500 fill-current inline-block align-middle ml-1 select-none flex-shrink-0 ${className}`}
       viewBox="0 0 24 24"
+      aria-label="Verified account"
     >
-      {/* Sharp Starburst Background */}
-      <path d="M10.06 2.42a2.25 2.25 0 0 1 3.88 0l.77 1.33c.24.42.69.68 1.17.68h1.54a2.25 2.25 0 0 1 2.25 2.25v1.54c0 .48.26.93.68 1.17l1.33.77a2.25 2.25 0 0 1 0 3.88l-1.33.77c-.42.24-.68.69-.68 1.17v1.54a2.25 2.25 0 0 1-2.25 2.25h-1.54c-.48 0-.93.26-1.17.68l-.77 1.33a2.25 2.25 0 0 1-3.88 0l-.77-1.33a1.409 1.409 0 0 0-1.17-.68H6.69A2.25 2.25 0 0 1 4.44 17.31v-1.54c0-.48-.26-.93-.68-1.17l-1.33-.77a2.25 2.25 0 0 1 0-3.88l1.33-.77c.42-.24.68-.69.68-1.17V6.69A2.25 2.25 0 0 1 6.69 4.44h1.54c.48 0 .93-.26 1.17-.68l.77-1.33Z" />
-      {/* Inner White Tick */}
-      <path d="M9.75 14.25l-2.5-2.5 1.06-1.06 1.44 1.44 4.94-4.94 1.06 1.06-6 6z" fill="#ffffff" />
+      {/* White background behind cutout so the checkmark is always crisp white */}
+      <circle cx="12" cy="12" r="6" fill="#ffffff" />
+      {/* Your custom scalloped badge with checkmark cutout */}
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.004 1.183a1.5 1.5 0 0 1 2.049-.55L12 1.759 13.947.634a1.5 1.5 0 0 1 2.05.549L17.045 3H19.5A1.5 1.5 0 0 1 21 4.5v2.453l1.817 1.05a1.5 1.5 0 0 1 .55 2.049L22.241 12l1.124 1.947a1.5 1.5 0 0 1-.55 2.05L21 17.044V19.5a1.5 1.5 0 0 1-1.5 1.5h-2.454l-1.05 1.817a1.5 1.5 0 0 1-2.048.549L12 22.241l-1.948 1.125a1.5 1.5 0 0 1-2.049-.549L6.955 21H4.5A1.5 1.5 0 0 1 3 19.5v-2.455l-1.817-1.049a1.5 1.5 0 0 1-.549-2.049L1.758 12 .634 10.053a1.5 1.5 0 0 1 .549-2.05L3 6.954V4.5A1.5 1.5 0 0 1 4.5 3h2.454l1.05-1.817Zm9.703 9.024a1 1 0 0 0-1.414-1.414l-5.44 5.44a.5.5 0 0 1-.707 0l-2.439-2.44a1 1 0 0 0-1.414 1.414l2.44 2.44a2.5 2.5 0 0 0 3.535 0l5.44-5.44Z"
+      />
     </svg>
   );
 };
