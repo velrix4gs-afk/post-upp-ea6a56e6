@@ -27,7 +27,6 @@ import { AIAssistantChat } from '@/components/AIAssistantChat';
 import { LocationShareDialog } from '@/components/messaging/LocationShareDialog';
 import { ContactShareDialog } from '@/components/messaging/ContactShareDialog';
 import { ChatMenu } from '@/components/ChatMenu';
-import { DisappearingMessagesDialog } from '@/components/messaging/DisappearingMessagesDialog';
 import { GalleryPickerSheet } from '@/components/showcase/GalleryPickerSheet';
 import { ChatAttachmentsSheet } from '@/components/messaging/ChatAttachmentsSheet';
 import { ScheduleMessageDialog } from '@/components/messaging/ScheduleMessageDialog';
@@ -140,7 +139,6 @@ const MessagesPage = () => {
   const [showLocationDialog, setShowLocationDialog] = useState(false);
   const [showContactDialog, setShowContactDialog] = useState(false);
   const [showChatSettings, setShowChatSettings] = useState(false);
-  const [showDisappearingDialog, setShowDisappearingDialog] = useState(false);
   const [showAttachmentsSheet, setShowAttachmentsSheet] = useState(false);
   const [showGallerySheet, setShowGallerySheet] = useState(false);
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -1029,7 +1027,6 @@ const MessagesPage = () => {
               onClearChat={() => setShowClearChat(true)}
               onBlock={() => setShowBlockDialog(true)}
               onReport={() => setShowReportDialog(true)}
-              onDisappearingMessages={() => setShowDisappearingDialog(true)}
               onVideoCall={() => {
                 startCall({
                   chatId: selectedChatId,
@@ -1445,13 +1442,6 @@ const MessagesPage = () => {
         <ChatSettingsDialog chatId={selectedChatId} open={showChatSettings} onOpenChange={setShowChatSettings} />
       )}
 
-      {showDisappearingDialog && selectedChatId && (
-        <DisappearingMessagesDialog
-          chatId={selectedChatId}
-          isOpen={showDisappearingDialog}
-          onClose={() => setShowDisappearingDialog(false)}
-        />
-      )}
 
       <GalleryPickerSheet
         open={showGallerySheet}
