@@ -38,7 +38,7 @@ export const SearchInChatDialog = ({
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
-    if (!open || normalizedQuery.length < 3) {
+    if (!open || normalizedQuery.length < 1) {
       setResults([]);
       setLoading(false);
       return;
@@ -127,10 +127,10 @@ export const SearchInChatDialog = ({
             {results.length === 0 && normalizedQuery.length >= 3 && !loading && (
               <p className="text-center text-muted-foreground py-8">No messages found</p>
             )}
-            
-            {results.length === 0 && normalizedQuery.length < 3 && (
+
+            {results.length === 0 && normalizedQuery.length < 1 && (
               <p className="text-center text-muted-foreground py-8">
-                Type at least 3 characters to search
+                Type to to search in conversation
               </p>
             )}
 
