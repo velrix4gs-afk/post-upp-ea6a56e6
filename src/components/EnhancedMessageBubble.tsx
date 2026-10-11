@@ -353,26 +353,7 @@ export const EnhancedMessageBubble = ({
                       typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}
                   >
-                    {/* WhatsApp-style pointed tail — only on the last bubble
-                        of a same-sender run, matching how WhatsApp groups
-                        consecutive messages under one tail. */}
-                    {!isImageOnly && isLastOfGroup && (
-                      <svg
-                        viewBox="0 0 8 13"
-                        width="8"
-                        height="13"
-                        className={cn(
-                          "absolute bottom-0 pointer-events-none",
-                          isOwn ? "-right-[7px] -scale-x-100" : "-left-[7px]",
-                          !customBg && (isOwn
-                            ? "text-[#b315db] dark:text-[#005c4b]"
-                            : "text-white dark:text-[#202c33]")
-                        )}
-                        style={customBg ? { color: customBg } : undefined}
-                      >
-                        <path fill="currentColor" d="M5.188 1H0v11.193l6.467-8.625C7.526 2.156 6.958 1 5.188 1z" />
-                      </svg>
-                    )}
+
 
                     {/* Delivery progress for large media / voice / video */}
                     {typeof uploadProgress === 'number' && uploadProgress < 100 && (
