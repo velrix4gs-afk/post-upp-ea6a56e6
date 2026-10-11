@@ -961,16 +961,18 @@ const MessagesPage = () => {
           </div>
         )}
       </div>
+    </div>
+  );
 
 
   // ----- CHAT VIEW -----
   const renderChatView = () => {
     if (!selectedChat) return null;
     const otherP = selectedParticipants.find((p) => p.user_id !== user?.id);
-      const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles?.display_name || 'User';
-      const chatAvatar = selectedChat.avatar_url || otherP?.profiles?.avatar_url;
+    const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles?.display_name || 'User';
+    const chatAvatar = selectedChat.avatar_url || otherP?.profiles?.avatar_url;
 
-      return (
+    return (
       <div ref={chatViewRef} className="flex flex-col h-full bg-card animate-slide-in-right will-change-transform">
         <ChatHeader
           name={chatName}
@@ -1270,263 +1272,263 @@ const MessagesPage = () => {
           )}
         </div>
       </div>
-      );
+    );
   };
 
-      return (
-      <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
-        <Navigation />
-        <main className="flex-1 min-h-0 overflow-hidden">
-          <div className="h-full flex flex-row overflow-hidden">
-            {/* List pane */}
-            <div className={cn('w-full md:w-80 lg:w-96 md:border-r border-border/40 flex-shrink-0', (selectedChatId || showAIChat) ? 'hidden md:block' : 'block')}>
-              {renderListView()}
-            </div>
-
-            {/* Chat pane */}
-            <div className={cn('flex-1 min-h-0 overflow-hidden', (selectedChatId || showAIChat) ? 'block' : 'hidden md:block')}>
-              {showAIChat ? (
-                <AIAssistantChat isAdmin={isAdmin} onBack={() => setShowAIChat(false)} />
-              ) : selectedChat ? (
-                renderChatView()
-              ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground bg-background">
-                  <div className="text-center max-w-md px-6 space-y-4 animate-fade-up">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-3xl rounded-full" />
-                      <MessageCircle className="h-20 w-20 mx-auto text-primary relative z-10" />
-                    </div>
-                    <h3 className="text-xl font-semibold text-foreground">Your Messages</h3>
-                    <p className="text-sm">Send private messages to friends and connect with others</p>
-                    <Button
-                      onClick={() => setShowNewChatDialog(true)}
-                      className="bg-gradient-primary hover:shadow-glow tap-scale"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Start New Chat
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
+  return (
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-background">
+      <Navigation />
+      <main className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full flex flex-row overflow-hidden">
+          {/* List pane */}
+          <div className={cn('w-full md:w-80 lg:w-96 md:border-r border-border/40 flex-shrink-0', (selectedChatId || showAIChat) ? 'hidden md:block' : 'block')}>
+            {renderListView()}
           </div>
-        </main>
 
-        {/* Dialogs */}
-        <NewChatDialog
-          open={showNewChatDialog}
-          onClose={() => setShowNewChatDialog(false)}
-          onSelectFriend={handleCreateNewChat}
-        />
+          {/* Chat pane */}
+          <div className={cn('flex-1 min-h-0 overflow-hidden', (selectedChatId || showAIChat) ? 'block' : 'hidden md:block')}>
+            {showAIChat ? (
+              <AIAssistantChat isAdmin={isAdmin} onBack={() => setShowAIChat(false)} />
+            ) : selectedChat ? (
+              renderChatView()
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground bg-background">
+                <div className="text-center max-w-md px-6 space-y-4 animate-fade-up">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-primary opacity-20 blur-3xl rounded-full" />
+                    <MessageCircle className="h-20 w-20 mx-auto text-primary relative z-10" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-foreground">Your Messages</h3>
+                  <p className="text-sm">Send private messages to friends and connect with others</p>
+                  <Button
+                    onClick={() => setShowNewChatDialog(true)}
+                    className="bg-gradient-primary hover:shadow-glow tap-scale"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Start New Chat
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
 
-        <GroupChatDialog
-          open={showGroupChatDialog}
-          onOpenChange={setShowGroupChatDialog}
-          onGroupCreated={(chatId) => {
-            setSelectedChatId(chatId);
-            refetchChats();
+      {/* Dialogs */}
+      <NewChatDialog
+        open={showNewChatDialog}
+        onClose={() => setShowNewChatDialog(false)}
+        onSelectFriend={handleCreateNewChat}
+      />
+
+      <GroupChatDialog
+        open={showGroupChatDialog}
+        onOpenChange={setShowGroupChatDialog}
+        onGroupCreated={(chatId) => {
+          setSelectedChatId(chatId);
+          refetchChats();
+        }}
+      />
+
+      <StarredMessagesDialog
+        open={showStarredDialog}
+        onClose={() => setShowStarredDialog(false)}
+        chatId={selectedChatId || undefined}
+      />
+
+      <ForwardMessageDialog
+        open={showForwardDialog}
+        onClose={() => {
+          setShowForwardDialog(false);
+          setForwardingMessageId(null);
+        }}
+        onForward={handleForwardMessage}
+        chats={chats}
+        currentChatId={selectedChatId || undefined}
+      />
+
+      {showSearchDialog && selectedChatId && (
+        <SearchInChatDialog
+          chatId={selectedChatId}
+          open={showSearchDialog}
+          onOpenChange={setShowSearchDialog}
+          onMessageSelect={(msgId) => {
+            const msgEl = document.getElementById(`message-${msgId}`);
+            msgEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setShowSearchDialog(false);
           }}
         />
+      )}
 
-        <StarredMessagesDialog
-          open={showStarredDialog}
-          onClose={() => setShowStarredDialog(false)}
-          chatId={selectedChatId || undefined}
+      {selectedChatId && (
+        <ChatMediaTab
+          chatId={selectedChatId}
+          open={showMediaTab}
+          onOpenChange={setShowMediaTab}
         />
+      )}
 
-        <ForwardMessageDialog
-          open={showForwardDialog}
-          onClose={() => {
-            setShowForwardDialog(false);
-            setForwardingMessageId(null);
-          }}
-          onForward={handleForwardMessage}
-          chats={chats}
-          currentChatId={selectedChatId || undefined}
-        />
+      {showGroupInfo && selectedChatId && selectedChat?.is_group && (
+        <GroupInfoDialog chatId={selectedChatId} open={showGroupInfo} onOpenChange={setShowGroupInfo} />
+      )}
 
-        {showSearchDialog && selectedChatId && (
-          <SearchInChatDialog
-            chatId={selectedChatId}
-            open={showSearchDialog}
-            onOpenChange={setShowSearchDialog}
-            onMessageSelect={(msgId) => {
-              const msgEl = document.getElementById(`message-${msgId}`);
-              msgEl?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              setShowSearchDialog(false);
-            }}
-          />
-        )}
+      {showWallpaper && selectedChatId && (
+        <WallpaperDialog chatId={selectedChatId} open={showWallpaper} onOpenChange={setShowWallpaper} />
+      )}
 
-        {selectedChatId && (
-          <ChatMediaTab
-            chatId={selectedChatId}
-            open={showMediaTab}
-            onOpenChange={setShowMediaTab}
-          />
-        )}
-
-        {showGroupInfo && selectedChatId && selectedChat?.is_group && (
-          <GroupInfoDialog chatId={selectedChatId} open={showGroupInfo} onOpenChange={setShowGroupInfo} />
-        )}
-
-        {showWallpaper && selectedChatId && (
-          <WallpaperDialog chatId={selectedChatId} open={showWallpaper} onOpenChange={setShowWallpaper} />
-        )}
-
-        {showClearChat && selectedChatId && (
-          <ClearChatDialog
-            chatId={selectedChatId}
-            open={showClearChat}
-            onOpenChange={setShowClearChat}
-            onCleared={async () => {
-              await Promise.all([refetchMessages(), refetchChats()]);
-              setShowClearChat(false);
-            }}
-          />
-        )}
-
-        {showBlockDialog && otherParticipant && (
-          <BlockUserDialog
-            userId={otherParticipant.user_id}
-            userName={otherParticipant.profiles?.display_name}
-            open={showBlockDialog}
-            onOpenChange={setShowBlockDialog}
-          />
-        )}
-
-        {showReportDialog && otherParticipant && (
-          <ReportUserDialog
-            userId={otherParticipant.user_id}
-            userName={otherParticipant.profiles?.username || ''}
-            open={showReportDialog}
-            onOpenChange={setShowReportDialog}
-          />
-        )}
-
-        {showLocationDialog && (
-          <LocationShareDialog
-            open={showLocationDialog}
-            onOpenChange={setShowLocationDialog}
-            onShare={async (lat, lon, address) => {
-              const locationText = `📍 ${address || `${lat}, ${lon}`}`;
-              await sendMessage(locationText);
-              setShowLocationDialog(false);
-            }}
-          />
-        )}
-
-        {showContactDialog && (
-          <ContactShareDialog
-            open={showContactDialog}
-            onOpenChange={setShowContactDialog}
-            onShare={async (contactIds) => {
-              const contactText = `👤 Shared ${contactIds.length} contact${contactIds.length > 1 ? 's' : ''}`;
-              await sendMessage(contactText);
-              setShowContactDialog(false);
-            }}
-          />
-        )}
-
-        {showChatSettings && selectedChatId && (
-          <ChatSettingsDialog chatId={selectedChatId} open={showChatSettings} onOpenChange={setShowChatSettings} />
-        )}
-
-
-        <GalleryPickerSheet
-          open={showGallerySheet}
-          onOpenChange={setShowGallerySheet}
-          multiple
-          title="Send from gallery"
-          onSelect={(file) => acceptMediaFiles([file])}
-          onSelectMany={(files) => acceptMediaFiles(files)}
-        />
-
-        <ChatAttachmentsSheet
-          open={showAttachmentsSheet}
-          onOpenChange={setShowAttachmentsSheet}
-          onGalleryClick={() => setShowGallerySheet(true)}
-          onCameraClick={() => cameraInputRef.current?.click()}
-          onGifsClick={() => toast({ title: 'GIFs coming soon!' })}
-          onStickersClick={() => toast({ title: 'Stickers coming soon!' })}
-          onFilesClick={() => fileInputRef.current?.click()}
-          onLocationClick={() => setShowLocationDialog(true)}
-          onContactsClick={() => setShowContactDialog(true)}
-          onScheduleClick={() => {
-            if (messageText.trim()) {
-              setShowScheduleDialog(true);
-            } else {
-              toast({ title: 'Type a message first to schedule', variant: 'destructive' });
-            }
+      {showClearChat && selectedChatId && (
+        <ClearChatDialog
+          chatId={selectedChatId}
+          open={showClearChat}
+          onOpenChange={setShowClearChat}
+          onCleared={async () => {
+            await Promise.all([refetchMessages(), refetchChats()]);
+            setShowClearChat(false);
           }}
         />
+      )}
 
-        {showScheduleDialog && selectedChatId && (
-          <ScheduleMessageDialog
-            chatId={selectedChatId}
-            content={messageText}
-            open={showScheduleDialog}
-            onOpenChange={setShowScheduleDialog}
-            onScheduled={() => {
-              setMessageText('');
-              setShowScheduleDialog(false);
+      {showBlockDialog && otherParticipant && (
+        <BlockUserDialog
+          userId={otherParticipant.user_id}
+          userName={otherParticipant.profiles?.display_name}
+          open={showBlockDialog}
+          onOpenChange={setShowBlockDialog}
+        />
+      )}
+
+      {showReportDialog && otherParticipant && (
+        <ReportUserDialog
+          userId={otherParticipant.user_id}
+          userName={otherParticipant.profiles?.username || ''}
+          open={showReportDialog}
+          onOpenChange={setShowReportDialog}
+        />
+      )}
+
+      {showLocationDialog && (
+        <LocationShareDialog
+          open={showLocationDialog}
+          onOpenChange={setShowLocationDialog}
+          onShare={async (lat, lon, address) => {
+            const locationText = `📍 ${address || `${lat}, ${lon}`}`;
+            await sendMessage(locationText);
+            setShowLocationDialog(false);
+          }}
+        />
+      )}
+
+      {showContactDialog && (
+        <ContactShareDialog
+          open={showContactDialog}
+          onOpenChange={setShowContactDialog}
+          onShare={async (contactIds) => {
+            const contactText = `👤 Shared ${contactIds.length} contact${contactIds.length > 1 ? 's' : ''}`;
+            await sendMessage(contactText);
+            setShowContactDialog(false);
+          }}
+        />
+      )}
+
+      {showChatSettings && selectedChatId && (
+        <ChatSettingsDialog chatId={selectedChatId} open={showChatSettings} onOpenChange={setShowChatSettings} />
+      )}
+
+
+      <GalleryPickerSheet
+        open={showGallerySheet}
+        onOpenChange={setShowGallerySheet}
+        multiple
+        title="Send from gallery"
+        onSelect={(file) => acceptMediaFiles([file])}
+        onSelectMany={(files) => acceptMediaFiles(files)}
+      />
+
+      <ChatAttachmentsSheet
+        open={showAttachmentsSheet}
+        onOpenChange={setShowAttachmentsSheet}
+        onGalleryClick={() => setShowGallerySheet(true)}
+        onCameraClick={() => cameraInputRef.current?.click()}
+        onGifsClick={() => toast({ title: 'GIFs coming soon!' })}
+        onStickersClick={() => toast({ title: 'Stickers coming soon!' })}
+        onFilesClick={() => fileInputRef.current?.click()}
+        onLocationClick={() => setShowLocationDialog(true)}
+        onContactsClick={() => setShowContactDialog(true)}
+        onScheduleClick={() => {
+          if (messageText.trim()) {
+            setShowScheduleDialog(true);
+          } else {
+            toast({ title: 'Type a message first to schedule', variant: 'destructive' });
+          }
+        }}
+      />
+
+      {showScheduleDialog && selectedChatId && (
+        <ScheduleMessageDialog
+          chatId={selectedChatId}
+          content={messageText}
+          open={showScheduleDialog}
+          onOpenChange={setShowScheduleDialog}
+          onScheduled={() => {
+            setMessageText('');
+            setShowScheduleDialog(false);
+          }}
+        />
+      )}
+
+      {/* Long-press chat preview (does not mark as read) */}
+      {previewChatId && (() => {
+        const c = chats.find((x) => x.id === previewChatId);
+        if (!c) return null;
+        const otherP = c.participants.find((p) => p.user_id !== user?.id);
+        const previewName = c.name || otherP?.profiles?.display_name || 'Chat';
+        const previewAvatar = c.avatar_url || otherP?.profiles?.avatar_url;
+        return (
+          <ChatLongPressPopup
+            open={!!previewChatId}
+            onClose={() => setPreviewChatId(null)}
+            chatId={previewChatId}
+            name={previewName}
+            avatarUrl={previewAvatar}
+            lastMessage={formatLastMessagePreview(c.last_message)}
+            statusText={otherP && isUserOnline(otherP.user_id) ? 'online' : 'last seen recently'}
+            unreadCount={c.unread_count || 0}
+            onMarkUnread={() => {
+              toast({ description: (c.unread_count || 0) > 0 ? 'Marked as read' : 'Marked as unread' });
             }}
+            onDelete={() => setDeleteTarget({ id: previewChatId, name: previewName })}
           />
-        )}
+        );
+      })()}
 
-        {/* Long-press chat preview (does not mark as read) */}
-        {previewChatId && (() => {
-          const c = chats.find((x) => x.id === previewChatId);
-          if (!c) return null;
-          const otherP = c.participants.find((p) => p.user_id !== user?.id);
-          const previewName = c.name || otherP?.profiles?.display_name || 'Chat';
-          const previewAvatar = c.avatar_url || otherP?.profiles?.avatar_url;
-          return (
-            <ChatLongPressPopup
-              open={!!previewChatId}
-              onClose={() => setPreviewChatId(null)}
-              chatId={previewChatId}
-              name={previewName}
-              avatarUrl={previewAvatar}
-              lastMessage={formatLastMessagePreview(c.last_message)}
-              statusText={otherP && isUserOnline(otherP.user_id) ? 'online' : 'last seen recently'}
-              unreadCount={c.unread_count || 0}
-              onMarkUnread={() => {
-                toast({ description: (c.unread_count || 0) > 0 ? 'Marked as read' : 'Marked as unread' });
+      {/* Swipe-to-delete confirm */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(v) => !v && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes "{deleteTarget?.name}" from your conversations. The other participant will still see the chat on their side.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (deleteTarget) await deleteChat(deleteTarget.id);
+                setDeleteTarget(null);
               }}
-              onDelete={() => setDeleteTarget({ id: previewChatId, name: previewName })}
-            />
-          );
-        })()}
-
-        {/* Swipe-to-delete confirm */}
-        <AlertDialog
-          open={!!deleteTarget}
-          onOpenChange={(v) => !v && setDeleteTarget(null)}
-        >
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete chat?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This removes "{deleteTarget?.name}" from your conversations. The other participant will still see the chat on their side.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={async () => {
-                  if (deleteTarget) await deleteChat(deleteTarget.id);
-                  setDeleteTarget(null);
-                }}
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-      );
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
 };
 
-      export default MessagesPage;
+export default MessagesPage;
