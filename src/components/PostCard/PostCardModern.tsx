@@ -586,37 +586,17 @@ const PostCardModernComponent = ({
 
           {/* Media */}
           {mediaItems.length === 1 && <>
-            {isVideoUrl(mediaItems[0]) ? (
-              <div className="post-media rounded-xl overflow-hidden mb-3 max-h-[320px]">
-                <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
-              </div>
-            ) : (
-              <div
-                className="post-media relative w-full h-[260px] sm:h-[320px] flex items-center justify-center rounded-xl overflow-hidden mb-3 cursor-pointer bg-black/80"
-                onClick={e => {
-                  e.stopPropagation();
-                  captureOriginRect(e.currentTarget as HTMLElement);
-                  setGalleryImages(mediaItems);
-                  setGalleryStartIndex(0);
-                  setShowImageGallery(true);
-                }}
-              >
-                {/* Ambient Blur */}
-                <img
-                  src={mediaItems[0]}
-                  alt=""
-                  aria-hidden="true"
-                  className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 select-none pointer-events-none"
-                />
-                {/* Sharp Image */}
-                <img
-                  src={mediaItems[0]}
-                  alt="Post media"
-                  className="relative z-10 max-h-full max-w-full object-contain"
-                  loading="lazy"
-                />
-              </div>
-            )}
+            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3">
+              <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
+            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black" onClick={e => {
+              e.stopPropagation();
+              captureOriginRect(e.currentTarget as HTMLElement);
+              setGalleryImages(mediaItems);
+              setGalleryStartIndex(0);
+              setShowImageGallery(true);
+            }}>
+              <img src={mediaItems[0]} alt="Post media" className="w-full h-auto object-contain" loading="lazy" />
+            </div>}
           </>}
 
           {mediaItems.length > 1 && (
@@ -626,12 +606,12 @@ const PostCardModernComponent = ({
                   {mediaItems.map((url, i) => (
                     <CarouselItem key={url + i}>
                       {isVideoUrl(url) ? (
-                        <div className="relative w-full h-[260px] sm:h-[320px] flex items-center justify-center overflow-hidden rounded-xl bg-black">
+                        <div className="relative w-full h-[280px] sm:h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-black">
                           <VideoViewer videoUrl={url} playOnFocus objectFit="cover" />
                         </div>
                       ) : (
                         <div
-                          className="relative w-full h-[260px] sm:h-[320px] flex items-center justify-center overflow-hidden rounded-xl bg-black cursor-pointer"
+                          className="relative w-full h-[280px] sm:h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-black cursor-pointer"
                           onClick={e => {
                             captureOriginRect(e.currentTarget as HTMLElement);
                             setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
@@ -667,6 +647,7 @@ const PostCardModernComponent = ({
               </Carousel>
             </div>
           )}
+
 
           {/* Engagement Stats */}
           {(localReactionCount > 0 || post.comments_count > 0 || localRepostCount > 0) && <div className="flex items-center justify-between py-2 border-b border-border text-xs text-muted-foreground">
