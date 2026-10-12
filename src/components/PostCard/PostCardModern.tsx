@@ -588,15 +588,21 @@ const PostCardModernComponent = ({
           {mediaItems.length === 1 && <>
             {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3">
               <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
-            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition bg-black flex items-center justify-center max-h-[360px] sm:max-h-[420px]" onClick={e => {
+            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition" onClick={e => {
               e.stopPropagation();
               captureOriginRect(e.currentTarget as HTMLElement);
               setGalleryImages(mediaItems);
               setGalleryStartIndex(0);
               setShowImageGallery(true);
             }}>
-              <img src={mediaItems[0]} alt="Post media" className="w-full h-auto max-h-[360px] sm:max-h-[420px] object-contain mx-auto" loading="lazy" />
+              <img
+                src={mediaItems[0]}
+                alt="Post media"
+                className="w-full h-auto max-h-[360px] sm:max-h-[420px] object-cover"
+                loading="lazy"
+              />
             </div>}
+
 
           </>}
 
