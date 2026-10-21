@@ -629,10 +629,24 @@ export const useMessages = (chatId?: string) => {
       // fetch never ran. Nothing the user needs depends on it completing.
       void purgeExpiredMessages(fetchingFor, 'chat opening');
 
-      const { data: messagesData, error } = await supabase
+      // Honour "Clear chat": hide anything older than this user's cleared_at.
+      let clearedAt: string | null = null;
+      if (user?.id) {
+        const { data: part } = await (supabase as any)
+          .from('chat_participants')
+          .select('cleared_at')
+          .eq('chat_id', fetchingFor)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        clearedAt = part?.cleared_at ?? null;
+      }
+
+      let messagesQuery = supabase
         .from('messages')
         .select('*')
-        .eq('chat_id', fetchingFor)
+        .eq('chat_id', fetchingFor);
+      if (clearedAt) messagesQuery = messagesQuery.gt('created_at', clearedAt);
+      const { data: messagesData, error } = await messagesQuery
         .order('created_at', { ascending: true });
 
       if (error) throw error;

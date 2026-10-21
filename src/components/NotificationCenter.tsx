@@ -17,6 +17,7 @@ import {
   AtSign,
   CheckCheck,
   Settings2,
+  Trash2,
   ChevronRight,
   ArrowLeft
 } from 'lucide-react';
@@ -40,7 +41,7 @@ interface NotificationCenterProps {
 }
 
 const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
-  const { notifications, unreadCount, markAsRead, markAllAsRead, refetch } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll, refetch } = useNotifications();
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [expandedGroup, setExpandedGroup] = useState<NotificationGroup | null>(null);
   const [showClearAllDialog, setShowClearAllDialog] = useState(false);
@@ -487,13 +488,10 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                 variant="outline" 
                 className="w-full rounded-xl hover:bg-primary/10 transition-all duration-300" 
                 size="sm"
-                onClick={() => {
-                  onClose();
-                  navigate('/settings?tab=notifications');
-                }}
+                onClick={clearAll}
               >
-                <Settings2 className="h-4 w-4 mr-2" />
-                Notification Preferences
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear Notifications
               </Button>
             </div>
           )}

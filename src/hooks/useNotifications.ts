@@ -149,6 +149,18 @@ export const useNotifications = () => {
     }
   };
 
+  const clearAll = async () => {
+    if (!user?.id) return;
+    try {
+      const { error } = await supabase.from('notifications').delete().eq('user_id', user.id);
+      if (error) throw error;
+      setNotifications([]);
+      void CacheHelper.saveNotifications(user.id, []);
+    } catch {
+      toast.error('Failed to clear notifications');
+    }
+  };
+
   const markAllAsRead = async () => {
     if (!user?.id) return;
     try {
@@ -176,6 +188,7 @@ export const useNotifications = () => {
     loading,
     markAsRead,
     markAllAsRead,
+    clearAll,
     refetch: fetchNotifications
   };
 };

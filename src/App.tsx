@@ -438,7 +438,8 @@ const App = () => (
                         }
                       />
                       <Route path="/premium" element={<ProtectedRoute><PremiumPage /></ProtectedRoute>} />
-                      <Route path="/help-support" element={<ProtectedRoute><HelpSupportPage /></ProtectedRoute>} />
+                      <Route path="/help-support" element={<HelpSupportPage />} />
+                      <Route path="/help" element={<HelpSupportPage />} />
                       <Route path="/purchases" element={<ProtectedRoute><PurchaseHistoryPage /></ProtectedRoute>} />
                       <Route path="/admin-setup" element={<ProtectedRoute><AdminSetup /></ProtectedRoute>} />
                       <Route path="/starred-messages" element={<ProtectedRoute><StarredMessagesPage /></ProtectedRoute>} />
