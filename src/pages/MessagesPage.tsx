@@ -278,6 +278,10 @@ const MessagesPage = () => {
       container.scrollTop = container.scrollHeight;
     });
     observer.observe(container);
+    // The scroll container itself has a fixed height, so it never "resizes"
+    // when images/videos load inside it. Observe the content too, otherwise the
+    // pin-to-bottom never fires and the chat opens above the newest message.
+    Array.from(container.children).forEach((child) => observer.observe(child));
 
     return () => {
       window.clearTimeout(settleTimer);

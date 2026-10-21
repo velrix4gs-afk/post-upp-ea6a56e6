@@ -72,10 +72,19 @@ export const VideoCall = ({
     (async () => {
       try {
         await c.join({ create: true });
+        if (cancelled) throw new Error('cancelled');
         await c.camera.enable();
         await c.microphone.enable();
-        if (!cancelled) setCall(c);
+        if (cancelled) throw new Error('cancelled');
+        setCall(c);
       } catch (e) {
+        if (cancelled) {
+          // Unmounted mid-join: make sure hardware is released.
+          c.camera.disable(true).catch(() => { });
+          c.microphone.disable(true).catch(() => { });
+          c.leave().catch(() => { });
+          return;
+        }
         console.error('[VideoCall] join failed', e);
         if (!cancelled) {
           setCallError(describeStreamCallError(e, 'join the video call'));
@@ -84,8 +93,8 @@ export const VideoCall = ({
     })();
     return () => {
       cancelled = true;
-      c.camera.disable().catch(() => { });
-      c.microphone.disable().catch(() => { });
+      c.camera.disable(true).catch(() => { });
+      c.microphone.disable(true).catch(() => { });
       c.leave().catch(() => { });
     };
   }, [callId, client]);

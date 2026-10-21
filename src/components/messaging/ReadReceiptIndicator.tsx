@@ -19,7 +19,7 @@ export const ReadReceiptIndicator = ({ status, isOwn }: ReadReceiptIndicatorProp
 
   // Tick colours follow the WhatsApp convention the app is imitating:
   //   one white tick       -> sent, not yet on their device
-  //   two blue ticks       -> delivered, not opened
+  //   two white ticks      -> delivered, not opened
   //   two purple ticks     -> read
   // The bubble can be tinted (wallpaper themes, custom bubble colours), so
   // these are fixed colours rather than theme tokens: they must stay legible
@@ -32,7 +32,7 @@ export const ReadReceiptIndicator = ({ status, isOwn }: ReadReceiptIndicatorProp
 
   if (status === 'delivered') {
     return (
-      <CheckCheck className="h-3 w-3 text-sky-400" aria-label="Delivered" />
+      <CheckCheck className="h-3 w-3 text-white" aria-label="Delivered" />
     );
   }
 

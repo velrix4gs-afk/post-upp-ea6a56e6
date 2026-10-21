@@ -77,10 +77,18 @@ export const VoiceCall = ({
     (async () => {
       try {
         await c.join({ create: true });
+        if (cancelled) throw new Error('cancelled');
         await c.microphone.enable();
-        await c.camera.disable();
-        if (!cancelled) setCall(c);
+        await c.camera.disable(true);
+        if (cancelled) throw new Error('cancelled');
+        setCall(c);
       } catch (e) {
+        if (cancelled) {
+          // Unmounted mid-join: make sure hardware is released.
+          c.microphone.disable(true).catch(() => { });
+          c.leave().catch(() => { });
+          return;
+        }
         console.error('[VoiceCall] join failed', e);
         if (!cancelled) {
           setCallError(describeStreamCallError(e, 'join the voice call'));
@@ -89,7 +97,8 @@ export const VoiceCall = ({
     })();
     return () => {
       cancelled = true;
-      c.microphone.disable().catch(() => { });
+      c.microphone.disable(true).catch(() => { });
+      c.camera.disable(true).catch(() => { });
       c.leave().catch(() => { });
     };
   }, [callId, client]);
