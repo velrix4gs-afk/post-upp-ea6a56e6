@@ -343,7 +343,7 @@ export const EnhancedMessageBubble = ({
                       "transition-[background-color,color] duration-300 ease-out",
                       isImageOnly
                         ? "p-0 bg-transparent shadow-none"
-                        : "rounded-[18px] px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm",
+                        : "bubble-squircle rounded-[18px] px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm",
                       // True WhatsApp palette — light mode sent bubbles are
                       // pale green (#d9fdd3), not blue; dark mode already
                       // matched WhatsApp's actual dark colors.
@@ -460,11 +460,18 @@ export const EnhancedMessageBubble = ({
                         {isEdited && (
                           <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>
                         )}
+                        {/* Inline timestamp: floats right on the last line when it fits, wraps under otherwise */}
+                        {!mediaUrl && (
+                          <span className="float-right ml-3 mt-[7px] inline-flex items-center gap-1 text-[11px] leading-none opacity-70 select-none">
+                            {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                          </span>
+                        )}
                       </p>
                     )}
 
-                    {/* Timestamp and read receipt — hidden when image-only (overlaid on image instead) */}
-                    {!isImageOnly && (
+                    {/* Timestamp and read receipt — hidden when image-only (overlaid on image) or when shown inline with text */}
+                    {!isImageOnly && !(content && !mediaUrl) && (
                       <div className="flex justify-end items-center gap-1 mt-1">
                         <span className="text-[11px] opacity-70">
                           {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

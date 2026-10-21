@@ -3539,3 +3539,12 @@ html.dark[data-contrast='dim'][data-accent='green'] { --primary: 142 76% 58%; --
 html.dark[data-contrast='dim'][data-accent='orange'] { --primary: 25 95% 58%; --primary-glow: 25 95% 70%; --ring: 25 95% 58%; }
 html.dark[data-contrast='dim'][data-accent='red'] { --primary: 0 84% 60%; --primary-glow: 0 84% 75%; --ring: 0 84% 60%; }
 html.dark[data-contrast='dim'][data-accent='pink'] { --primary: 330 81% 60%; --primary-glow: 330 81% 75%; --ring: 330 81% 60%; }
+
+
+/* Squircle chat bubbles — progressive enhancement (Chromium 139+); falls back to the rounded corners elsewhere. */
+@supports (corner-shape: squircle) {
+  .bubble-squircle {
+    corner-shape: squircle;
+    border-radius: 26px;
+  }
+}

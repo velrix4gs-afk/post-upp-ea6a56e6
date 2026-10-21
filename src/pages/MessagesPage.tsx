@@ -33,6 +33,7 @@ import { ScheduleMessageDialog } from '@/components/messaging/ScheduleMessageDia
 import { ChatListItem } from '@/components/messaging/ChatListItem';
 import { ChatHeader } from '@/components/messaging/ChatHeader';
 import { ChatInput } from '@/components/messaging/ChatInput';
+import { ChatInfoSheet } from '@/components/messaging/ChatInfoSheet';
 import { DateSeparator } from '@/components/messaging/DateSeparator';
 import { ScrollToBottomFab } from '@/components/messaging/ScrollToBottomFab';
 import { PinnedMessageBanner } from '@/components/messaging/PinnedMessageBanner';
@@ -134,6 +135,7 @@ const MessagesPage = () => {
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showWallpaper, setShowWallpaper] = useState(false);
   const [showClearChat, setShowClearChat] = useState(false);
+  const [showChatInfo, setShowChatInfo] = useState(false);
   const [showBlockDialog, setShowBlockDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showLocationDialog, setShowLocationDialog] = useState(false);
@@ -989,7 +991,7 @@ const MessagesPage = () => {
             if (selectedChat.is_group) {
               setShowGroupInfo(true);
             } else if (otherP?.user_id) {
-              navigate(profilePath({ username: otherP?.profiles?.username, id: otherP?.user_id }));
+              setShowChatInfo(true);
             }
           }}
           onVoiceCall={() => {
@@ -1389,6 +1391,23 @@ const MessagesPage = () => {
             await Promise.all([refetchMessages(), refetchChats()]);
             setShowClearChat(false);
           }}
+        />
+      )}
+
+      {selectedChat && !selectedChat.is_group && otherParticipant && (
+        <ChatInfoSheet
+          open={showChatInfo}
+          onOpenChange={setShowChatInfo}
+          name={otherParticipant?.profiles?.display_name || 'User'}
+          avatarUrl={otherParticipant?.profiles?.avatar_url}
+          onViewProfile={() =>
+            navigate(profilePath({ username: otherParticipant?.profiles?.username, id: otherParticipant?.user_id }))
+          }
+          onSetNickname={() => setShowChatSettings(true)}
+          onSharedMedia={() => setShowMediaTab(true)}
+          onSharedLinks={() => setShowMediaTab(true)}
+          onBlock={() => setShowBlockDialog(true)}
+          onReport={() => setShowReportDialog(true)}
         />
       )}
 
