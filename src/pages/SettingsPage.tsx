@@ -780,13 +780,6 @@ const SettingsPage = () => {
                     </Select>
                   </div>
 
-                  <div className="p-4 border rounded-lg space-y-4">
-                    <div>
-                      <Label className="text-base mb-2 block">Color Theme</Label>
-                      <p className="text-sm text-muted-foreground mb-4">Choose your preferred color scheme</p>
-                    </div>
-                  </div>
-
                   <div className="p-4 border rounded-lg space-y-3">
                     <div>
                       <Label className="text-base mb-1 block">Contrast</Label>
@@ -836,8 +829,8 @@ const SettingsPage = () => {
                             <div className="h-10 w-10 rounded-full bg-[#1877F2]" />
                           </div>
                           <div className="text-left flex-1">
-                            <span className="font-semibold text-base block mb-1">Default · FB + Twitter</span>
-                            <p className="text-xs text-muted-foreground">Clean white • Facebook blue (#1877F2)</p>
+                            <span className="font-semibold text-base block mb-1">POST-UPP BLUE (default)</span>
+                            <p className="text-xs text-muted-foreground">Clean white • Blue (#1877F2)</p>
                           </div>
                         </div>
                       </button>
@@ -981,26 +974,6 @@ const SettingsPage = () => {
                         <SelectItem value="quiet">Quiet</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border rounded-lg bg-primary/5">
-                    <div>
-                      <Label className="text-base">Default skin</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Facebook + Twitter blend with iOS 26 spring motion — always on for everyone.
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setColorTheme('fb-twitter');
-                        toast({ description: 'Restored default appearance' });
-                      }}
-                    >
-                      Reset
-                    </Button>
                   </div>
                 </div>
               </div>

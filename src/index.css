@@ -3509,3 +3509,33 @@ html[data-skin="fb26"] .animate-message-receive {
     width: 100%;
   }
 }
+
+/* ── AMOLED / Dim must win over colour-theme dark blocks and keep the accent ──
+   [data-color-theme="x"].dark and :root[data-accent="x"] have the same
+   specificity as the contrast blocks, and they are declared later, so they
+   used to override AMOLED's black canvas and (in dark mode) the accent
+   colour never applied. These selectors are strictly more specific. */
+html.dark[data-contrast='amoled'][data-color-theme],
+html.dark[data-contrast='amoled'] {
+  --background: 0 0% 0%;
+  --card: 0 0% 0%;
+  --popover: 0 0% 3%;
+  --secondary: 0 0% 8%;
+  --muted: 0 0% 8%;
+  --border: 0 0% 18%;
+  --input: 0 0% 18%;
+}
+html.dark[data-contrast='amoled'][data-accent='default'] { --primary: 217 92% 58%; --primary-glow: 217 92% 70%; --ring: 217 92% 58%; }
+html.dark[data-contrast='amoled'][data-accent='blue'] { --primary: 217 92% 58%; --primary-glow: 217 92% 70%; --ring: 217 92% 58%; }
+html.dark[data-contrast='amoled'][data-accent='purple'] { --primary: 262 83% 58%; --primary-glow: 262 83% 75%; --ring: 262 83% 58%; }
+html.dark[data-contrast='amoled'][data-accent='green'] { --primary: 142 76% 58%; --primary-glow: 142 76% 55%; --ring: 142 76% 58%; }
+html.dark[data-contrast='amoled'][data-accent='orange'] { --primary: 25 95% 58%; --primary-glow: 25 95% 70%; --ring: 25 95% 58%; }
+html.dark[data-contrast='amoled'][data-accent='red'] { --primary: 0 84% 60%; --primary-glow: 0 84% 75%; --ring: 0 84% 60%; }
+html.dark[data-contrast='amoled'][data-accent='pink'] { --primary: 330 81% 60%; --primary-glow: 330 81% 75%; --ring: 330 81% 60%; }
+html.dark[data-contrast='dim'][data-accent='default'] { --primary: 217 92% 58%; --primary-glow: 217 92% 70%; --ring: 217 92% 58%; }
+html.dark[data-contrast='dim'][data-accent='blue'] { --primary: 217 92% 58%; --primary-glow: 217 92% 70%; --ring: 217 92% 58%; }
+html.dark[data-contrast='dim'][data-accent='purple'] { --primary: 262 83% 58%; --primary-glow: 262 83% 75%; --ring: 262 83% 58%; }
+html.dark[data-contrast='dim'][data-accent='green'] { --primary: 142 76% 58%; --primary-glow: 142 76% 55%; --ring: 142 76% 58%; }
+html.dark[data-contrast='dim'][data-accent='orange'] { --primary: 25 95% 58%; --primary-glow: 25 95% 70%; --ring: 25 95% 58%; }
+html.dark[data-contrast='dim'][data-accent='red'] { --primary: 0 84% 60%; --primary-glow: 0 84% 75%; --ring: 0 84% 60%; }
+html.dark[data-contrast='dim'][data-accent='pink'] { --primary: 330 81% 60%; --primary-glow: 330 81% 75%; --ring: 330 81% 60%; }
