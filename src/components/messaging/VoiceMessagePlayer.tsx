@@ -47,6 +47,8 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [scrubRatio, setScrubRatio] = useState<number | null>(null);
+  const scrubRatioRef = useRef<number | null>(null);
   const [peaks, setPeaks] = useState<number[]>(() => Array(BAR_COUNT).fill(0.25));
   const audioRef = useRef<HTMLAudioElement>(null);
   const waveRef = useRef<HTMLDivElement>(null);
@@ -104,14 +106,36 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
     }
   };
 
-  const seekFromEvent = (clientX: number) => {
-    const audio = audioRef.current;
+  const ratioFromX = (clientX: number) => {
     const el = waveRef.current;
-    if (!audio || !el || !duration) return;
+    if (!el) return 0;
     const rect = el.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  };
+
+  // Draggable scrubber: preview while dragging, commit the seek on release.
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!duration) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    const r = ratioFromX(e.clientX);
+    scrubRatioRef.current = r;
+    setScrubRatio(r);
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (scrubRatioRef.current === null) return;
+    const r = ratioFromX(e.clientX);
+    scrubRatioRef.current = r;
+    setScrubRatio(r);
+  };
+  const endScrub = (e: React.PointerEvent<HTMLDivElement>) => {
+    const r = scrubRatioRef.current;
+    scrubRatioRef.current = null;
+    setScrubRatio(null);
+    const audio = audioRef.current;
+    if (r === null || !audio || !duration) return;
+    audio.currentTime = r * duration;
     setCurrentTime(audio.currentTime);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
   };
 
   const formatTime = (time: number) => {
@@ -121,10 +145,11 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   };
 
-  const progress = duration > 0 ? currentTime / duration : 0;
+  const progress = scrubRatio !== null ? scrubRatio : duration > 0 ? currentTime / duration : 0;
+  const shownTime = scrubRatio !== null ? scrubRatio * duration : currentTime;
 
   return (
-    <div className={cn("flex items-center gap-2 p-1.5 rounded-lg min-w-[210px]", className)}>
+    <div className={cn("flex items-center gap-2.5 min-w-[220px] select-none", className)}>
       <audio ref={audioRef} src={audioUrl} preload="metadata" />
       
       <Button
@@ -147,11 +172,19 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
       <div className="flex-1 min-w-0">
         <div
           ref={waveRef}
-          onClick={(e) => seekFromEvent(e.clientX)}
-          className="flex items-center gap-[2px] h-8 cursor-pointer touch-manipulation"
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endScrub}
+          onPointerCancel={endScrub}
+          role="slider"
+          aria-label="Voice message position"
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(shownTime)}
+          style={{ touchAction: 'none' }}
+          className="relative flex items-center gap-[2px] h-8 cursor-pointer"
         >
           {peaks.map((peak, i) => {
-            // Continuous (pixel-by-pixel) fill instead of crude per-bar stepping
             const fill = Math.max(0, Math.min(1, progress * peaks.length - i));
             return (
               <div
@@ -162,15 +195,24 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
                 )}
                 style={{
                   height: `${Math.max(12, peak * 100)}%`,
-                  opacity: 0.4 + fill * 0.6,
-                  transition: 'opacity 90ms linear',
+                  opacity: 0.35 + fill * 0.65,
                 }}
               />
             );
           })}
+          {/* Scrubber knob */}
+          <span
+            className={cn(
+              "pointer-events-none absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full shadow",
+              isOwn ? "bg-current" : "bg-primary",
+              scrubRatio !== null && "scale-125"
+            )}
+            style={{ left: `${progress * 100}%` }}
+          />
         </div>
-        <div className="text-[11px] opacity-70 mt-0.5">
-          {formatTime(isPlaying || currentTime > 0 ? currentTime : duration)}
+        <div className="mt-0.5 flex justify-between text-[11px] tabular-nums opacity-70">
+          <span>{formatTime(isPlaying || shownTime > 0 ? shownTime : duration)}</span>
+          {(isPlaying || shownTime > 0) && <span>{formatTime(duration)}</span>}
         </div>
       </div>
     </div>
