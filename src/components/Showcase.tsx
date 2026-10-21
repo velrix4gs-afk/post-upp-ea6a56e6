@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { Clapperboard, Plus } from 'lucide-react';
 import ShowcaseViewer from '@/components/ShowcaseViewer';
 import { ensurePrivateChat } from '@/lib/chatCreation';
+import { buildShowcaseReply } from '@/lib/showcaseReply';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
@@ -108,11 +109,8 @@ const Showcase = () => {
     try {
       const chatId = await ensurePrivateChat(user.id, story.user_id);
 
-      // Tag the message with the Showcase context so recipient sees the source preview
-      const previewText = story.content ? `"${story.content.slice(0, 50)}..."` : 'Showcase item';
-      const formattedContent = text === '❤️'
-        ? `❤️ Reacted to your Showcase`
-        : `Replied to your Showcase (${previewText}):\n${text}`;
+      // Carry the actual Showcase thumbnail + caption with the reply.
+      const formattedContent = buildShowcaseReply(story, text);
 
       const { error } = await supabase.from('messages').insert({
         chat_id: chatId,
@@ -123,7 +121,7 @@ const Showcase = () => {
       if (error) throw error;
 
       // DO NOT navigate away or close Showcase - keep the viewer on screen!
-      toast({ description: 'Reaction sent to chat' });
+      toast({ description: 'Sent' });
       return true;
     } catch (error) {
       console.error('[showcase] failed to send reply', error);

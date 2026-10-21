@@ -52,6 +52,7 @@ import { toast } from "@/hooks/use-toast";
 import { VoiceMessagePlayer } from "./messaging/VoiceMessagePlayer";
 import { haptic } from "@/lib/haptics";
 import { formatCallRecord, parseCallRecord } from "@/lib/callRecord";
+import { parseShowcaseReply } from "@/lib/showcaseReply";
 
 const getBubbleColorValue = (color: string): string => {
   const colorMap: Record<string, string> = {
@@ -232,6 +233,8 @@ export const EnhancedMessageBubble = ({
   // (some legacy/migrated messages can have null media_type but JSON
   // content shaped like {"kind":"voice","status":"..."}); without this,
   // the raw JSON would leak through as a text message.
+  const showcaseReply = parseShowcaseReply(content);
+  const bodyText = showcaseReply ? showcaseReply.text : content;
   const contentLooksLikeCallRecord = (() => {
     if (typeof content !== 'string') return false;
     const trimmed = content.trim();
@@ -454,9 +457,31 @@ export const EnhancedMessageBubble = ({
                       </div>
                     )}
 
-                    {content && (
+                    {showcaseReply && (
+                      <div className="mb-1.5 flex items-stretch gap-2 overflow-hidden rounded-xl bg-black/10 dark:bg-white/10 p-1.5">
+                        {showcaseReply.mediaUrl && (
+                          <div className="h-16 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                            {showcaseReply.mediaType === 'video' ? (
+                              <video src={`${showcaseReply.mediaUrl}#t=0.1`} preload="metadata" muted playsInline className="h-full w-full object-cover" />
+                            ) : (
+                              <img src={showcaseReply.mediaUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            )}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1 self-center">
+                          <p className="text-[11px] font-semibold opacity-80">
+                            {isOwn ? 'You replied to a Showcase' : 'Replied to your Showcase'}
+                          </p>
+                          {showcaseReply.caption && (
+                            <p className="line-clamp-2 text-xs opacity-70">{showcaseReply.caption}</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {bodyText && (
                       <p className="max-w-full text-[15px] whitespace-pre-wrap leading-relaxed [overflow-wrap:anywhere]">
-                        {content}
+                        {bodyText}
                         {isEdited && (
                           <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>
                         )}
@@ -471,7 +496,7 @@ export const EnhancedMessageBubble = ({
                     )}
 
                     {/* Timestamp and read receipt — hidden when image-only (overlaid on image) or when shown inline with text */}
-                    {!isImageOnly && !(content && !mediaUrl) && (
+                    {!isImageOnly && !(bodyText && !mediaUrl) && (
                       <div className="flex justify-end items-center gap-1 mt-1">
                         <span className="text-[11px] opacity-70">
                           {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}

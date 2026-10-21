@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronLeft, ChevronRight, Heart, Loader2, MoreVertical, Send, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Heart, Loader2, MoreVertical, Send, Volume2, VolumeX, X } from 'lucide-react';
 import type { Story } from '@/hooks/useShowcases';
 import { getCachedThumbnail } from '@/lib/videoThumbnail';
 import { cn } from '@/lib/utils';
@@ -57,6 +57,8 @@ const ShowcaseViewer = ({
   const [sharing, setSharing] = useState(false);
   const [paused, setPaused] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [videoProgress, setVideoProgress] = useState(0);
+  const [soundOn, setSoundOn] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -74,6 +76,7 @@ const ShowcaseViewer = ({
 
   useEffect(() => {
     setImageFailed(false);
+    setVideoProgress(0);
     remainingImageDuration.current = IMAGE_DURATION_MS;
   }, [currentStoryId]);
 
@@ -104,6 +107,17 @@ const ShowcaseViewer = ({
   }, [onNext, onPrevious]);
 
   if (!currentStory) return null;
+
+  // Progress segments belong to ONE person's items (like Instagram), not to
+  // every item from everyone in the tray.
+  const groupStories = stories.filter((story) => story.user_id === currentStory.user_id);
+  const groupIndex = Math.max(0, groupStories.findIndex((story) => story.id === currentStory.id));
+
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    if (videoRef.current) videoRef.current.muted = !next;
+  };
 
   const handleReply = async () => {
     const text = message.trim();
@@ -192,16 +206,28 @@ const ShowcaseViewer = ({
               onPointerCancel={handlePressEnd}
               onLostPointerCapture={handlePressEnd}
             >
-              <div className="absolute inset-x-4 top-[max(env(safe-area-inset-top),16px)] z-20 flex gap-1.5" aria-label={`Showcase item ${currentIndex + 1} of ${stories.length}`}>
-                {stories.map((story, index) => (
-                  <div key={story.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/30">
-                    <div
-                      key={`${story.id}-${index === currentIndex ? 'current' : 'static'}`}
-                      className={`h-full bg-white ${index < currentIndex ? 'w-full' : index > currentIndex ? 'w-0' : 'w-full animate-[story-progress_5s_linear_forwards]'}`}
-                      style={{ animationPlayState: index === currentIndex && paused ? 'paused' : 'running' }}
-                    />
-                  </div>
-                ))}
+              <div className="absolute inset-x-4 top-[max(env(safe-area-inset-top),16px)] z-20 flex gap-1.5" aria-label={`Showcase item ${groupIndex + 1} of ${groupStories.length}`}>
+                {groupStories.map((story, index) => {
+                  const isCurrent = index === groupIndex;
+                  const isVideoCurrent = isCurrent && currentStory.media_type === 'video';
+                  return (
+                    <div key={story.id} className="h-1 flex-1 overflow-hidden rounded-full bg-white/30">
+                      <div
+                        key={`${story.id}-${isCurrent ? 'current' : 'static'}`}
+                        className={cn(
+                          'h-full bg-white',
+                          index < groupIndex && 'w-full',
+                          index > groupIndex && 'w-0',
+                          isCurrent && !isVideoCurrent && 'w-full animate-[story-progress_5s_linear_forwards]',
+                        )}
+                        // Videos drive the bar from real playback, so it tracks the clip length and stops when paused.
+                        style={isVideoCurrent
+                          ? { width: `${Math.min(100, videoProgress * 100)}%` }
+                          : { animationPlayState: isCurrent && paused ? 'paused' : 'running' }}
+                      />
+                    </div>
+                  );
+                })}
               </div>
               <header className="absolute inset-x-4 top-[max(calc(env(safe-area-inset-top)+24px),40px)] z-20 flex items-center gap-2 text-white">
                 <Avatar className="h-9 w-9 border border-white/70">
@@ -214,6 +240,18 @@ const ShowcaseViewer = ({
                     {new Date(currentStory.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                   </p>
                 </div>
+                {currentStory.media_type === 'video' && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={toggleSound}
+                    className="h-10 w-10 rounded-full text-white hover:bg-white/15"
+                    aria-label={soundOn ? 'Mute video' : 'Unmute video'}
+                  >
+                    {soundOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -295,9 +333,23 @@ const ShowcaseViewer = ({
                   poster={getCachedThumbnail(currentStory.media_url) ?? undefined}
                   className="h-full w-full object-contain"
                   autoPlay
-                  muted
+                  muted={!soundOn}
                   playsInline
                   preload="auto"
+                  onLoadedMetadata={(event) => {
+                    // Autoplay with sound can be refused; fall back to muted playback and let the user unmute.
+                    const el = event.currentTarget;
+                    el.muted = !soundOn;
+                    void el.play().catch(() => {
+                      el.muted = true;
+                      setSoundOn(false);
+                      void el.play().catch(() => { });
+                    });
+                  }}
+                  onTimeUpdate={(event) => {
+                    const el = event.currentTarget;
+                    if (el.duration > 0) setVideoProgress(el.currentTime / el.duration);
+                  }}
                   onPlay={() => setPaused(false)}
                   onPause={() => setPaused(true)}
                   onEnded={onNext}

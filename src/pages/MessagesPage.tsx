@@ -60,12 +60,15 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
+import { showcaseReplyPreview } from '@/lib/showcaseReply';
 import { profilePath } from '@/lib/profilePath';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups' | 'archived';
 
 const formatLastMessagePreview = (text?: string): string | undefined => {
   if (!text) return text;
+  const showcasePreview = showcaseReplyPreview(text);
+  if (showcasePreview) return showcasePreview;
   const callRecord = parseCallRecord(text);
   if (!callRecord) return text;
   const icon = callRecord.kind === 'video' ? '📹' : '📞';
@@ -106,7 +109,7 @@ const MessagesPage = () => {
   const selectedParticipants = Array.isArray(selectedChat?.participants) ? selectedChat.participants : [];
   const otherParticipant = selectedParticipants.find((p) => p.user_id !== user?.id);
   const isOnline = otherParticipant ? isUserOnline(otherParticipant.user_id) : false;
-  const { settings: chatSettings } = useChatSettings(selectedChatId || undefined, otherParticipant?.user_id);
+  const { settings: chatSettings, toggleMute: toggleChatMute } = useChatSettings(selectedChatId || undefined, otherParticipant?.user_id);
 
   // Input/state
   const [messageText, setMessageText] = useState('');
@@ -1400,6 +1403,12 @@ const MessagesPage = () => {
           onOpenChange={setShowChatInfo}
           name={otherParticipant?.profiles?.display_name || 'User'}
           avatarUrl={otherParticipant?.profiles?.avatar_url}
+          username={otherParticipant?.profiles?.username}
+          isOnline={isOnline}
+          isMuted={!!chatSettings?.is_muted}
+          onSearch={() => setShowSearchDialog(true)}
+          onToggleMute={() => toggleChatMute()}
+          onWallpaper={() => setShowWallpaper(true)}
           onViewProfile={() =>
             navigate(profilePath({ username: otherParticipant?.profiles?.username, id: otherParticipant?.user_id }))
           }
