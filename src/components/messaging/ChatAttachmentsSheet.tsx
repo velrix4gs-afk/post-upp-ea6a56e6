@@ -1,22 +1,11 @@
-import { 
-  Image, 
-  Camera, 
-  Film, 
-  Smile, 
-  Paperclip, 
-  MapPin, 
-  Users, 
-  Clock,
-  LucideIcon
-} from 'lucide-react';
-import {
-  Drawer,
-  DrawerContent,
-} from '@/components/ui/drawer';
+import { Image, Camera, Film, Smile, FileText, MapPin, User, CalendarClock, LucideIcon } from 'lucide-react';
+import { Drawer, DrawerContent } from '@/components/ui/drawer';
 
 interface AttachmentOption {
   icon: LucideIcon;
   label: string;
+  /** Icon colour — each action has its own, WhatsApp style. */
+  color: string;
   onClick: () => void;
 }
 
@@ -33,69 +22,38 @@ interface ChatAttachmentsSheetProps {
   onScheduleClick: () => void;
 }
 
-const AttachmentButton = ({ 
-  icon: Icon, 
-  label, 
-  onClick 
-}: { 
-  icon: LucideIcon; 
-  label: string; 
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className="flex flex-col items-center gap-2 group"
-  >
-    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-muted flex items-center justify-center group-hover:bg-muted/80 group-active:scale-95 transition-all duration-200">
-      <Icon className="h-6 w-6 text-foreground" />
+const AttachmentButton = ({ icon: Icon, label, color, onClick }: AttachmentOption) => (
+  <button onClick={onClick} className="flex flex-col items-center gap-2 group">
+    <div className="flex h-[52px] w-full max-w-[96px] items-center justify-center rounded-full border border-border bg-background group-active:scale-95 group-active:bg-muted transition-all duration-150">
+      <Icon className="h-7 w-7" style={{ color }} strokeWidth={2.25} />
     </div>
-    <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-      {label}
-    </span>
+    <span className="text-[13px] text-foreground/80">{label}</span>
   </button>
 );
 
 export const ChatAttachmentsSheet = ({
-  open,
-  onOpenChange,
-  onGalleryClick,
-  onCameraClick,
-  onGifsClick,
-  onStickersClick,
-  onFilesClick,
-  onLocationClick,
-  onContactsClick,
-  onScheduleClick,
+  open, onOpenChange, onGalleryClick, onCameraClick, onGifsClick, onStickersClick,
+  onFilesClick, onLocationClick, onContactsClick, onScheduleClick,
 }: ChatAttachmentsSheetProps) => {
-  const handleAction = (action: () => void) => {
-    action();
-    onOpenChange(false);
-  };
+  const run = (action: () => void) => () => { action(); onOpenChange(false); };
 
   const options: AttachmentOption[] = [
-    { icon: Image, label: 'Gallery', onClick: () => handleAction(onGalleryClick) },
-    { icon: Camera, label: 'Camera', onClick: () => handleAction(onCameraClick) },
-    { icon: Film, label: 'GIFs', onClick: () => handleAction(onGifsClick) },
-    { icon: Smile, label: 'Stickers', onClick: () => handleAction(onStickersClick) },
-    { icon: Paperclip, label: 'Files', onClick: () => handleAction(onFilesClick) },
-    { icon: MapPin, label: 'Location', onClick: () => handleAction(onLocationClick) },
-    { icon: Users, label: 'Contacts', onClick: () => handleAction(onContactsClick) },
-    { icon: Clock, label: 'Schedule', onClick: () => handleAction(onScheduleClick) },
+    { icon: Image, label: 'Gallery', color: '#1d8bf1', onClick: run(onGalleryClick) },
+    { icon: Camera, label: 'Camera', color: '#ec407a', onClick: run(onCameraClick) },
+    { icon: MapPin, label: 'Location', color: '#12b76a', onClick: run(onLocationClick) },
+    { icon: User, label: 'Contact', color: '#0ea5e9', onClick: run(onContactsClick) },
+    { icon: FileText, label: 'Document', color: '#7c4dff', onClick: run(onFilesClick) },
+    { icon: Film, label: 'GIFs', color: '#f59e0b', onClick: run(onGifsClick) },
+    { icon: Smile, label: 'Stickers', color: '#ff7043', onClick: run(onStickersClick) },
+    { icon: CalendarClock, label: 'Schedule', color: '#f43f5e', onClick: run(onScheduleClick) },
   ];
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="pb-8">
-        <div className="p-6 pt-4">
-          <div className="grid grid-cols-4 gap-4 sm:gap-6">
-            {options.map((option) => (
-              <AttachmentButton
-                key={option.label}
-                icon={option.icon}
-                label={option.label}
-                onClick={option.onClick}
-              />
-            ))}
+      <DrawerContent className="pb-6">
+        <div className="px-4 pb-2 pt-5">
+          <div className="grid grid-cols-4 gap-x-3 gap-y-5">
+            {options.map((o) => <AttachmentButton key={o.label} {...o} />)}
           </div>
         </div>
       </DrawerContent>

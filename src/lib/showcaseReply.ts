@@ -11,10 +11,11 @@ export interface ShowcaseReply {
   mediaUrl?: string;
   mediaType?: string;
   storyId?: string;
+  ownerName?: string;
 }
 
 export const buildShowcaseReply = (
-  story: { id?: string; content?: string | null; media_url?: string | null; media_type?: string | null },
+  story: { id?: string; content?: string | null; media_url?: string | null; media_type?: string | null; profiles?: { display_name?: string | null; username?: string | null } | null },
   text: string,
 ): string => {
   const payload: ShowcaseReply = {
@@ -24,6 +25,7 @@ export const buildShowcaseReply = (
     mediaUrl: story.media_url || undefined,
     mediaType: story.media_type || undefined,
     storyId: story.id,
+    ownerName: story.profiles?.display_name || story.profiles?.username || undefined,
   };
   return JSON.stringify(payload);
 };
