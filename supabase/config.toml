@@ -51,8 +51,6 @@ verify_jwt = true
 [functions.process-tip]
 verify_jwt = true
 
-[functions.create-coins-checkout]
-verify_jwt = true
 
 [functions.ai-chat]
 verify_jwt = false
