@@ -190,7 +190,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
     return () => window.removeEventListener('chat-settings-updated', onSettingsUpdated);
   }, [chatId]);
 
-  const updateSettings = async (updates: Partial<ChatSettings>): Promise<boolean> => {
+  const updateSettings = async (updates: Partial<ChatSettings>, options?: { silent?: boolean }): Promise<boolean> => {
     if (!user || !chatId) {
       toast({ title: 'Could not update chat settings', description: 'Chat or account is unavailable.', variant: 'destructive' });
       return false;
@@ -233,7 +233,7 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
       if (chatId && 'wallpaper_url' in updates) {
         writeCachedWallpaper(chatId, data?.wallpaper_url);
       }
-      toast({ title: 'Settings updated' });
+      if (!options?.silent) toast({ title: 'Settings updated' });
       return true;
     } catch (error) {
       console.error('Error updating settings:', error);
@@ -247,8 +247,8 @@ export const useChatSettings = (chatId?: string, targetUserId?: string) => {
     }
   };
 
-  const toggleMute = () => updateSettings({ is_muted: !settings?.is_muted });
-  const togglePin = () => updateSettings({ is_pinned: !settings?.is_pinned });
+  const toggleMute = () => updateSettings({ is_muted: !settings?.is_muted }, { silent: true });
+  const togglePin = () => updateSettings({ is_pinned: !settings?.is_pinned }, { silent: true });
   // Archive previously didn't exist at all -- the swipe action just showed
   // a "coming soon" toast with no real backend behind it.
   const toggleArchive = () => updateSettings({ is_archived: !settings?.is_archived });

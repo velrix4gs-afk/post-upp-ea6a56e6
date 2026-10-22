@@ -55,7 +55,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  Search, Plus, MessageCircle, Sparkles, ArrowLeft, X, Users as UsersIcon, Reply,
+  Search, Plus, MessageCircle, Sparkles, ArrowLeft, X, Users as UsersIcon, Reply, Archive,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -902,6 +902,35 @@ const MessagesPage = () => {
         )}
       </div>
 
+      {/* Archived entry (like WhatsApp): a row on All, and a header with a back button inside Archived */}
+      {filterTab === 'all' && !searchQuery.trim() && archivedChatIds.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setFilterTab('archived')}
+          className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-muted/30 tap-scale transition-colors"
+        >
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+            <Archive className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <span className="flex-1 text-[15px] font-semibold">Archived</span>
+          <span className="text-sm text-muted-foreground">{archivedChatIds.length}</span>
+        </button>
+      )}
+      {filterTab === 'archived' && (
+        <div className="flex items-center gap-2 border-b border-border/40 px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setFilterTab('all')}
+            className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-muted tap-scale"
+            aria-label="Back to all chats"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <span className="text-sm font-semibold">Archived chats</span>
+          <span className="ml-auto text-xs text-muted-foreground">Swipe a chat to unarchive</span>
+        </div>
+      )}
+
       {/* Chat list */}
       <div className="flex-1 overflow-y-auto smooth-scroll">
         {chatsLoading ? (
@@ -961,7 +990,11 @@ const MessagesPage = () => {
                     setSelectedChatId(chat.id);
                     setShowAIChat(false);
                   }}
-                  onLongPress={() => setPreviewChatId(chat.id)}
+                  onLongPress={() => {
+                    // Make sure no row is left swiped open behind the preview.
+                    window.dispatchEvent(new CustomEvent('chatlist:close-swipes'));
+                    setPreviewChatId(chat.id);
+                  }}
                   onArchive={() => archiveChat(chat.id, filterTab !== 'archived')}
                   isArchived={archivedChatIds.includes(chat.id)}
                   onDelete={() => setDeleteTarget({ id: chat.id, name: name })}
@@ -1519,7 +1552,10 @@ const MessagesPage = () => {
         return (
           <ChatLongPressPopup
             open={!!previewChatId}
-            onClose={() => setPreviewChatId(null)}
+            onClose={() => {
+              setPreviewChatId(null);
+              window.dispatchEvent(new CustomEvent('chatlist:close-swipes'));
+            }}
             chatId={previewChatId}
             name={previewName}
             avatarUrl={previewAvatar}

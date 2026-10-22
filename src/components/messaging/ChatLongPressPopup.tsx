@@ -9,6 +9,7 @@ import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { toast } from '@/hooks/use-toast';
 import { WALLPAPER_PRESETS, isWallpaperUrl, getBubbleColorValue, getBubbleTextColor } from '@/lib/chatTheme';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 import { parseShowcaseReply } from '@/lib/showcaseReply';
@@ -302,17 +303,19 @@ export const ChatLongPressPopup = ({
           <Row
             icon={isPinned ? <PinOff className="h-6 w-6" /> : <Pin className="h-6 w-6" />}
             label={isPinned ? 'Unpin' : 'Pin'}
-            onClick={() => {
-              togglePin();
+            onClick={async () => {
+              const willPin = !isPinned;
               onClose();
+              if (await togglePin()) toast({ description: willPin ? 'Chat pinned to top' : 'Chat unpinned' });
             }}
           />
           <Row
             icon={isMuted ? <Bell className="h-6 w-6" /> : <BellOff className="h-6 w-6" />}
             label={isMuted ? 'Unmute' : 'Mute'}
-            onClick={() => {
-              toggleMute();
+            onClick={async () => {
+              const willMute = !isMuted;
               onClose();
+              if (await toggleMute()) toast({ description: willMute ? 'Chat muted' : 'Chat unmuted' });
             }}
           />
           {onDelete && (
