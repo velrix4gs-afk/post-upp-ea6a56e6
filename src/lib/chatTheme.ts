@@ -53,17 +53,41 @@ const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => 
   return [h * 60, s, l];
 };
 
+const hslToHex = (h: number, s: number, l: number): string => {
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const to = (x: number) => Math.round(x * 255).toString(16).padStart(2, '0');
+  return `#${to(f(0))}${to(f(8))}${to(f(4))}`;
+};
+
+const luminance = (hex: string): number => {
+  const [r, g, b] = hexToRgb(hex).map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+
 /**
  * Chat theme colours should be thick and solid, not pastel: a picked "red" must read as
- * full red, not pink. Saturated hues are pushed to high saturation and a deep lightness.
- * Greys/neutrals keep their (low) saturation and are just darkened.
+ * full red, not pink. Saturated hues are pushed to high saturation and a deep lightness,
+ * and lightness is lowered further until white text reaches AA contrast (4.5:1) — even for
+ * naturally light hues like yellow and cyan. Greys keep their low saturation.
  */
 const thicken = (hex: string): string => {
   const [r, g, b] = hexToRgb(hex);
-  const [h, s, l] = rgbToHsl(r, g, b);
-  const sat = s < 0.2 ? s : Math.max(s, 0.78);
-  const light = Math.min(l, s < 0.2 ? 0.36 : 0.44);
-  return `hsl(${Math.round(h)} ${Math.round(sat * 100)}% ${Math.round(light * 100)}%)`;
+  const [h, s, l0] = rgbToHsl(r, g, b);
+  const grey = s < 0.2;
+  const sat = grey ? s : Math.max(s, 0.8);
+  let light = Math.min(l0, grey ? 0.34 : 0.42);
+  let out = hslToHex(h, sat, light);
+  // White text contrast = 1.05 / (L + 0.05)
+  while (1.05 / (luminance(out) + 0.05) < 4.5 && light > 0.18) {
+    light -= 0.02;
+    out = hslToHex(h, sat, light);
+  }
+  return out;
 };
 
 export const getBubbleColorValue = (color: string): string => {
@@ -74,6 +98,15 @@ export const getBubbleColorValue = (color: string): string => {
   return HEX.test(value) ? thicken(value) : value;
 };
 
-/** Custom (picked) bubble colours are dark and saturated, so text on them is white. */
-export const bubbleTextIsLight = (color?: string | null): boolean =>
-  !!color && color !== 'whatsapp-received' && color !== 'whatsapp-received-dark';
+/** Readable text colour for a picked bubble colour: white on thick colours, near-black on light ones. */
+export const getBubbleTextColor = (color?: string | null): string | undefined => {
+  if (!color) return undefined;
+  const value = getBubbleColorValue(color);
+  if (!HEX.test(value)) return '#ffffff'; // hsl(var(--primary)) default is a deep brand colour
+  const white = 1.05 / (luminance(value) + 0.05);
+  const black = (luminance(value) + 0.05) / 0.05;
+  return white >= black ? '#ffffff' : '#111111';
+};
+
+/** @deprecated kept for older call sites; prefer getBubbleTextColor. */
+export const bubbleTextIsLight = (color?: string | null): boolean => getBubbleTextColor(color) === '#ffffff';

@@ -9,7 +9,7 @@ import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
-import { WALLPAPER_PRESETS, isWallpaperUrl, getBubbleColorValue, bubbleTextIsLight } from '@/lib/chatTheme';
+import { WALLPAPER_PRESETS, isWallpaperUrl, getBubbleColorValue, getBubbleTextColor } from '@/lib/chatTheme';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 import { parseShowcaseReply } from '@/lib/showcaseReply';
 
@@ -241,7 +241,7 @@ export const ChatLongPressPopup = ({
                 return (
                   <div key={item.key} className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
                     <div
-                      style={customBg ? { backgroundColor: customBg, color: bubbleTextIsLight(settings?.theme_color) ? '#fff' : undefined } : undefined}
+                      style={customBg ? { backgroundColor: customBg, color: getBubbleTextColor(settings?.theme_color) } : undefined}
                       className={cn(
                         // Same bubble shape and palette as the in-chat bubbles.
                         'bubble-squircle max-w-[78%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug shadow-sm',

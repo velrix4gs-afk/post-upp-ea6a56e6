@@ -53,7 +53,7 @@ import { VoiceMessagePlayer } from "./messaging/VoiceMessagePlayer";
 import { haptic } from "@/lib/haptics";
 import { formatCallRecord, parseCallRecord } from "@/lib/callRecord";
 import { parseShowcaseReply } from "@/lib/showcaseReply";
-import { getBubbleColorValue, bubbleTextIsLight } from "@/lib/chatTheme";
+import { getBubbleColorValue, getBubbleTextColor } from "@/lib/chatTheme";
 
 interface MessageReaction {
   user_id: string;
@@ -316,7 +316,7 @@ export const EnhancedMessageBubble = ({
                   <div
                     style={{
                       backgroundColor: isImageOnly ? 'transparent' : customBg,
-                      color: !isImageOnly && customBg && bubbleTextIsLight(bubbleColor) ? '#fff' : undefined,
+                      color: !isImageOnly && customBg ? getBubbleTextColor(bubbleColor) : undefined,
                     }}
                     data-first-of-group={isFirstOfGroup}
                     data-last-of-group={isLastOfGroup}

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getBubbleColorValue, getBubbleTextColor } from '@/lib/chatTheme';
 import { MoreVertical, User, Image, BellOff, AlertCircle, Star, Palette, Trash2, Search, Ban, Unlock, UserCircle, Link as LinkIcon, Video, Phone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -264,12 +265,16 @@ export const ChatMenu = ({ chatId, otherUserId, onViewMedia, onReport, onClearCh
           </DialogHeader>
           <div className="grid grid-cols-4 gap-4">
             {['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b'].map((color) => (
+              // Swatch shows exactly what your sent bubbles will look like (thick colour + readable text).
               <button
                 key={color}
                 onClick={() => handleThemeChange(color)}
-                className="h-16 rounded-lg border-2 hover:scale-105 transition"
-                style={{ backgroundColor: color }}
-              />
+                className="h-16 rounded-2xl text-sm font-semibold shadow-sm hover:scale-105 transition"
+                style={{ backgroundColor: getBubbleColorValue(color), color: getBubbleTextColor(color) }}
+                aria-label={`Chat colour ${color}`}
+              >
+                Aa
+              </button>
             ))}
           </div>
         </DialogContent>

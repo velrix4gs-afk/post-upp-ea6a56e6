@@ -14,7 +14,8 @@ import {
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { NotificationActions, getActorId } from '@/components/NotificationActions';
+import { NotificationActions } from '@/components/NotificationActions';
+import { getNotificationPath } from '@/lib/notificationLink';
 
 interface NotificationCenterProps {
   isOpen: boolean;
@@ -51,25 +52,10 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
   // the chat thread, the post (scrolled to comments for comment notifications), or the profile.
   const openNotification = (notification: any) => {
     if (!notification.is_read) void markAsRead(notification.id);
-    const data = notification.data || {};
-    const postId = data.post_id;
-    const chatId = data.chat_id;
-    const actorId = getActorId(notification);
-
-    if (chatId && (notification.type === 'message' || notification.type === 'voice_call' || notification.type === 'video_call')) {
+    const path = getNotificationPath(notification);
+    if (path) {
       onClose();
-      navigate(`/messages?chat=${chatId}`);
-      return;
-    }
-    if (postId) {
-      onClose();
-      const commentHash = data.comment_id ? `#comment-${data.comment_id}` : notification.type === 'comment' ? '#comments' : '';
-      navigate(`/post/${postId}${commentHash}`);
-      return;
-    }
-    if (actorId) {
-      onClose();
-      navigate(`/profile/${actorId}`);
+      navigate(path);
     }
   };
 
@@ -149,7 +135,7 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                   </p>
                 </div>
               ) : (
-                <ul className="py-2">
+                <ul className="py-2 animate-stagger">
                   {visible.map((notification) => {
                     const unread = !notification.is_read;
                     return (
