@@ -13,19 +13,21 @@ import { profilePathFor } from "@/lib/profilePath";
 import { useFollowers } from '@/hooks/useFollowers';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SearchRecommendations } from '@/components/search/SearchRecommendations';
+import { useHashtags } from '@/hooks/useHashtags';
 
 const SearchPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const { results, loading, search } = useSearch();
   const { followUser, unfollowUser, following } = useFollowers();
+  const { trending: trendingTags } = useHashtags();
 
   useEffect(() => {
     const debounce = setTimeout(() => {
-      if (searchQuery.trim()) {
-        search(searchQuery);
-      }
-    }, 300);
+      // search('') also clears previous results, so recommendations come back when the box is emptied.
+      search(searchQuery);
+    }, searchQuery.trim() ? 300 : 0);
 
     return () => clearTimeout(debounce);
   }, [searchQuery]);
@@ -87,6 +89,8 @@ const SearchPage = () => {
                   ))}
                 </div>
               </Card>
+            ) : !searchQuery.trim() ? (
+              <SearchRecommendations />
             ) : results.length === 0 && searchQuery ? (
               <Card className="p-8 text-center">
                 <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
@@ -143,7 +147,7 @@ const SearchPage = () => {
                     </h3>
                     <div className="space-y-3">
                       {postResults.slice(0, 3).map(result => (
-                        <div key={result.id} className="p-3 hover:bg-muted rounded cursor-pointer">
+                        <div key={result.id} className="p-3 hover:bg-muted rounded cursor-pointer" onClick={() => navigate(`/post/${result.id}`)}>
                           <div className="flex items-center gap-2 mb-2">
                             <Avatar className="h-6 w-6">
                               <AvatarImage src={result.avatar} />
@@ -230,7 +234,7 @@ const SearchPage = () => {
               <Card className="p-4">
                 <div className="space-y-4">
                   {postResults.map(result => (
-                    <div key={result.id} className="p-3 hover:bg-muted rounded cursor-pointer border-b last:border-0">
+                    <div key={result.id} className="p-3 hover:bg-muted rounded cursor-pointer border-b last:border-0" onClick={() => navigate(`/post/${result.id}`)}>
                       <div className="flex items-center gap-2 mb-2">
                         <Avatar className="h-8 w-8">
                           <AvatarImage src={result.avatar} />
@@ -256,9 +260,44 @@ const SearchPage = () => {
           </TabsContent>
 
           <TabsContent value="hashtags" className="space-y-4 mt-4">
-            <Card className="p-8 text-center">
-              <Hash className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-muted-foreground">No hashtags found. Search for hashtags to see trending topics.</p>
+            <Card className="p-4">
+              <h3 className="font-semibold mb-3 flex items-center gap-2">
+                <Hash className="h-5 w-5" />
+                {searchQuery.trim() ? `Hashtags matching "${searchQuery.trim().replace(/^#/, '')}"` : 'Trending hashtags'}
+              </h3>
+              {(() => {
+                const q = searchQuery.trim().replace(/^#/, '').toLowerCase();
+                const tags = q ? trendingTags.filter((h) => h.tag.toLowerCase().includes(q)) : trendingTags;
+                if (tags.length === 0) {
+                  return q ? (
+                    <button
+                      type="button"
+                      className="text-sm text-primary hover:underline"
+                      onClick={() => navigate(`/hashtag/${encodeURIComponent(q)}`)}
+                    >
+                      Open #{q}
+                    </button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No trending hashtags yet.</p>
+                  );
+                }
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {tags.map((h) => (
+                      <button
+                        key={h.id}
+                        type="button"
+                        onClick={() => navigate(`/hashtag/${encodeURIComponent(h.tag)}`)}
+                        className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1.5 text-sm hover:bg-muted/70"
+                      >
+                        <Hash className="h-3.5 w-3.5 text-primary" />
+                        {h.tag}
+                        <span className="text-xs text-muted-foreground">· {h.usage_count}</span>
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
             </Card>
           </TabsContent>
         </Tabs>
