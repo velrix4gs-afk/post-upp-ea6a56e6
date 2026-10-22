@@ -246,7 +246,7 @@ export const ChatLongPressPopup = ({
                         // Same bubble shape and palette as the in-chat bubbles.
                         'bubble-squircle max-w-[78%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug shadow-sm',
                         !customBg && (isOwn
-                          ? 'bg-[#b84ae8] dark:bg-[#9500bb] text-black dark:text-white'
+                          ? 'bg-[#8e24d6] dark:bg-[#9500bb] text-white'
                           : 'bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5'),
                         isOwn && !customBg && 'rounded-br-md',
                         !isOwn && 'rounded-bl-md'

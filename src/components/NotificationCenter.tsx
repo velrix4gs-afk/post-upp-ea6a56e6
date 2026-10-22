@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -15,6 +17,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { NotificationActions } from '@/components/NotificationActions';
+import { getNotificationActorId } from '@/lib/notificationLink';
 import { getNotificationPath } from '@/lib/notificationLink';
 
 interface NotificationCenterProps {
@@ -68,6 +71,48 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
 
   // One row per notification — never bundled into stacks.
   const visible = filter === 'unread' ? notifications.filter((n) => !n.is_read) : notifications;
+
+  // Actor avatars (who liked / commented / followed / messaged).
+  const [actors, setActors] = useState<Record<string, { display_name: string | null; avatar_url: string | null }>>({});
+  useEffect(() => {
+    const ids = [...new Set(visible.map((n) => getNotificationActorId(n) || n?.data?.sender_id).filter(Boolean) as string[])]
+      .filter((id) => !(id in actors));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    supabase
+      .from('profiles')
+      .select('id, display_name, avatar_url')
+      .in('id', ids.slice(0, 50))
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setActors((prev) => {
+          const next = { ...prev };
+          data.forEach((p: any) => { next[p.id] = { display_name: p.display_name, avatar_url: p.avatar_url }; });
+          return next;
+        });
+      });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
+  // Section headers (Today / Yesterday / Earlier) — labels only, rows are never merged.
+  const rows = useMemo(() => {
+    const dayLabel = (iso: string) => {
+      const d = new Date(iso);
+      const today = new Date();
+      const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+      const diffDays = Math.round((startOf(today) - startOf(d)) / 86400000);
+      return diffDays <= 0 ? 'Today' : diffDays === 1 ? 'Yesterday' : 'Earlier';
+    };
+    const out: Array<{ kind: 'header'; label: string } | { kind: 'item'; n: any }> = [];
+    let last = '';
+    visible.forEach((n) => {
+      const label = dayLabel(n.created_at);
+      if (label !== last) { out.push({ kind: 'header', label }); last = label; }
+      out.push({ kind: 'item', n });
+    });
+    return out;
+  }, [visible]);
 
   return (
     <>
@@ -136,8 +181,18 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                 </div>
               ) : (
                 <ul className="py-2 animate-stagger">
-                  {visible.map((notification) => {
+                  {rows.map((row) => {
+                    if (row.kind === 'header') {
+                      return (
+                        <li key={`h-${row.label}`} className="px-5 pt-3 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {row.label}
+                        </li>
+                      );
+                    }
+                    const notification = row.n;
                     const unread = !notification.is_read;
+                    const actorId = getNotificationActorId(notification) || notification?.data?.sender_id;
+                    const actor = actorId ? actors[actorId] : undefined;
                     return (
                       <li key={notification.id}>
                         <div
@@ -147,14 +202,20 @@ const NotificationCenter = ({ isOpen, onClose }: NotificationCenterProps) => {
                           onKeyDown={(e) => { if (e.key === 'Enter') openNotification(notification); }}
                           className={
                             unread
-                              // Unread: clearly darker/tinted row with an accent bar.
-                              ? 'flex items-start gap-3 px-5 py-3.5 cursor-pointer bg-primary/15 border-l-4 border-primary hover:bg-primary/20 transition-colors'
-                              // Read: light, quiet row.
-                              : 'flex items-start gap-3 px-5 py-3.5 cursor-pointer bg-background border-l-4 border-transparent hover:bg-muted/50 transition-colors'
+                              ? 'mx-2 my-0.5 flex items-start gap-3 rounded-2xl px-3 py-3 cursor-pointer bg-primary/15 border-l-4 border-primary hover:bg-primary/20 active:scale-[0.99] transition-all'
+                              : 'mx-2 my-0.5 flex items-start gap-3 rounded-2xl px-3 py-3 cursor-pointer bg-background border-l-4 border-transparent hover:bg-muted/50 active:scale-[0.99] transition-all'
                           }
                         >
-                          <div className={`h-10 w-10 flex-shrink-0 rounded-full flex items-center justify-center ${unread ? 'bg-primary/20' : 'bg-muted'}`}>
-                            {getNotificationIcon(notification.type)}
+                          <div className="relative flex-shrink-0">
+                            <Avatar className="h-11 w-11">
+                              <AvatarImage src={actor?.avatar_url || undefined} />
+                              <AvatarFallback className={unread ? 'bg-primary/20' : 'bg-muted'}>
+                                {actor?.display_name ? actor.display_name[0]?.toUpperCase() : getNotificationIcon(notification.type)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-background shadow ring-1 ring-border">
+                              {getNotificationIcon(notification.type)}
+                            </span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <h4 className={`text-sm leading-snug ${unread ? 'font-bold text-foreground' : 'font-medium text-muted-foreground'}`}>

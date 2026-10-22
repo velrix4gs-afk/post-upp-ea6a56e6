@@ -330,7 +330,7 @@ export const EnhancedMessageBubble = ({
                       // pale green (#d9fdd3), not blue; dark mode already
                       // matched WhatsApp's actual dark colors.
                       !isImageOnly && !customBg && (isOwn
-                        ? "bg-[#b84ae8] dark:bg-[#9500bb] text-black dark:text-white"
+                        ? "bg-[#8e24d6] dark:bg-[#9500bb] text-white"
                         : "bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5"),
                       typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}

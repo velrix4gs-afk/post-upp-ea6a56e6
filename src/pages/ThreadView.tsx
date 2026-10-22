@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { ThreadedCommentsSection } from '@/components/ThreadedCommentsSection';
 import Navigation from '@/components/Navigation';
@@ -14,6 +14,7 @@ import { profilePathFor } from '@/lib/profilePath';
 export const ThreadView = () => {
   const { postId } = useParams();
   const navigate = useNavigate();
+  const { hash } = useLocation();
   const [post, setPost] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +47,27 @@ export const ThreadView = () => {
 
     fetchPost();
   }, [postId]);
+
+  // Deep links from notifications: #comments scrolls to the thread, #comment-<id> to (and highlights) that comment.
+  useEffect(() => {
+    if (!hash || loading || !post) return;
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      const el = document.getElementById(hash.slice(1));
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (hash.startsWith('#comment-')) {
+          el.classList.add('bg-primary/10');
+          window.setTimeout(() => el.classList.remove('bg-primary/10'), 2500);
+        }
+        window.clearInterval(timer);
+      } else if (tries > 20) {
+        window.clearInterval(timer);
+      }
+    }, 200);
+    return () => window.clearInterval(timer);
+  }, [hash, loading, post]);
 
   if (loading) {
     return (
@@ -171,7 +193,7 @@ export const ThreadView = () => {
         </article>
 
         {/* Comments Thread */}
-        <div className="p-4">
+        <div id="comments" className="p-4 scroll-mt-20">
           <ThreadedCommentsSection postId={postId!} />
         </div>
       </main>

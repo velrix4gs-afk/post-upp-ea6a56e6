@@ -54,7 +54,7 @@ export const ThreadedComment = ({
   };
 
   return (
-    <div className={cn("flex gap-2", depth > 0 && depth <= maxDepth && "ml-8")}>
+    <div id={`comment-${comment.id}`} className={cn("flex gap-2 scroll-mt-24 rounded-lg transition-colors", depth > 0 && depth <= maxDepth && "ml-8")}>
       <ProfileHoverCard userId={comment.user_id} disabled={!comment.user_id}>
         <Avatar className="h-8 w-8 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity">
           <AvatarImage src={comment.user?.avatar_url} />
