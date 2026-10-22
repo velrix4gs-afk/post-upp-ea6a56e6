@@ -9,6 +9,9 @@ import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
+import { WALLPAPER_PRESETS, isWallpaperUrl, getBubbleColorValue, bubbleTextIsLight } from '@/lib/chatTheme';
+import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
+import { parseShowcaseReply } from '@/lib/showcaseReply';
 
 interface ChatLongPressPopupProps {
   open: boolean;
@@ -103,10 +106,24 @@ export const ChatLongPressPopup = ({
     haptic('medium');
 
     (async () => {
-      const { data, error } = await supabase
+      // Respect "Clear chat": never show anything from before this user cleared it.
+      let clearedAt: string | null = null;
+      if (user?.id) {
+        const { data: part } = await (supabase as any)
+          .from('chat_participants')
+          .select('cleared_at')
+          .eq('chat_id', chatId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        clearedAt = part?.cleared_at ?? null;
+      }
+
+      let query = supabase
         .from('messages')
         .select('id, content, media_url, media_type, sender_id, created_at')
-        .eq('chat_id', chatId)
+        .eq('chat_id', chatId);
+      if (clearedAt) query = query.gt('created_at', clearedAt);
+      const { data, error } = await query
         .order('created_at', { ascending: false })
         .limit(24);
 
@@ -118,7 +135,7 @@ export const ChatLongPressPopup = ({
     return () => {
       cancelled = true;
     };
-  }, [open, chatId]);
+  }, [open, chatId, user?.id]);
 
   const previewItems = useMemo(() => {
     const items: Array<{ type: 'date'; key: string; date: string } | { type: 'message'; key: string; message: PreviewMsg }> = [];
@@ -159,7 +176,7 @@ export const ChatLongPressPopup = ({
             </div>
             <button
               type="button"
-              onClick={onClose}
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
               className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-muted/70 active:bg-muted touch-manipulation"
               aria-label="Close chat preview"
             >
@@ -167,7 +184,20 @@ export const ChatLongPressPopup = ({
             </button>
           </div>
 
-          <div className="min-h-[360px] max-h-[58dvh] overflow-y-auto overscroll-contain px-3 py-4 space-y-1 chat-wallpaper">
+          <div
+            className={cn(
+              'min-h-[360px] max-h-[58dvh] overflow-y-auto overscroll-contain px-3 py-4 space-y-1',
+              // Same wallpaper rules as the real chat view.
+              !settings?.wallpaper_url && 'chat-wallpaper',
+              settings?.wallpaper_url && !isWallpaperUrl(settings.wallpaper_url) &&
+                (WALLPAPER_PRESETS[settings.wallpaper_url] || '')
+            )}
+            style={
+              settings?.wallpaper_url && isWallpaperUrl(settings.wallpaper_url)
+                ? { backgroundImage: `url(${settings.wallpaper_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : undefined
+            }
+          >
             {loading ? (
               <p className="text-center text-sm text-muted-foreground py-14">Loading chat…</p>
             ) : previewItems.length === 0 ? (
@@ -186,19 +216,50 @@ export const ChatLongPressPopup = ({
 
                 const message = item.message;
                 const isOwn = message.sender_id === user?.id;
+
+                // Call log rows: same centered pill as the real chat, never raw JSON.
+                const callRecord = message.media_type === 'call' || (message.content?.trim().startsWith('{') && message.content.includes('"kind"'))
+                  ? parseCallRecord(message.content)
+                  : null;
+                if (callRecord) {
+                  return (
+                    <div key={item.key} className="flex justify-center my-1">
+                      <span className="rounded-full bg-muted px-3.5 py-1.5 text-xs text-muted-foreground">
+                        {callRecord.kind === 'video' ? '📹' : '📞'} {formatCallRecord(callRecord, { isOwn, includeDirection: true })}
+                        <span className="ml-2 opacity-60">{format(new Date(message.created_at), 'h:mm a')}</span>
+                      </span>
+                    </div>
+                  );
+                }
+
+                const showcase = parseShowcaseReply(message.content);
+                const text = showcase ? showcase.text : message.content;
                 const mediaIcon = getMediaIcon(message);
-                const label = getMediaLabel(message);
+                const mediaLabel = getMediaLabel(message);
+                const customBg = isOwn && settings?.theme_color ? getBubbleColorValue(settings.theme_color) : undefined;
 
                 return (
                   <div key={item.key} className={cn('flex', isOwn ? 'justify-end' : 'justify-start')}>
                     <div
+                      style={customBg ? { backgroundColor: customBg, color: bubbleTextIsLight(settings?.theme_color) ? '#fff' : undefined } : undefined}
                       className={cn(
-                        'max-w-[78%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug shadow-sm',
-                        isOwn
-                          ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-black dark:text-white rounded-br-md'
-                          : 'bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5 rounded-bl-md'
+                        // Same bubble shape and palette as the in-chat bubbles.
+                        'bubble-squircle max-w-[78%] rounded-[18px] px-3.5 py-2 text-[15px] leading-snug shadow-sm',
+                        !customBg && (isOwn
+                          ? 'bg-[#b84ae8] dark:bg-[#9500bb] text-black dark:text-white'
+                          : 'bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5'),
+                        isOwn && !customBg && 'rounded-br-md',
+                        !isOwn && 'rounded-bl-md'
                       )}
                     >
+                      {showcase && (
+                        <div className="mb-1 flex items-center gap-2 rounded-lg bg-black/10 p-1.5 text-xs">
+                          {showcase.mediaUrl && showcase.mediaType !== 'video' && (
+                            <img src={showcase.mediaUrl} alt="" className="h-10 w-8 rounded object-cover" loading="lazy" />
+                          )}
+                          <span className="line-clamp-2 opacity-80">{showcase.caption || (isOwn ? 'You replied to a Showcase' : 'Replied to your Showcase')}</span>
+                        </div>
+                      )}
                       {message.media_url && message.media_type?.startsWith('image') && (
                         <img
                           src={message.media_url}
@@ -210,14 +271,11 @@ export const ChatLongPressPopup = ({
                       {message.media_url && !message.media_type?.startsWith('image') && mediaIcon && (
                         <span className="mb-1 inline-flex items-center gap-1.5 text-[13px] font-medium opacity-80">
                           {mediaIcon}
-                          {label}
+                          {mediaLabel}
                         </span>
                       )}
-                      {label && !message.media_url && (
-                        <span className="whitespace-pre-wrap break-words">{label}</span>
-                      )}
-                      {message.media_type?.startsWith('image') && message.content && (
-                        <span className="whitespace-pre-wrap break-words">{message.content}</span>
+                      {text && (!message.media_url || message.media_type?.startsWith('image')) && (
+                        <span className="whitespace-pre-wrap break-words">{text}</span>
                       )}
                       <span className="ml-2 inline-flex align-baseline text-[11px] opacity-70">
                         {format(new Date(message.created_at), 'h:mm a')}

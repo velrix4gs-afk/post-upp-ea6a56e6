@@ -53,29 +53,7 @@ import { VoiceMessagePlayer } from "./messaging/VoiceMessagePlayer";
 import { haptic } from "@/lib/haptics";
 import { formatCallRecord, parseCallRecord } from "@/lib/callRecord";
 import { parseShowcaseReply } from "@/lib/showcaseReply";
-
-const getBubbleColorValue = (color: string): string => {
-  const colorMap: Record<string, string> = {
-    default: 'hsl(var(--primary))',
-    blue: '#3b82f6',
-    green: '#10b981',
-    purple: '#a855f7',
-    pink: '#ec4899',
-    orange: '#f97316',
-    red: '#ef4444',
-    teal: '#14b8a6',
-    yellow: '#eab308',
-    indigo: '#6366f1',
-    'whatsapp-sent': '#6e3cfd', // Light mode
-    'whatsapp-sent-dark': '#005c4b', // Dark mode
-    'whatsapp-received': '#ffffff', // Light mode
-    'whatsapp-received-dark': '#202c33', // Dark mode
-  };
-  if (colorMap[color]) return colorMap[color];
-  return /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)
-    ? color
-    : colorMap.default;
-};
+import { getBubbleColorValue, bubbleTextIsLight } from "@/lib/chatTheme";
 
 interface MessageReaction {
   user_id: string;
@@ -338,6 +316,7 @@ export const EnhancedMessageBubble = ({
                   <div
                     style={{
                       backgroundColor: isImageOnly ? 'transparent' : customBg,
+                      color: !isImageOnly && customBg && bubbleTextIsLight(bubbleColor) ? '#fff' : undefined,
                     }}
                     data-first-of-group={isFirstOfGroup}
                     data-last-of-group={isLastOfGroup}

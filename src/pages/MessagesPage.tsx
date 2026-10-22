@@ -61,6 +61,7 @@ import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 import { showcaseReplyPreview } from '@/lib/showcaseReply';
+import { WALLPAPER_PRESETS, isWallpaperUrl } from '@/lib/chatTheme';
 import { profilePath } from '@/lib/profilePath';
 
 type FilterTab = 'all' | 'unread' | 'favorites' | 'groups' | 'archived';
@@ -74,17 +75,6 @@ const formatLastMessagePreview = (text?: string): string | undefined => {
   const icon = callRecord.kind === 'video' ? '📹' : '📞';
   return `${icon} ${formatCallRecord(callRecord, { includeDirection: true })}`;
 };
-
-// Preset wallpaper id → Tailwind class. Anything else is treated as an image URL.
-const WALLPAPER_PRESETS: Record<string, string> = {
-  default: '',
-  blue: 'bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-950 dark:to-blue-900',
-  green: 'bg-gradient-to-br from-green-100 to-green-200 dark:from-green-950 dark:to-green-900',
-  purple: 'bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-950 dark:to-purple-900',
-  pink: 'bg-gradient-to-br from-pink-100 to-pink-200 dark:from-pink-950 dark:to-pink-900',
-  orange: 'bg-gradient-to-br from-orange-100 to-orange-200 dark:from-orange-950 dark:to-orange-900',
-};
-const isWallpaperUrl = (v?: string) => !!v && /^(https?:|\/|data:)/i.test(v);
 
 const MessagesPage = () => {
   const navigate = useNavigate();
