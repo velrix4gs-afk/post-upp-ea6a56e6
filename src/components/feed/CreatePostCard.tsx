@@ -1,3 +1,5 @@
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { formatMB } from '@/lib/entitlements';
 import { haptic } from '@/lib/haptics';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -69,6 +71,7 @@ interface CreatePostCardProps {
 }
 
 const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardProps) => {
+  const entitlements = useEntitlements();
   const {
     user
   } = useAuth();
@@ -186,11 +189,11 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
         return [];
       }
       const isVideo = normalizedFile.type.startsWith('video/');
-      const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (normalizedFile.size > maxSize) {
+      const limitMB = isVideo ? entitlements.videoMB : entitlements.photoMB;
+      if (normalizedFile.size > limitMB * 1024 * 1024) {
         showCleanError({
           code: 'POST_003',
-          message: `${file.name} exceeds ${isVideo ? '100MB' : '10MB'} limit`
+          message: `${file.name} exceeds your ${formatMB(limitMB)} ${isVideo ? 'video' : 'photo'} limit${entitlements.plan === 'elite' ? '' : ' — upgrade in Premium for bigger uploads'}`
         }, toast);
         return [];
       }
