@@ -45,6 +45,13 @@ const saveHistory = (userId: string | null, messages: AIMessage[]): boolean => {
   }
 };
 
+/** Latest saved AI message for a user (from this device's saved history) — used for the chat-list preview. */
+export const getAILastMessage = (userId: string | null | undefined): { role: 'user' | 'assistant'; content: string; timestamp: Date } | null => {
+  const history = loadHistory(userId || null);
+  const last = history[history.length - 1];
+  return last ? { role: last.role as 'user' | 'assistant', content: last.content, timestamp: last.timestamp } : null;
+};
+
 export const useAIChat = () => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<AIMessage[]>([]);

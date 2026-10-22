@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { format } from 'date-fns';
 import { useAuth } from '@/hooks/useAuth';
 import { useMessages } from '@/hooks/useMessages';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
@@ -24,6 +25,7 @@ import { ClearChatDialog } from '@/components/messaging/ClearChatDialog';
 import { BlockUserDialog } from '@/components/messaging/BlockUserDialog';
 import { ReportUserDialog } from '@/components/messaging/ReportUserDialog';
 import { AIAssistantChat } from '@/components/AIAssistantChat';
+import { getAILastMessage } from '@/hooks/useAIChat';
 import { LocationShareDialog } from '@/components/messaging/LocationShareDialog';
 import { ContactShareDialog } from '@/components/messaging/ContactShareDialog';
 import { ChatMenu } from '@/components/ChatMenu';
@@ -87,6 +89,8 @@ const MessagesPage = () => {
     () => new URLSearchParams(window.location.search).get('chat'),
   );
   const [showAIChat, setShowAIChat] = useState(false);
+  // Re-read the saved AI conversation whenever the AI chat is opened/closed so the list preview stays current.
+  const aiLast = useMemo(() => getAILastMessage(user?.id), [user?.id, showAIChat]);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const {
     chats, messages, chatsLoading, messagesLoading, messagesInitialLoaded, sendMessage, editMessage, deleteMessage,
@@ -886,9 +890,16 @@ const MessagesPage = () => {
             <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">AI</span>
           </p>
           <p className="text-[13px] text-muted-foreground truncate leading-tight">
-            {isAdmin ? 'Summarize requests & feedback' : 'Your helpful assistant'}
+            {aiLast
+              ? `${aiLast.role === 'user' ? 'You: ' : ''}${aiLast.content.replace(/\s+/g, ' ').slice(0, 80)}`
+              : isAdmin ? 'Summarize requests & feedback' : 'Your helpful assistant'}
           </p>
         </div>
+        {aiLast && (
+          <span className="text-[11px] text-muted-foreground flex-shrink-0 self-start mt-1">
+            {format(aiLast.timestamp, 'h:mm a')}
+          </span>
+        )}
       </div>
 
       {/* Chat list */}
