@@ -107,18 +107,18 @@ export function formatCallRecord(
         ? 'outgoing'
         : 'incoming';
   const prefix = options.includeDirection && direction
-    ? `${direction === 'outgoing' ? 'Outgoing' : 'Incoming'} ${callKindLabel.toLowerCase()} call`
-    : `${callKindLabel} call`;
+    ? `${direction === 'outgoing' ? 'Outgoing' : 'Incoming'} ${callKindLabel.toLowerCase()} chat`
+    : `${callKindLabel} chat`;
 
   if (status === 'completed') return `${prefix} · ${formatCallDuration(record.durationSec)}`;
   if (status === 'declined') {
     if (direction === 'outgoing') return `${prefix} · declined`;
-    return `Declined ${callKindLabel.toLowerCase()} call`;
+    return `Declined ${callKindLabel.toLowerCase()} chat`;
   }
   if (status === 'missed') {
     return direction === 'outgoing'
       ? `${prefix} · no answer`
-      : `Missed ${callKindLabel.toLowerCase()} call`;
+      : `Missed ${callKindLabel.toLowerCase()} chat`;
   }
   if (status === 'incoming' || status === 'outgoing') return prefix;
   return prefix;

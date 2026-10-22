@@ -120,7 +120,7 @@ export const CallShell = ({
             onTouchCancel={() => { restoreTouch.current = null; }}
             className="fixed bottom-[max(env(safe-area-inset-bottom),1rem)] right-4 z-[200] h-44 w-64 overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/20 animate-in fade-in zoom-in-95"
           >
-            <button type="button" onClick={onRestore} className="absolute inset-0 h-full w-full" aria-label="Return to video call">
+            <button type="button" onClick={onRestore} className="absolute inset-0 h-full w-full" aria-label="Return to video chat">
               <span className="absolute inset-0 [&_video]:h-full [&_video]:w-full [&_video]:object-cover">
                 {remoteVideo}
               </span>
@@ -140,7 +140,7 @@ export const CallShell = ({
                 className="h-9 w-9 shrink-0 rounded-full shadow-lg"
                 onClick={onEnd}
                 data-call-gesture-ignore
-                aria-label="End call"
+                aria-label="End chat"
               >
                 <PhoneOff className="h-4 w-4" />
               </Button>
@@ -152,7 +152,7 @@ export const CallShell = ({
               type="button"
               onClick={onRestore}
               className="flex min-h-11 min-w-11 items-center gap-2 rounded-full pl-1 text-left"
-              aria-label="Return to voice call"
+              aria-label="Return to voice chat"
             >
               <Avatar className="h-9 w-9">
                 <AvatarImage src={participantAvatar} />
@@ -168,7 +168,7 @@ export const CallShell = ({
               className="h-10 w-10 rounded-full"
               onClick={onEnd}
               data-call-gesture-ignore
-              aria-label="End call"
+              aria-label="End chat"
             >
               <PhoneOff className="h-4 w-4" />
             </Button>
@@ -234,7 +234,7 @@ export const CallShell = ({
                 'h-10 w-10 rounded-full touch-manipulation',
                 kind === 'video' && 'text-white hover:bg-white/10',
               )}
-              aria-label="Minimize call"
+              aria-label="Minimize chat"
             >
               <ChevronDown className="h-5 w-5" />
             </Button>

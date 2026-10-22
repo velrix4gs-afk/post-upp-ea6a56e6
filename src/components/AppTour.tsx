@@ -21,7 +21,7 @@ const STEPS = [
   {
     icon: MessageCircle,
     title: 'Chat and calls',
-    body: 'Messages support photos, videos and voice notes. Long-press a chat for a full preview, and start a voice or video call from the chat header.',
+    body: 'Messages support photos, videos and voice notes. Long-press a chat for a full preview, and start a voice or video chat from the chat header.',
   },
   {
     icon: Users,

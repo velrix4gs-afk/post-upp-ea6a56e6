@@ -299,8 +299,8 @@ export const NotificationPreferences = ({ isOpen, onOpenChange }: NotificationPr
                   />
                   <PreferenceItem
                     icon={Phone}
-                    label="Voice Calls"
-                    description="Notifications for incoming voice calls"
+                    label="Voice Chats"
+                    description="Notifications for incoming voice chats"
                     checked={voiceCallsEnabled}
                     onCheckedChange={(checked) => {
                       setVoiceCallsEnabled(checked);
@@ -309,8 +309,8 @@ export const NotificationPreferences = ({ isOpen, onOpenChange }: NotificationPr
                   />
                   <PreferenceItem
                     icon={Video}
-                    label="Video Calls"
-                    description="Notifications for incoming video calls"
+                    label="Video Chats"
+                    description="Notifications for incoming video chats"
                     checked={videoCallsEnabled}
                     onCheckedChange={(checked) => {
                       setVideoCallsEnabled(checked);

@@ -1005,7 +1005,7 @@ const MessagesPage = () => {
               participantName: otherP?.profiles?.display_name || 'User',
               participantAvatar: otherP?.profiles?.avatar_url,
             });
-            toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
+            toast({ title: 'Starting voice chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
           }}
           onVideoCall={() => {
             startCall({
@@ -1015,7 +1015,7 @@ const MessagesPage = () => {
               participantName: otherP?.profiles?.display_name || 'User',
               participantAvatar: otherP?.profiles?.avatar_url,
             });
-            toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
+            toast({ title: 'Starting video chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
           }}
           menu={
             <ChatMenu
@@ -1036,7 +1036,7 @@ const MessagesPage = () => {
                   participantName: otherP?.profiles?.display_name || 'User',
                   participantAvatar: otherP?.profiles?.avatar_url,
                 });
-                toast({ title: 'Starting video call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
+                toast({ title: 'Starting video chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
               }}
               onVoiceCall={() => {
                 startCall({
@@ -1046,7 +1046,7 @@ const MessagesPage = () => {
                   participantName: otherP?.profiles?.display_name || 'User',
                   participantAvatar: otherP?.profiles?.avatar_url,
                 });
-                toast({ title: 'Starting voice call…', description: `Calling ${otherP?.profiles?.display_name || 'participant'}` });
+                toast({ title: 'Starting voice chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
               }}
             />
           }

@@ -87,7 +87,7 @@ export const VideoCall = ({
         }
         console.error('[VideoCall] join failed', e);
         if (!cancelled) {
-          setCallError(describeStreamCallError(e, 'join the video call'));
+          setCallError(describeStreamCallError(e, 'join the video chat'));
         }
       }
     })();
@@ -147,7 +147,7 @@ export const VideoCall = ({
                   signal_data: {},
                 }).then(({ error: cancelError }) => {
                   if (cancelError) {
-                    setSignalError('The call could not be cancelled for the other person.');
+                    setSignalError('The chat could not be cancelled for the other person.');
                     console.error('[VideoCall] failed to cancel timed-out call', cancelError);
                   }
                 });
@@ -156,7 +156,7 @@ export const VideoCall = ({
             }, RING_TIMEOUT_MS);
           });
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          setSignalError('Could not connect to call signaling. Check your connection and retry.');
+          setSignalError('Could not connect. Check your connection and retry.');
         }
       });
 
@@ -198,7 +198,7 @@ export const VideoCall = ({
         kind="video"
         participantName={participantName}
         participantAvatar={participantAvatar}
-        statusText={callError || signalError || clientError ? 'Call could not start' : isInitiator ? 'Starting video…' : 'Joining video…'}
+        statusText={callError || signalError || clientError ? 'Chat could not start' : isInitiator ? 'Starting video…' : 'Joining video…'}
         minimized={minimized}
         onMinimize={() => setMinimized(true)}
         onRestore={() => setMinimized(false)}
@@ -241,7 +241,7 @@ export const VideoCall = ({
               variant="destructive"
               onClick={end}
               className="h-16 w-16 rounded-full shadow-lg touch-manipulation"
-              aria-label="Cancel call"
+              aria-label="Cancel chat"
             >
               <PhoneOff className="h-6 w-6" />
             </Button>
@@ -405,7 +405,7 @@ const VideoCallInner = ({
         variant="destructive"
         onClick={onEnd}
         className="h-16 w-16 rounded-full shadow-lg touch-manipulation"
-        aria-label="End call"
+        aria-label="End chat"
       >
         <PhoneOff className="h-6 w-6" />
       </Button>

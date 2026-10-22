@@ -40,7 +40,7 @@ export const IncomingCallOverlay = () => {
     <section
       className="fixed inset-x-3 bottom-[max(env(safe-area-inset-bottom),0.75rem)] z-[9999] mx-auto max-w-sm rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[22rem]"
       role="status"
-      aria-label={`Incoming ${isVideo ? 'video' : 'voice'} call`}
+      aria-label={`Incoming ${isVideo ? 'video' : 'voice'} chat`}
     >
       <div className="flex items-center gap-3">
         <Avatar className="h-12 w-12 shrink-0 ring-2 ring-primary/20">
@@ -49,7 +49,7 @@ export const IncomingCallOverlay = () => {
         </Avatar>
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{incomingCall.caller_name}</p>
-          <p className="text-sm text-muted-foreground">Incoming {isVideo ? 'video' : 'voice'} call</p>
+          <p className="text-sm text-muted-foreground">Incoming {isVideo ? 'video' : 'voice'} chat</p>
         </div>
         <div className="flex shrink-0 gap-2">
           <Button
@@ -57,7 +57,7 @@ export const IncomingCallOverlay = () => {
             variant="destructive"
             className="h-11 w-11 rounded-full"
             onClick={handleDecline}
-            aria-label="Decline call"
+            aria-label="Decline chat"
           >
             <PhoneOff className="h-5 w-5" />
           </Button>
@@ -65,7 +65,7 @@ export const IncomingCallOverlay = () => {
             size="icon"
             className="h-11 w-11 rounded-full bg-green-600 text-white hover:bg-green-700"
             onClick={handleAccept}
-            aria-label="Accept call"
+            aria-label="Accept chat"
           >
             {isVideo ? <Video className="h-5 w-5" /> : <Phone className="h-5 w-5" />}
           </Button>

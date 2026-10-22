@@ -127,11 +127,11 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
     return (
       <Card className="w-80 overflow-hidden shadow-2xl border-border/30 backdrop-blur-xl bg-card animate-in fade-in-0 zoom-in-95 duration-200">
         {/* Gradient Header Skeleton */}
-        <div className="h-20 bg-gradient-to-r from-primary/40 to-accent/40" />
-        <div className="px-6 pb-6">
+        <div className="h-14 bg-gradient-to-r from-primary/40 to-accent/40" />
+        <div className="px-5 pb-4">
           {/* Avatar Skeleton */}
-          <div className="flex justify-center -mt-12 mb-4">
-            <Skeleton className="h-24 w-24 rounded-full border-4 border-card" />
+          <div className="flex justify-center -mt-10 mb-2">
+            <Skeleton className="h-20 w-20 rounded-full border-4 border-card" />
           </div>
           <div className="text-center space-y-2">
             <Skeleton className="h-5 w-32 mx-auto" />
@@ -159,19 +159,19 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Gradient Header */}
-        <div className="h-20 bg-gradient-to-r from-primary via-primary/90 to-accent relative">
+        <div className="h-14 bg-gradient-to-r from-primary via-primary/90 to-accent relative">
           {/* Decorative pattern */}
           <div className="absolute inset-0 opacity-20" style={{
             backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 30%, rgba(255,255,255,0.2) 0%, transparent 40%)'
           }} />
         </div>
 
-        <div className="px-6 pb-6">
+        <div className="px-5 pb-4">
           {/* Centered Avatar */}
-          <div className="flex justify-center -mt-12 mb-4">
+          <div className="flex justify-center -mt-10 mb-2">
             <div className="relative">
               <Avatar
-                className="h-24 w-24 border-4 border-card ring-4 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all shadow-xl"
+                className="h-20 w-20 border-4 border-card ring-4 ring-primary/20 cursor-pointer hover:ring-primary/40 transition-all shadow-xl"
                 onClick={handleViewProfile}
               >
                 <AvatarImage src={profile.avatar_url} alt={profile.display_name} className="object-cover" />
@@ -192,7 +192,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
           </div>
 
           {/* Name and Username */}
-          <div className="text-center mb-3">
+          <div className="text-center mb-2">
             <h3
               className="font-bold text-lg flex items-center justify-center gap-1.5 cursor-pointer hover:underline"
               onClick={handleViewProfile}
@@ -217,13 +217,13 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
 
           {/* Bio */}
           {canViewFull && profile.bio && (
-            <p className="text-sm text-center text-muted-foreground line-clamp-3 mb-4 leading-relaxed">
+            <p className="text-sm text-center text-muted-foreground line-clamp-2 mb-3 leading-snug">
               {profile.bio}
             </p>
           )}
 
           {canViewFull && (profile.location || profile.website) && (
-            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-4 flex-wrap">
+            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground mb-3 flex-wrap">
               {profile.location && (
                 <div className="flex items-center gap-1">
                   <MapPin className="h-3.5 w-3.5" />
@@ -248,9 +248,9 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
           )}
 
           {/* Stats Row - Clickable */}
-          <div className="flex items-center justify-center gap-8 mb-5">
+          <div className="flex items-center justify-center gap-6 mb-3">
             <button
-              className="text-center hover:bg-muted/50 px-3 py-2 rounded-lg transition-colors"
+              className="text-center hover:bg-muted/50 px-3 py-1.5 rounded-lg transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowFollowingDialog(true);
@@ -260,7 +260,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               <div className="text-xs text-muted-foreground">Following</div>
             </button>
             <button
-              className="text-center hover:bg-muted/50 px-3 py-2 rounded-lg transition-colors"
+              className="text-center hover:bg-muted/50 px-3 py-1.5 rounded-lg transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 setShowFollowersDialog(true);
@@ -270,7 +270,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               <div className="text-xs text-muted-foreground">Followers</div>
             </button>
             <button
-              className="text-center hover:bg-muted/50 px-3 py-2 rounded-lg transition-colors"
+              className="text-center hover:bg-muted/50 px-3 py-1.5 rounded-lg transition-colors"
               onClick={handleViewProfile}
             >
               <div className="font-bold text-lg text-foreground">{formatCount(userPostsCount)}</div>
@@ -283,7 +283,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
             <div className="flex gap-3">
               <Button
                 onClick={handleFollowToggle}
-                className="flex-1 h-10 font-semibold rounded-full"
+                className="flex-1 h-9 font-semibold rounded-full"
                 variant={isFollowing ? "outline" : "default"}
               >
                 {isFollowing ? (
@@ -302,7 +302,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
                 <Button
                   onClick={handleMessage}
                   variant="outline"
-                  className="flex-1 h-10 font-semibold rounded-full"
+                  className="flex-1 h-9 font-semibold rounded-full"
                 >
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Message
@@ -310,7 +310,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
               ) : (
                 <Button
                   variant="outline"
-                  className="flex-1 h-10 font-semibold rounded-full opacity-50 cursor-not-allowed"
+                  className="flex-1 h-9 font-semibold rounded-full opacity-50 cursor-not-allowed"
                   disabled
                   title="Follow each other to message"
                 >
@@ -325,7 +325,7 @@ export const MiniProfilePopup = ({ userId, onClose }: MiniProfilePopupProps) => 
             <Button
               onClick={handleViewProfile}
               variant="outline"
-              className="w-full h-10 font-semibold rounded-full"
+              className="w-full h-9 font-semibold rounded-full"
             >
               View Full Profile
             </Button>

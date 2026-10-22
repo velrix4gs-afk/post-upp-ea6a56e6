@@ -77,7 +77,7 @@ export const ChatHeader = ({
             variant="ghost"
             onClick={onVoiceCall}
             className="h-9 w-9 rounded-full tap-scale"
-            aria-label="Voice call"
+            aria-label="Voice chat"
           >
             <Phone className="h-4.5 w-4.5" />
           </Button>
@@ -88,7 +88,7 @@ export const ChatHeader = ({
             variant="ghost"
             onClick={onVideoCall}
             className="h-9 w-9 rounded-full tap-scale hidden sm:inline-flex"
-            aria-label="Video call"
+            aria-label="Video chat"
           >
             <Video className="h-4.5 w-4.5" />
           </Button>

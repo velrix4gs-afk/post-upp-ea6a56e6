@@ -98,13 +98,13 @@ export const ChatMenu = ({ chatId, otherUserId, onViewMedia, onReport, onClearCh
               {onVoiceCall && (
                 <DropdownMenuItem onClick={onVoiceCall} className="rounded-lg py-2.5 px-3 gap-3">
                   <Phone className="h-4 w-4 text-primary" />
-                  Voice Call
+                  Voice Chat
                 </DropdownMenuItem>
               )}
               {onVideoCall && (
                 <DropdownMenuItem onClick={onVideoCall} className="rounded-lg py-2.5 px-3 gap-3">
                   <Video className="h-4 w-4 text-primary" />
-                  Video Call
+                  Video Chat
                 </DropdownMenuItem>
               )}
               <DropdownMenuSeparator />

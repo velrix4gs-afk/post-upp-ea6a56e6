@@ -136,8 +136,8 @@ export const useCallNotifications = () => {
     if (error) {
       console.error('[calls] failed to decline call', error);
       toast({
-        title: 'Could not decline call',
-        description: 'The call may still be ringing. Please try again.',
+        title: 'Could not decline chat',
+        description: 'The chat may still be ringing. Please try again.',
         variant: 'destructive',
       });
       return;
@@ -148,8 +148,8 @@ export const useCallNotifications = () => {
     setIncomingCall(null);
 
     toast({
-      title: 'Call declined',
-      description: `You declined the call from ${incomingCall.caller_name}`,
+      title: 'Chat declined',
+      description: `You declined the chat from ${incomingCall.caller_name}`,
     });
   };
 

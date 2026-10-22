@@ -12,11 +12,11 @@ export const CallSessionProvider = ({ children }: { children: ReactNode }) => {
 
   const startCall = useCallback((session: CallSession) => {
     if (!user) {
-      toast({ title: 'Sign in to call', variant: 'destructive' });
+      toast({ title: 'Sign in to start a chat', variant: 'destructive' });
       return false;
     }
     if (activeCall) {
-      toast({ title: 'A call is already active', description: 'End it before starting another call.' });
+      toast({ title: 'A voice/video chat is already active', description: 'End it before starting another.' });
       return false;
     }
     setActiveCall(session);
@@ -42,7 +42,7 @@ export const CallSessionProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) {
       console.error('[CallSessionProvider] failed to save call summary', error);
-      toast({ title: 'Call ended, but its summary could not be saved', variant: 'destructive' });
+      toast({ title: 'Chat ended, but its summary could not be saved', variant: 'destructive' });
     }
   }, [activeCall, user]);
 
