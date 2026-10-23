@@ -1,3 +1,5 @@
+import { VideoEditorDialog } from "@/components/VideoEditorDialog";
+import { Scissors } from "lucide-react";
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { formatMB } from '@/lib/entitlements';
 import { haptic } from '@/lib/haptics';
@@ -90,6 +92,13 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const [postContent, setPostContent] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
+  const replaceMedia = (index: number, file: File) => {
+    const old = previewImages[index];
+    if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
+    setSelectedImages(prev => prev.map((f, i) => (i === index ? file : f)));
+    setPreviewImages(prev => prev.map((u, i) => (i === index ? URL.createObjectURL(file) : u)));
+  };
   const previewImagesRef = useRef<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -443,6 +452,18 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
         {previewImages.length > 1 && <p className="mt-1 text-[11px] text-muted-foreground">
           Hold and drag a photo to change its order
         </p>}
+        {selectedImages.map((f, i) => f.type.startsWith('video/') && (
+          <Button key={`edit-${i}`} type="button" variant="outline" size="sm" className="mt-2 mr-2 h-8 gap-1.5" onClick={() => setEditingVideoIndex(i)}>
+            <Scissors className="h-4 w-4" />Edit video{selectedImages.filter(x => x.type.startsWith('video/')).length > 1 ? ` ${i + 1}` : ''} (trim / blur)
+          </Button>
+        ))}
+        <VideoEditorDialog
+          file={editingVideoIndex !== null ? selectedImages[editingVideoIndex] ?? null : null}
+          open={editingVideoIndex !== null}
+          onOpenChange={(o) => { if (!o) setEditingVideoIndex(null); }}
+          onDone={(edited) => { if (editingVideoIndex !== null) replaceMedia(editingVideoIndex, edited); }}
+        />
+
       </div>}
 
       {/* Upload Progress */}

@@ -1,4 +1,4 @@
-import { Image, Camera, Film, Smile, FileText, MapPin, User, CalendarClock, LucideIcon } from 'lucide-react';
+import { Image, Camera, FileText, MapPin, User, CalendarClock, LucideIcon } from 'lucide-react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 
 interface AttachmentOption {
@@ -14,8 +14,6 @@ interface ChatAttachmentsSheetProps {
   onOpenChange: (open: boolean) => void;
   onGalleryClick: () => void;
   onCameraClick: () => void;
-  onGifsClick: () => void;
-  onStickersClick: () => void;
   onFilesClick: () => void;
   onLocationClick: () => void;
   onContactsClick: () => void;
@@ -32,7 +30,7 @@ const AttachmentButton = ({ icon: Icon, label, color, onClick }: AttachmentOptio
 );
 
 export const ChatAttachmentsSheet = ({
-  open, onOpenChange, onGalleryClick, onCameraClick, onGifsClick, onStickersClick,
+  open, onOpenChange, onGalleryClick, onCameraClick,
   onFilesClick, onLocationClick, onContactsClick, onScheduleClick,
 }: ChatAttachmentsSheetProps) => {
   const run = (action: () => void) => () => { action(); onOpenChange(false); };
@@ -43,8 +41,6 @@ export const ChatAttachmentsSheet = ({
     { icon: MapPin, label: 'Location', color: '#12b76a', onClick: run(onLocationClick) },
     { icon: User, label: 'Contact', color: '#0ea5e9', onClick: run(onContactsClick) },
     { icon: FileText, label: 'Document', color: '#7c4dff', onClick: run(onFilesClick) },
-    { icon: Film, label: 'GIFs', color: '#f59e0b', onClick: run(onGifsClick) },
-    { icon: Smile, label: 'Stickers', color: '#ff7043', onClick: run(onStickersClick) },
     { icon: CalendarClock, label: 'Schedule', color: '#f43f5e', onClick: run(onScheduleClick) },
   ];
 

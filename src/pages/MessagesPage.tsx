@@ -1534,8 +1534,6 @@ const MessagesPage = () => {
         onOpenChange={setShowAttachmentsSheet}
         onGalleryClick={() => setShowGallerySheet(true)}
         onCameraClick={() => cameraInputRef.current?.click()}
-        onGifsClick={() => toast({ title: 'GIFs coming soon!' })}
-        onStickersClick={() => toast({ title: 'Stickers coming soon!' })}
         onFilesClick={() => fileInputRef.current?.click()}
         onLocationClick={() => setShowLocationDialog(true)}
         onContactsClick={() => setShowContactDialog(true)}
