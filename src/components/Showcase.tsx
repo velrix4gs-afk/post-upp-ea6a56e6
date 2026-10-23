@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { storyObjectPath, useStories, type Story } from '@/hooks/useShowcases';
 import { useAuth } from '@/hooks/useAuth';
@@ -102,6 +102,32 @@ const Showcase = () => {
       });
       return false;
     }
+  };
+
+  // Reactions: stored in showcase_reactions + an in-app notification to the author. Never a chat message.
+  const [myReactions, setMyReactions] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    const id = selectedStoryId;
+    if (!id || !user || id in myReactions) return;
+    supabase.from('showcase_reactions').select('emoji').eq('showcase_id', id).eq('user_id', user.id).maybeSingle()
+      .then(({ data }) => setMyReactions((prev) => ({ ...prev, [id]: data?.emoji ?? null })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStoryId, user?.id]);
+
+  const handleReact = async (story: Story, emoji: string | null): Promise<boolean> => {
+    if (!user || story.user_id === user.id) return false;
+    const previous = myReactions[story.id] ?? null;
+    setMyReactions((prev) => ({ ...prev, [story.id]: emoji }));
+    const { error } = emoji
+      ? await supabase.from('showcase_reactions').upsert({ showcase_id: story.id, user_id: user.id, emoji }, { onConflict: 'showcase_id,user_id' })
+      : await supabase.from('showcase_reactions').delete().eq('showcase_id', story.id).eq('user_id', user.id);
+    if (error) {
+      setMyReactions((prev) => ({ ...prev, [story.id]: previous }));
+      toast({ description: 'Could not send your reaction', variant: 'destructive' });
+      return false;
+    }
+    return true;
   };
 
   const handleReply = async (story: Story, text: string): Promise<boolean> => {
@@ -221,6 +247,9 @@ const Showcase = () => {
         onNext={() => goToStory(selectedStoryIndex + 1)}
         onPrevious={() => goToStory(selectedStoryIndex - 1)}
         onReply={handleReply}
+        onReact={handleReact}
+        myReaction={selectedStoryId ? myReactions[selectedStoryId] ?? null : null}
+        isOwner={viewerStories[selectedStoryIndex].user_id === user?.id}
         onDelete={viewerStories[selectedStoryIndex].user_id === user?.id
           ? async (story) => {
             if (await deleteStory(story.id)) setSelectedStoryId(null);

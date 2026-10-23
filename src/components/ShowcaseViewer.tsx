@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { ShowcaseViewersSheet } from '@/components/ShowcaseViewersSheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -20,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronLeft, ChevronRight, Heart, Loader2, MoreVertical, Send, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Eye, Heart, Loader2, MoreVertical, Send, Volume2, VolumeX, X } from 'lucide-react';
 import type { Story } from '@/hooks/useShowcases';
 import { getCachedThumbnail } from '@/lib/videoThumbnail';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,11 @@ interface ShowcaseViewerProps {
   onNext: () => void;
   onPrevious: () => void;
   onReply: (story: Story, text: string) => Promise<boolean>;
+  /** Reactions are stored and notified only — they never create a chat message. */
+  onReact?: (story: Story, emoji: string | null) => Promise<boolean>;
+  myReaction?: string | null;
+  /** The author sees a viewers sheet (who watched + their reactions). */
+  isOwner?: boolean;
   onDelete?: (story: Story) => Promise<void>;
   onShareToFeed?: (story: Story) => Promise<boolean>;
   onViewProfile?: (story: Story) => void;
@@ -47,12 +53,16 @@ const ShowcaseViewer = ({
   onNext,
   onPrevious,
   onReply,
+  onReact,
+  myReaction,
+  isOwner = false,
   onDelete,
   onShareToFeed,
   onViewProfile,
   canReply = true,
 }: ShowcaseViewerProps) => {
   const [message, setMessage] = useState('');
+  const [showViewers, setShowViewers] = useState(false);
   const [sending, setSending] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -415,6 +425,35 @@ const ShowcaseViewer = ({
               )}
             </div>
 
+            {canReply && onReact && (
+              <div className="absolute inset-x-0 bottom-[calc(max(env(safe-area-inset-bottom),16px)+3.75rem)] z-20 flex justify-center gap-2">
+                {['❤️', '😂', '😮', '😢', '👏', '🔥'].map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => void onReact(currentStory, myReaction === emoji ? null : emoji)}
+                    className={cn(
+                      'h-10 w-10 rounded-full bg-black/55 text-xl backdrop-blur-md transition-transform active:scale-90',
+                      myReaction === emoji && 'bg-white/30 ring-2 ring-white scale-110'
+                    )}
+                    aria-label={`React ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {isOwner && (
+              <button
+                type="button"
+                onClick={() => { setShowViewers(true); setPaused(true); }}
+                className="absolute bottom-[max(env(safe-area-inset-bottom),16px)] left-4 z-20 flex items-center gap-2 rounded-full bg-black/65 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md"
+              >
+                <Eye className="h-4 w-4" /> Viewers
+              </button>
+            )}
+
             {canReply && (
               <form
                 className="absolute inset-x-4 bottom-[max(env(safe-area-inset-bottom),16px)] z-20 mx-auto flex max-w-xl items-center gap-2 rounded-full border border-white/15 bg-black/65 p-1.5 backdrop-blur-md"
@@ -428,13 +467,16 @@ const ShowcaseViewer = ({
                   variant="ghost"
                   size="icon"
                   className="h-10 w-10 shrink-0 rounded-full text-white hover:bg-white/15"
-                  aria-label="Add a heart to your reply"
+                  aria-label="Like this Showcase"
                   onClick={() => {
-                    setMessage((text) => `${text}❤️`);
-                    inputRef.current?.focus();
+                    if (onReact) void onReact(currentStory, myReaction === '❤️' ? null : '❤️');
+                    else {
+                      setMessage((text) => `${text}❤️`);
+                      inputRef.current?.focus();
+                    }
                   }}
                 >
-                  <Heart className="h-5 w-5" />
+                  <Heart className={cn('h-5 w-5', myReaction === '❤️' && 'fill-red-500 text-red-500')} />
                 </Button>
                 <Input
                   ref={inputRef}
@@ -457,6 +499,12 @@ const ShowcaseViewer = ({
                 </Button>
               </form>
             )}
+
+            <ShowcaseViewersSheet
+              showcaseId={isOwner ? currentStory.id : null}
+              open={showViewers}
+              onOpenChange={(o) => { setShowViewers(o); if (!o) setPaused(false); }}
+            />
           </div>
         </DialogContent>
       </Dialog>
