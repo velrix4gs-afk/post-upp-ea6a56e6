@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { shareOrigin } from '@/lib/siteUrl';
 import { useParams } from 'react-router-dom';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { ProfileHeader } from '@/components/ProfileHeader';
@@ -155,7 +156,7 @@ const ProfilePage = () => {
   };
   const handleShare = async () => {
     const name = profile?.display_name || profile?.username || 'this user';
-    const profileUrl = `${window.location.origin}/profile/${profile?.username}`;
+    const profileUrl = `${shareOrigin()}/profile/${profile?.username}`;
     // The URL is repeated inside `text` on purpose: several share targets
     // (Android Chrome and some WebViews) ignore the separate `url` field and
     // share only `text`, so the recipient got a sentence with no link.
@@ -244,7 +245,7 @@ const ProfilePage = () => {
       // Use the origin the visitor is actually on. Hardcoding the Lovable
       // host meant anyone sharing from the Vercel deployment sent people to
       // the other domain (and vice versa).
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://post-upp.vercel.app';
+      const origin = shareOrigin();
       const shareUrl = `${origin}/profile/${profile.username}`;
       // Prefer the avatar for the preview image; fall back to the cover so a
       // profile without a picture still produces a visual card rather than

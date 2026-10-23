@@ -70,6 +70,8 @@ export const useCallNotifications = () => {
         // in their own chat too, so without this check they'd get their
         // own incoming-call popup for the call they just placed.
         if (signal.signal_type === 'offer' && signal.sender_id !== user.id) {
+          // A late-delivered offer (reconnect, tab wake-up) is a stale call, not a live one.
+          if (Date.now() - new Date(signal.created_at).getTime() > 45_000) return;
           // Get chat to verify we're a participant
           const { data: chatData } = await supabase
             .from('chats')

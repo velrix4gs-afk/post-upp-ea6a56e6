@@ -68,6 +68,22 @@ export const VoiceCall = ({
     onEndCall({ status, durationSec: durationRef.current });
   };
 
+  // Hang-up / cancel from the other side ends this call too (no ghost "connected" or "ringing" left behind).
+  useEffect(() => {
+    if (!user) return;
+    const endChannel = supabase
+      .channel(`call-end-${chatId}-${callId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_signals' }, (payload) => {
+        const s = payload.new as CallSignalRow;
+        if (s.call_id !== chatId || s.sender_id === user.id) return;
+        if (s.signal_type === 'end' && hasConnectedRef.current) finish('completed');
+        if (s.signal_type === 'cancel' && !isInitiator && !hasConnectedRef.current) finish('declined');
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(endChannel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, chatId, callId, isInitiator]);
+
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
@@ -76,7 +92,9 @@ export const VoiceCall = ({
     const c = client.call('default', callId);
     (async () => {
       try {
-        await c.join({ create: true });
+        // Voice-only: never initialise or ask for the camera.
+        await c.camera.disable(true).catch(() => { });
+        await c.join({ create: true, data: { settings_override: { video: { camera_default_on: false, target_resolution: { width: 320, height: 240, bitrate: 100000 } } } } });
         if (cancelled) throw new Error('cancelled');
         await c.microphone.enable();
         await c.camera.disable(true);
@@ -193,6 +211,14 @@ export const VoiceCall = ({
       }).then(({ error }) => {
         if (error) console.error('[VoiceCall] failed to end pending call', error);
       });
+    }
+    if (connected && user) {
+      void supabase.from('call_signals').insert({
+        call_id: chatId,
+        sender_id: user.id,
+        signal_type: 'end',
+        signal_data: {},
+      }).then(({ error }) => { if (error) console.error('[calls] failed to send end signal', error); });
     }
     finish(connected ? 'completed' : isInitiator ? 'unanswered' : 'declined');
   };

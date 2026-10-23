@@ -56,14 +56,38 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, avatarUrl, fallbackName, c
   const [peaks, setPeaks] = useState<number[]>(() => Array(BAR_COUNT).fill(0.25));
   const audioRef = useRef<HTMLAudioElement>(null);
   const waveRef = useRef<HTMLDivElement>(null);
+  const pendingSeekRef = useRef<number | null>(null);
+  const fixingDurationRef = useRef(false);
 
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const updateTime = () => setCurrentTime(audio.currentTime);
+    const updateTime = () => {
+      if (fixingDurationRef.current) { updateDuration(); return; }
+      setCurrentTime(audio.currentTime);
+    };
+    const applyPendingSeek = () => {
+      if (pendingSeekRef.current !== null && isFinite(audio.duration) && audio.duration > 0) {
+        audio.currentTime = pendingSeekRef.current * audio.duration;
+        pendingSeekRef.current = null;
+      }
+    };
     const updateDuration = () => {
-      if (isFinite(audio.duration)) setDuration(audio.duration);
+      if (audio.duration === Infinity && !fixingDurationRef.current) {
+        // Recorded WebM voice notes report Infinity until the end is reached once; jump there to learn the real length.
+        fixingDurationRef.current = true;
+        audio.currentTime = 1e101;
+        return;
+      }
+      if (isFinite(audio.duration)) {
+        setDuration(audio.duration);
+        if (fixingDurationRef.current) {
+          fixingDurationRef.current = false;
+          audio.currentTime = 0;
+        }
+        applyPendingSeek();
+      }
     };
     const handleEnded = () => {
       setIsPlaying(false);
@@ -136,7 +160,14 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, avatarUrl, fallbackName, c
     scrubRatioRef.current = null;
     setScrubRatio(null);
     const audio = audioRef.current;
-    if (r === null || !audio || !duration) return;
+    if (r === null || !audio) return;
+    if (!duration || !isFinite(audio.duration)) {
+      // Metadata not ready yet: remember the target and apply it as soon as the length is known.
+      pendingSeekRef.current = r;
+      audio.load();
+      setCurrentTime(0);
+      return;
+    }
     audio.currentTime = r * duration;
     setCurrentTime(audio.currentTime);
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
@@ -153,8 +184,8 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, avatarUrl, fallbackName, c
   const shownTime = scrubRatio !== null ? scrubRatio * duration : currentTime;
 
   return (
-    <div className={cn("flex items-center gap-2.5 min-w-[220px] select-none", className)}>
-      <audio ref={audioRef} src={audioUrl} preload="metadata" />
+    <div className={cn("flex items-center gap-2.5 min-w-[220px] select-none", className)} onClick={(e) => e.stopPropagation()}>
+      <audio ref={audioRef} src={audioUrl} preload="auto" />
       
       <Button
         size="icon"

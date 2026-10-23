@@ -334,7 +334,7 @@ export const EnhancedMessageBubble = ({
                       "transition-[background-color,color] duration-300 ease-out",
                       isImageOnly
                         ? "p-0 bg-transparent shadow-none"
-                        : "bubble-squircle rounded-[18px] px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm",
+                        : cn("bubble-squircle px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm", (mediaType?.startsWith("audio") || mediaType === "audio") ? "rounded-[28px]" : "rounded-[18px]"),
                       // True WhatsApp palette — light mode sent bubbles are
                       // pale green (#d9fdd3), not blue; dark mode already
                       // matched WhatsApp's actual dark colors.
@@ -430,7 +430,7 @@ export const EnhancedMessageBubble = ({
                             className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted"
                           />
                         ) : mediaType?.startsWith('audio') || mediaType === 'audio' ? (
-                          <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} avatarUrl={sender.avatar_url} fallbackName={sender.display_name || sender.username} />
+                          <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} avatarUrl={showSenderAvatar ? sender.avatar_url : undefined} fallbackName={showSenderAvatar ? (sender.display_name || sender.username) : undefined} />
                         ) : (
                           <a
                             href={mediaUrl}

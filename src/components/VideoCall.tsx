@@ -65,6 +65,22 @@ export const VideoCall = ({
     onEndCall({ status, durationSec: durationRef.current });
   };
 
+  // Hang-up / cancel from the other side ends this call too (no ghost "connected" or "ringing" left behind).
+  useEffect(() => {
+    if (!user) return;
+    const endChannel = supabase
+      .channel(`call-end-${chatId}-${callId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_signals' }, (payload) => {
+        const s = payload.new as CallSignalRow;
+        if (s.call_id !== chatId || s.sender_id === user.id) return;
+        if (s.signal_type === 'end' && hasConnectedRef.current) finish('completed');
+        if (s.signal_type === 'cancel' && !isInitiator && !hasConnectedRef.current) finish('declined');
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(endChannel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, chatId, callId, isInitiator]);
+
   useEffect(() => {
     if (!client) return;
     let cancelled = false;
@@ -188,6 +204,14 @@ export const VideoCall = ({
       }).then(({ error }) => {
         if (error) console.error('[VideoCall] failed to end pending call', error);
       });
+    }
+    if (connected && user) {
+      void supabase.from('call_signals').insert({
+        call_id: chatId,
+        sender_id: user.id,
+        signal_type: 'end',
+        signal_data: {},
+      }).then(({ error }) => { if (error) console.error('[calls] failed to send end signal', error); });
     }
     finish(connected ? 'completed' : isInitiator ? 'unanswered' : 'declined');
   };

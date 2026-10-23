@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { shareOrigin } from '@/lib/siteUrl';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MoreHorizontal, Share2 } from 'lucide-react';
@@ -36,7 +37,7 @@ export const ProfileHeader = ({
   };
 
   const handleShare = async () => {
-    const profileUrl = `${window.location.origin}/profile/${username}`;
+    const profileUrl = `${shareOrigin()}/profile/${username}`;
     // The URL is repeated inside `text` on purpose. Several share targets
     // (notably Android Chrome and some WebViews) ignore the separate `url`
     // field and share only `text`, so the recipient received "Check out X's

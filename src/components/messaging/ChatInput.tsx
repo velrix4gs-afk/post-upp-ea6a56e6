@@ -88,7 +88,7 @@ export const ChatInput = ({
 
       <div
         className={cn(
-          'flex-1 flex items-end gap-1 bg-muted/50 rounded-3xl px-3 py-1.5 border border-border/40 transition-all duration-200',
+          'flex-1 min-w-0 flex items-end gap-1 bg-muted/50 rounded-3xl px-3 py-1.5 border border-border/40 transition-all duration-200',
           'focus-within:border-primary/50 focus-within:bg-muted/30'
         )}
       >
@@ -117,7 +117,7 @@ export const ChatInput = ({
           placeholder={placeholder}
           disabled={disabled}
           className={cn(
-            'flex-1 resize-none bg-transparent border-0 outline-none text-[16px] md:text-[15px] leading-[22px] py-1 px-1',
+            'flex-1 min-w-0 w-full max-w-full resize-none bg-transparent border-0 outline-none [overflow-wrap:anywhere] break-words text-[16px] md:text-[15px] leading-[22px] py-1 px-1',
             'placeholder:text-muted-foreground/70 max-h-[110px]',
             'scrollbar-hide'
           )}

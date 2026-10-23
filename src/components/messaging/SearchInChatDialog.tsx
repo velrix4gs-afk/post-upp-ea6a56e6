@@ -107,19 +107,19 @@ export const SearchInChatDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md overflow-hidden">
         <DialogHeader>
           <DialogTitle>Search in Chat</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          <div className="relative">
+        <div className="space-y-4 min-w-0">
+          <div className="relative min-w-0">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search messages..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
+              className="pl-10 w-full min-w-0 max-w-full"
             />
           </div>
 
