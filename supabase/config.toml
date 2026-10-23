@@ -68,3 +68,6 @@ verify_jwt = false
 # real user back. Same pattern as the posts and messages functions.
 [functions.stream-token]
 verify_jwt = false
+
+[functions.notify-support-ticket]
+verify_jwt = false

@@ -75,13 +75,17 @@ const HelpSupportPage = () => {
         }
         setBusy(true);
         try {
+            const ticketId = crypto.randomUUID();
             const { error } = await supabase.from('support_tickets').insert({
+                id: ticketId,
                 user_id: user?.id ?? null,
                 kind,
                 subject: subjectVal || (kind === 'report' ? 'Problem report' : 'Support request'),
                 message: messageVal,
             });
             if (error) throw error;
+            // Forward to the support inbox; a failure here must not fail the submission (the ticket is already saved).
+            supabase.functions.invoke('notify-support-ticket', { body: { ticketId } }).catch((e) => console.warn('Support email not sent:', e));
             toast({ description: "Sent — we'll get back to you as soon as we can." });
             reset();
         } catch (err) {

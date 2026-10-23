@@ -1,6 +1,17 @@
 {
   "rewrites": [
     {
+      "source": "/profile/:handle",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|WhatsApp|Slackbot|LinkedInBot|TelegramBot|Discordbot|Pinterest|Googlebot|bingbot|SkypeUriPreview|Applebot|iMessage).*"
+        }
+      ],
+      "destination": "/api/profile-og?handle=:handle"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

@@ -21,6 +21,7 @@ import {
   Phone,
   PhoneMissed,
   Video,
+  Image as ImageIcon,
   VideoOff,
 } from "lucide-react";
 import { ImageViewer } from "./messaging/ImageViewer";
@@ -53,6 +54,11 @@ import { VoiceMessagePlayer } from "./messaging/VoiceMessagePlayer";
 import { haptic } from "@/lib/haptics";
 import { formatCallRecord, parseCallRecord } from "@/lib/callRecord";
 import { parseShowcaseReply } from "@/lib/showcaseReply";
+import { parseContactShare } from "@/lib/contactShare";
+import { profilePathFor } from "@/lib/profilePath";
+import { ensurePrivateChat } from "@/lib/chatCreation";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { getBubbleColorValue, getBubbleTextColor } from "@/lib/chatTheme";
 
 interface MessageReaction {
@@ -150,6 +156,8 @@ export const EnhancedMessageBubble = ({
   onSchedule,
   onScrollToMessage,
 }: EnhancedMessageBubbleProps) => {
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFor, setDeleteFor] = useState<'me' | 'everyone'>('me');
   const [showImageViewer, setShowImageViewer] = useState(false);
@@ -212,7 +220,8 @@ export const EnhancedMessageBubble = ({
   // content shaped like {"kind":"voice","status":"..."}); without this,
   // the raw JSON would leak through as a text message.
   const showcaseReply = parseShowcaseReply(content);
-  const bodyText = showcaseReply ? showcaseReply.text : content;
+  const contactShare = parseContactShare(content);
+  const bodyText = showcaseReply ? showcaseReply.text : contactShare ? '' : content;
   const contentLooksLikeCallRecord = (() => {
     if (typeof content !== 'string') return false;
     const trimmed = content.trim();
@@ -421,7 +430,7 @@ export const EnhancedMessageBubble = ({
                             className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted"
                           />
                         ) : mediaType?.startsWith('audio') || mediaType === 'audio' ? (
-                          <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} />
+                          <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} avatarUrl={sender.avatar_url} fallbackName={sender.display_name || sender.username} />
                         ) : (
                           <a
                             href={mediaUrl}
@@ -437,9 +446,19 @@ export const EnhancedMessageBubble = ({
                     )}
 
                     {showcaseReply && (
-                      <div className="mb-1.5 flex items-stretch gap-2 overflow-hidden rounded-xl bg-black/10 dark:bg-white/10 p-1.5">
+                      <div className="mb-1.5 flex items-stretch overflow-hidden rounded-xl bg-black/15 dark:bg-white/10">
+                        <div className="w-1 flex-shrink-0 bg-white/80 dark:bg-white/70" />
+                        <div className="min-w-0 flex-1 px-2.5 py-2">
+                          <p className="truncate text-[13px] font-semibold">
+                            {isOwn ? (showcaseReply.ownerName || 'Showcase') : 'You'} · Showcase
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1 text-[13px] opacity-80">
+                            {showcaseReply.mediaType === 'video' ? <Video className="h-3.5 w-3.5 flex-shrink-0" /> : <ImageIcon className="h-3.5 w-3.5 flex-shrink-0" />}
+                            <span className="line-clamp-2">{showcaseReply.caption || (showcaseReply.mediaType === 'video' ? 'Video' : 'Photo')}</span>
+                          </p>
+                        </div>
                         {showcaseReply.mediaUrl && (
-                          <div className="h-16 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-muted">
+                          <div className="h-[68px] w-[68px] flex-shrink-0 overflow-hidden bg-black/30">
                             {showcaseReply.mediaType === 'video' ? (
                               <video src={`${showcaseReply.mediaUrl}#t=0.1`} preload="metadata" muted playsInline className="h-full w-full object-cover" />
                             ) : (
@@ -447,12 +466,46 @@ export const EnhancedMessageBubble = ({
                             )}
                           </div>
                         )}
-                        <div className="min-w-0 flex-1 self-center">
-                          <p className="text-[11px] font-semibold opacity-80">
-                            {isOwn ? 'You replied to a Showcase' : 'Replied to your Showcase'}
-                          </p>
-                          {showcaseReply.caption && (
-                            <p className="line-clamp-2 text-xs opacity-70">{showcaseReply.caption}</p>
+                      </div>
+                    )}
+
+                    {contactShare && (
+                      <div className="-mx-1 -mt-0.5 mb-1 min-w-[250px]">
+                        {contactShare.contacts.map((c) => (
+                          <div key={c.id} className="flex items-center gap-3 px-1 py-1.5">
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={c.avatar_url || undefined} />
+                              <AvatarFallback>{(c.display_name || c.username || '?').charAt(0).toUpperCase()}</AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="truncate text-[15px] font-semibold">{c.display_name || c.username}</p>
+                              <p className="truncate text-[13px] opacity-75">@{c.username}</p>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="mt-1 flex border-t border-current/20 text-[14px] font-medium">
+                          <button
+                            className="flex-1 py-2.5 active:opacity-60"
+                            onClick={() => navigate(profilePathFor(contactShare.contacts[0].id, contactShare.contacts[0].username))}
+                          >
+                            View profile
+                          </button>
+                          {contactShare.contacts.length === 1 && contactShare.contacts[0].id !== currentUser?.id && (
+                            <>
+                              <div className="w-px bg-current/20" />
+                              <button
+                                className="flex-1 py-2.5 active:opacity-60"
+                                onClick={async () => {
+                                  if (!currentUser) return;
+                                  try {
+                                    const chatId = await ensurePrivateChat(currentUser.id, contactShare.contacts[0].id);
+                                    navigate(`/messages?chat=${chatId}`);
+                                  } catch { /* ignore */ }
+                                }}
+                              >
+                                Message
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>

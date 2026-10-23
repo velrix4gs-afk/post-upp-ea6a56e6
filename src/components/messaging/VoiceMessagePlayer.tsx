@@ -1,11 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Mic } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface VoiceMessagePlayerProps {
   audioUrl: string;
   isOwn?: boolean;
+  /** Sender avatar shown at the end of the bubble with a mic badge, like WhatsApp. */
+  avatarUrl?: string | null;
+  fallbackName?: string;
   className?: string;
 }
 
@@ -43,7 +47,7 @@ const buildPeaks = async (url: string): Promise<number[]> => {
   }
 };
 
-export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessagePlayerProps) => {
+export const VoiceMessagePlayer = ({ audioUrl, isOwn, avatarUrl, fallbackName, className }: VoiceMessagePlayerProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -215,6 +219,16 @@ export const VoiceMessagePlayer = ({ audioUrl, isOwn, className }: VoiceMessageP
           {(isPlaying || shownTime > 0) && <span>{formatTime(duration)}</span>}
         </div>
       </div>
+
+      {(avatarUrl || fallbackName) && (
+        <div className="relative ml-1 flex-shrink-0">
+          <Avatar className="h-12 w-12">
+            <AvatarImage src={avatarUrl || undefined} />
+            <AvatarFallback>{(fallbackName || '?').charAt(0).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <Mic className="absolute -bottom-0.5 -right-1 h-5 w-5 fill-current text-primary drop-shadow" />
+        </div>
+      )}
     </div>
   );
 };

@@ -1,3 +1,7 @@
+import { VideoEditorDialog } from "@/components/VideoEditorDialog";
+import { Scissors } from "lucide-react";
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { formatMB } from '@/lib/entitlements';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -49,6 +53,7 @@ const FEELINGS = [
 
 const CreatePost = () => {
   const { user } = useAuth();
+  const entitlements = useEntitlements();
   const { profile } = useProfile();
   const [showGallerySheet, setShowGallerySheet] = useState(false);
   const { createPost } = usePosts();
@@ -57,6 +62,14 @@ const CreatePost = () => {
   const [postContent, setPostContent] = useState("");
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
+  const replaceMedia = (index: number, file: File) => {
+    const old = previewImages[index];
+    if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
+    setSelectedImages(prev => prev.map((f, i) => (i === index ? file : f)));
+    setPreviewImages(prev => prev.map((u, i) => (i === index ? URL.createObjectURL(file) : u)));
+  };
+
   const previewImagesRef = useRef<string[]>([]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [isPosting, setIsPosting] = useState(false);
@@ -119,12 +132,13 @@ const CreatePost = () => {
         showCleanError({ code: 'POST_002', message: `${file.name} is not an image or video` }, toast);
         return [];
       }
-      // Allow 100MB for videos, 10MB for images
-      const maxSize = normalizedFile.type.startsWith('video/') ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
-      if (normalizedFile.size > maxSize) {
+      // Upload limits depend on the user's plan (see lib/entitlements.ts).
+      const isVideoFile = normalizedFile.type.startsWith('video/');
+      const limitMB = isVideoFile ? entitlements.videoMB : entitlements.photoMB;
+      if (normalizedFile.size > limitMB * 1024 * 1024) {
         showCleanError({
           code: 'POST_003',
-          message: `${file.name} exceeds ${normalizedFile.type.startsWith('video/') ? '100MB' : '10MB'} limit`
+          message: `${file.name} exceeds your ${formatMB(limitMB)} ${isVideoFile ? 'video' : 'photo'} limit${entitlements.plan === 'elite' ? '' : ' — upgrade in Premium for bigger uploads'}`
         }, toast);
         return [];
       }
@@ -392,6 +406,18 @@ const CreatePost = () => {
             {previewImages.length > 1 && (
               <p className="mt-1 text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>
             )}
+        {selectedImages.map((f, i) => f.type.startsWith('video/') && (
+          <Button key={`edit-${i}`} type="button" variant="outline" size="sm" className="mt-2 mr-2 h-8 gap-1.5" onClick={() => setEditingVideoIndex(i)}>
+            <Scissors className="h-4 w-4" />Edit video{selectedImages.filter(x => x.type.startsWith('video/')).length > 1 ? ` ${i + 1}` : ''} (trim / blur)
+          </Button>
+        ))}
+        <VideoEditorDialog
+          file={editingVideoIndex !== null ? selectedImages[editingVideoIndex] ?? null : null}
+          open={editingVideoIndex !== null}
+          onOpenChange={(o) => { if (!o) setEditingVideoIndex(null); }}
+          onDone={(edited) => { if (editingVideoIndex !== null) replaceMedia(editingVideoIndex, edited); }}
+        />
+
           </div>
         )}
 

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useEntitlements } from './useEntitlements';
+import { formatMB } from '@/lib/entitlements';
 import { toast } from './use-toast';
 import { CacheHelper } from '@/lib/asyncStorage';
 
@@ -65,6 +67,7 @@ export const resolveStoryMediaUrl = async (mediaUrl?: string | null): Promise<st
 
 export const useStories = () => {
   const { user } = useAuth();
+  const entitlements = useEntitlements();
   const location = useLocation();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
@@ -197,7 +200,7 @@ export const useStories = () => {
         supabase.removeChannel(channel);
       };
     }
-  }, [user, fetchStories]);
+  }, [user, fetchStories, entitlements.storyHours, entitlements.storyPhotoMB, entitlements.storyVideoMB]);
 
   const createStory = async (
     content?: string,
@@ -212,10 +215,11 @@ export const useStories = () => {
       let media_type = null;
 
       if (mediaFile) {
-        if (mediaFile.size > 50 * 1024 * 1024) {
+        const capMB = mediaFile.type.startsWith('video/') ? entitlements.storyVideoMB : entitlements.storyPhotoMB;
+        if (mediaFile.size > capMB * 1024 * 1024) {
           toast({
             title: 'File Too Large',
-            description: 'Story media must be less than 50MB',
+            description: `Story media must be less than ${formatMB(capMB)} on your plan`,
             variant: 'destructive'
           });
           return false;
@@ -255,7 +259,7 @@ export const useStories = () => {
           media_url,
           media_type,
           audience,
-          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: new Date(Date.now() + entitlements.storyHours * 60 * 60 * 1000).toISOString(),
         });
 
       if (error) {

@@ -1,3 +1,5 @@
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { formatMB } from '@/lib/entitlements';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -59,6 +61,7 @@ const getStickerLabel = (sticker: Sticker): string => {
 
 const CreateShowcasePage = () => {
   const { user } = useAuth();
+  const entitlements = useEntitlements();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -101,8 +104,10 @@ const CreateShowcasePage = () => {
       toast({ title: 'Invalid file', description: 'Choose an image or video.', variant: 'destructive' });
       return;
     }
-    if (mediaFile.size > 50 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Max 50MB', variant: 'destructive' });
+    const isVid = mediaFile.type.startsWith('video/');
+    const capMB = isVid ? entitlements.storyVideoMB : entitlements.storyPhotoMB;
+    if (mediaFile.size > capMB * 1024 * 1024) {
+      toast({ title: 'File too large', description: `Max ${formatMB(capMB)} on your plan`, variant: 'destructive' });
       return;
     }
     setMediaFile(mediaFile);
@@ -342,7 +347,7 @@ const CreateShowcasePage = () => {
         media_type,
         content,
         audience,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: new Date(Date.now() + entitlements.storyHours * 60 * 60 * 1000).toISOString(),
       });
       if (insErr) {
         if (uploadedPath) {

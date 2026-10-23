@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { isChatMuted, useChatSettings } from '@/hooks/useChatSettings';
 import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { toast } from '@/hooks/use-toast';
+import { useEntitlements } from '@/hooks/useEntitlements';
 import { SharedLinksTab } from './messaging/SharedLinksTab';
 import { profilePathFor } from '@/lib/profilePath';
 
@@ -41,6 +42,8 @@ interface ChatMenuProps {
 
 export const ChatMenu = ({ chatId, otherUserId, onViewMedia, onReport, onClearChat, onBlock, onSearchInChat, onViewStarred, onWallpaperChange, onViewSharedLinks, onVoiceCall, onVideoCall }: ChatMenuProps) => {
   const navigate = useNavigate();
+  const entitlements = useEntitlements();
+  const upsell = (what: string) => { toast({ title: 'Premium feature', description: `${what} is part of a Premium plan.` }); navigate('/premium'); };
   const { settings, setNickname, muteChat, unmuteChat, togglePin, setTheme } = useChatSettings(chatId, otherUserId);
   const chatMuted = isChatMuted(settings);
   const { isBlocked, unblockUser } = useBlockedUsers();
@@ -144,12 +147,12 @@ export const ChatMenu = ({ chatId, otherUserId, onViewMedia, onReport, onClearCh
 
           <DropdownMenuSeparator />
           <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground/60 px-3 py-1.5">Settings</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => setShowThemeDialog(true)} className="rounded-lg py-2.5 px-3 gap-3">
+          <DropdownMenuItem onClick={() => (entitlements.chatTheme ? setShowThemeDialog(true) : upsell('Custom chat themes (Pro and Elite)'))} className="rounded-lg py-2.5 px-3 gap-3">
             <Palette className="h-4 w-4 text-violet-500" />
             Change Theme
           </DropdownMenuItem>
           {onWallpaperChange && (
-            <DropdownMenuItem onClick={onWallpaperChange} className="rounded-lg py-2.5 px-3 gap-3">
+            <DropdownMenuItem onClick={() => (entitlements.chatWallpaper ? onWallpaperChange() : upsell('Custom chat wallpapers'))} className="rounded-lg py-2.5 px-3 gap-3">
               <Image className="h-4 w-4 text-violet-500" />
               Change Wallpaper
             </DropdownMenuItem>

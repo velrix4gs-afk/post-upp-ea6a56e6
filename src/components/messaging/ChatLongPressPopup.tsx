@@ -13,6 +13,7 @@ import { toast } from '@/hooks/use-toast';
 import { WALLPAPER_PRESETS, isWallpaperUrl, getBubbleColorValue, getBubbleTextColor } from '@/lib/chatTheme';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 import { parseShowcaseReply } from '@/lib/showcaseReply';
+import { contactSharePreview } from '@/lib/contactShare';
 
 interface ChatLongPressPopupProps {
   open: boolean;
@@ -234,7 +235,7 @@ export const ChatLongPressPopup = ({
                 }
 
                 const showcase = parseShowcaseReply(message.content);
-                const text = showcase ? showcase.text : message.content;
+                const text = showcase ? showcase.text : (contactSharePreview(message.content) ?? message.content);
                 const mediaIcon = getMediaIcon(message);
                 const mediaLabel = getMediaLabel(message);
                 const customBg = isOwn && settings?.theme_color ? getBubbleColorValue(settings.theme_color) : undefined;
@@ -258,7 +259,7 @@ export const ChatLongPressPopup = ({
                           {showcase.mediaUrl && showcase.mediaType !== 'video' && (
                             <img src={showcase.mediaUrl} alt="" className="h-10 w-8 rounded object-cover" loading="lazy" />
                           )}
-                          <span className="line-clamp-2 opacity-80">{showcase.caption || (isOwn ? 'You replied to a Showcase' : 'Replied to your Showcase')}</span>
+                          <span className="line-clamp-2 opacity-80">{showcase.ownerName ? `${showcase.ownerName} · Showcase` : showcase.caption || 'Showcase'}</span>
                         </div>
                       )}
                       {message.media_url && message.media_type?.startsWith('image') && (

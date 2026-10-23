@@ -221,9 +221,22 @@ export const AIAssistantChat = ({ isAdmin = false, onBack }: AIAssistantChatProp
             </h3>
             {!historyLoading && <p className="text-sm text-muted-foreground max-w-xs">
               {isAdmin
-                ? 'I can help you summarize user feedback, analyze reports, and identify trends.'
+                ? 'I patrol error logs, collect friction reports and summarize them for you.'
                 : "I'm here to help you navigate Post Up. Ask me anything!"}
             </p>}
+            {!historyLoading && isAdmin && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {['Run a health check', 'Summarize this week\'s bug reports', 'What errors keep repeating?', 'Any moderation backlog?'].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => sendMessage(q)}
+                    className="rounded-full border px-3 py-1.5 text-xs text-foreground hover:bg-muted"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

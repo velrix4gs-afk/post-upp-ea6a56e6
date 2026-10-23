@@ -61,6 +61,8 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
+import { useEntitlements } from '@/hooks/useEntitlements';
+import { buildContactShare, contactSharePreview, type SharedContact } from '@/lib/contactShare';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 import { showcaseReplyPreview } from '@/lib/showcaseReply';
 import { WALLPAPER_PRESETS, isWallpaperUrl } from '@/lib/chatTheme';
@@ -72,6 +74,8 @@ const formatLastMessagePreview = (text?: string): string | undefined => {
   if (!text) return text;
   const showcasePreview = showcaseReplyPreview(text);
   if (showcasePreview) return showcasePreview;
+  const contactPreview = contactSharePreview(text);
+  if (contactPreview) return contactPreview;
   const callRecord = parseCallRecord(text);
   if (!callRecord) return text;
   const icon = callRecord.kind === 'video' ? '📹' : '📞';
@@ -80,6 +84,15 @@ const formatLastMessagePreview = (text?: string): string | undefined => {
 
 const MessagesPage = () => {
   const navigate = useNavigate();
+  const entitlements = useEntitlements();
+  const openWallpaper = () => {
+    if (!entitlements.chatWallpaper) {
+      toast({ title: 'Premium feature', description: 'Custom chat wallpapers are part of a Premium plan.' });
+      navigate('/premium');
+      return;
+    }
+    setShowWallpaper(true);
+  };
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -1058,7 +1071,7 @@ const MessagesPage = () => {
               onViewMedia={() => setShowMediaTab(true)}
               onSearchInChat={() => setShowSearchDialog(true)}
               onViewStarred={() => setShowStarredDialog(true)}
-              onWallpaperChange={() => setShowWallpaper(true)}
+              onWallpaperChange={() => openWallpaper()}
               onClearChat={() => setShowClearChat(true)}
               onBlock={() => setShowBlockDialog(true)}
               onReport={() => setShowReportDialog(true)}
@@ -1442,7 +1455,7 @@ const MessagesPage = () => {
           isMuted={!!chatSettings?.is_muted}
           onSearch={() => setShowSearchDialog(true)}
           onToggleMute={() => toggleChatMute()}
-          onWallpaper={() => setShowWallpaper(true)}
+          onWallpaper={() => openWallpaper()}
           onViewProfile={() =>
             navigate(profilePath({ username: otherParticipant?.profiles?.username, id: otherParticipant?.user_id }))
           }
@@ -1489,7 +1502,13 @@ const MessagesPage = () => {
           open={showContactDialog}
           onOpenChange={setShowContactDialog}
           onShare={async (contactIds) => {
-            const contactText = `👤 Shared ${contactIds.length} contact${contactIds.length > 1 ? 's' : ''}`;
+            const { data: shared } = await supabase
+              .from('profiles')
+              .select('id, username, display_name, avatar_url')
+              .in('id', contactIds);
+            const contactText = shared?.length
+              ? buildContactShare(shared as SharedContact[])
+              : `👤 Shared ${contactIds.length} contact${contactIds.length > 1 ? 's' : ''}`;
             await sendMessage(contactText);
             setShowContactDialog(false);
           }}
@@ -1515,8 +1534,6 @@ const MessagesPage = () => {
         onOpenChange={setShowAttachmentsSheet}
         onGalleryClick={() => setShowGallerySheet(true)}
         onCameraClick={() => cameraInputRef.current?.click()}
-        onGifsClick={() => toast({ title: 'GIFs coming soon!' })}
-        onStickersClick={() => toast({ title: 'Stickers coming soon!' })}
         onFilesClick={() => fileInputRef.current?.click()}
         onLocationClick={() => setShowLocationDialog(true)}
         onContactsClick={() => setShowContactDialog(true)}
