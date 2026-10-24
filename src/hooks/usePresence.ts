@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react';
-import { RealtimeChannel } from '@supabase/supabase-js';
+import { useEffect, useState } from 'react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { debug } from '@/lib/logger';
 
 export interface UserPresence {
   user_id: string;
@@ -12,129 +11,112 @@ export interface UserPresence {
   viewing_chat?: string;
 }
 
+/**
+ * One app-wide presence channel (singleton). Previously each caller built its own channel and
+ * only the Messages page tracked presence, so people only looked "online" while sitting in Messages.
+ * Now the app mounts this once at the root (RealtimeNotifications), so being in the app = being online.
+ */
+const STALE_MS = 3 * 60 * 1000;
+const HEARTBEAT_MS = 60 * 1000;
+
+let channel: RealtimeChannel | null = null;
+let channelUserId: string | null = null;
+let heartbeat: ReturnType<typeof setInterval> | undefined;
+let refCount = 0;
+let online: Record<string, UserPresence> = {};
+let viewingChat: string | undefined;
+let myInfo: { display_name: string; avatar_url?: string } = { display_name: 'User' };
+const listeners = new Set<(s: Record<string, UserPresence>) => void>();
+const emit = () => listeners.forEach((l) => l(online));
+
+const track = async () => {
+  if (!channel || !channelUserId) return;
+  try {
+    await channel.track({
+      user_id: channelUserId,
+      display_name: myInfo.display_name,
+      avatar_url: myInfo.avatar_url,
+      online_at: new Date().toISOString(),
+      viewing_chat: viewingChat,
+    });
+  } catch { /* offline — next heartbeat retries */ }
+};
+
+const onVisible = () => { if (document.visibilityState === 'visible') void track(); };
+
+const start = (userId: string) => {
+  if (channel && channelUserId === userId) return;
+  stop();
+  channelUserId = userId;
+  const ch = supabase.channel('online-users', { config: { presence: { key: userId } } });
+  channel = ch;
+  ch.on('presence', { event: 'sync' }, () => {
+    const next: Record<string, UserPresence> = {};
+    Object.values(ch.presenceState<UserPresence>()).forEach((presences) => {
+      presences.forEach((p) => {
+        if (Date.now() - new Date(p.online_at).getTime() < STALE_MS) next[p.user_id] = p;
+      });
+    });
+    online = next;
+    emit();
+  }).subscribe(async (status) => {
+    if (status !== 'SUBSCRIBED') return;
+    const { data } = await supabase.from('profiles').select('display_name, avatar_url').eq('id', userId).maybeSingle();
+    myInfo = { display_name: data?.display_name || 'User', avatar_url: data?.avatar_url || undefined };
+    await track();
+    clearInterval(heartbeat);
+    heartbeat = setInterval(track, HEARTBEAT_MS);
+  });
+  document.addEventListener('visibilitychange', onVisible);
+  window.addEventListener('online', onVisible);
+};
+
+const stop = () => {
+  clearInterval(heartbeat);
+  document.removeEventListener('visibilitychange', onVisible);
+  window.removeEventListener('online', onVisible);
+  if (channel) supabase.removeChannel(channel);
+  channel = null;
+  channelUserId = null;
+  online = {};
+  emit();
+};
+
 export const usePresence = (chatId?: string) => {
   const { user } = useAuth();
-  const [onlineUsers, setOnlineUsers] = useState<Record<string, UserPresence>>({});
-  const [channel, setChannel] = useState<RealtimeChannel | null>(null);
+  const userId = user?.id;
+  const [onlineUsers, setOnlineUsers] = useState<Record<string, UserPresence>>(online);
 
   useEffect(() => {
-    if (!user) return;
-
-    const presenceChannel = supabase.channel('online-users', {
-      config: {
-        presence: {
-          key: user.id,
-        },
-      },
-    });
-
-    presenceChannel
-      .on('presence', { event: 'sync' }, () => {
-        const state = presenceChannel.presenceState<UserPresence>();
-        const users: Record<string, UserPresence> = {};
-
-        Object.values(state).forEach((presences) => {
-          presences.forEach((presence) => {
-            // Only consider users online if they've been active in the last 5 minutes
-            const onlineAt = new Date(presence.online_at).getTime();
-            const now = Date.now();
-            if (now - onlineAt < 5 * 60 * 1000) {
-              users[presence.user_id] = presence;
-            }
-          });
-        });
-
-        setOnlineUsers(users);
-      })
-      .on('presence', { event: 'join' }, ({ newPresences }) => {
-        debug('User joined:', newPresences);
-      })
-      .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-        debug('User left:', leftPresences);
-      })
-      .subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          // Get user profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('display_name, avatar_url')
-            .eq('id', user.id)
-            .single();
-
-          await presenceChannel.track({
-            user_id: user.id,
-            display_name: profile?.display_name || 'User',
-            avatar_url: profile?.avatar_url,
-            online_at: new Date().toISOString(),
-            viewing_chat: chatId,
-          });
-
-          // Update presence every 2 minutes to stay online
-          const intervalId = setInterval(async () => {
-            await presenceChannel.track({
-              user_id: user.id,
-              display_name: profile?.display_name || 'User',
-              avatar_url: profile?.avatar_url,
-              online_at: new Date().toISOString(),
-              viewing_chat: chatId,
-            });
-          }, 2 * 60 * 1000);
-
-          return () => clearInterval(intervalId);
-        }
-      });
-
-    setChannel(presenceChannel);
-
+    if (!userId) return;
+    refCount++;
+    listeners.add(setOnlineUsers);
+    setOnlineUsers(online);
+    start(userId);
     return () => {
-      presenceChannel.unsubscribe();
+      listeners.delete(setOnlineUsers);
+      refCount--;
+      if (refCount <= 0) { refCount = 0; stop(); }
     };
-    // Deliberately NOT depending on chatId here -- this channel represents
-    // app-wide "who's online", not a per-chat thing. Recreating it every
-    // time the user opens a different conversation was wiping everyone's
-    // online status and rebuilding it from scratch, which is why the
-    // indicator flickered offline/online while navigating between chats.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [userId]);
+
+  // Which chat is open (used for "viewing" state) without rebuilding the channel.
+  useEffect(() => {
+    if (!chatId) return;
+    viewingChat = chatId;
+    void track();
+    return () => {
+      if (viewingChat === chatId) { viewingChat = undefined; void track(); }
+    };
+  }, [chatId]);
 
   const updateViewingChat = async (newChatId?: string) => {
-    if (!channel || !user) return;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('display_name, avatar_url')
-      .eq('id', user.id)
-      .single();
-
-    await channel.track({
-      user_id: user.id,
-      display_name: profile?.display_name || 'User',
-      avatar_url: profile?.avatar_url,
-      online_at: new Date().toISOString(),
-      viewing_chat: newChatId,
-    });
+    viewingChat = newChatId;
+    await track();
   };
 
-  // Keep "viewing_chat" in sync with the currently open chat without
-  // tearing down and re-subscribing the whole presence channel.
-  useEffect(() => {
-    if (!channel) return;
-    updateViewingChat(chatId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channel, chatId]);
+  const isUserOnline = (id: string) => !!onlineUsers[id];
+  const isUserViewingChat = (id: string, checkChatId: string) => onlineUsers[id]?.viewing_chat === checkChatId;
 
-  const isUserOnline = (userId: string) => {
-    return !!onlineUsers[userId];
-  };
-
-  const isUserViewingChat = (userId: string, checkChatId: string) => {
-    return onlineUsers[userId]?.viewing_chat === checkChatId;
-  };
-
-  return {
-    onlineUsers,
-    isUserOnline,
-    isUserViewingChat,
-    updateViewingChat,
-  };
+  return { onlineUsers, isUserOnline, isUserViewingChat, updateViewingChat };
 };

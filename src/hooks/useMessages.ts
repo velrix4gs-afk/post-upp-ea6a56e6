@@ -526,6 +526,13 @@ export const useMessages = (chatId?: string) => {
         return true;
       });
 
+      // The RPC only returns usernames; fetch display names so chats are titled with the other person's real name.
+      const otherIds = [...new Set(dedupedList.map((c) => c.other_user_id).filter(Boolean))] as string[];
+      const { data: otherProfiles } = otherIds.length
+        ? await supabase.from('profiles').select('id, display_name').in('id', otherIds)
+        : { data: [] as { id: string; display_name: string | null }[] };
+      const displayNames = new Map((otherProfiles || []).map((p) => [p.id, p.display_name]));
+
       const lastMessageIds = dedupedList
         .map((chat) => chat.last_message_id)
         .filter((id): id is string => Boolean(id));
@@ -538,7 +545,8 @@ export const useMessages = (chatId?: string) => {
       // Map RPC results to the Chat interface shape
       const validChats: Chat[] = dedupedList.map((row: any) => ({
         id: row.chat_id,
-        name: row.chat_name || undefined,
+        // Private chats are named after the OTHER person; a stale stored name must never win.
+        name: row.type === 'group' ? (row.chat_name || undefined) : undefined,
         avatar_url: row.other_user_avatar || undefined,
         is_group: row.type === 'group',
         created_at: row.chat_created_at,
@@ -570,7 +578,7 @@ export const useMessages = (chatId?: string) => {
             joined_at: row.chat_created_at,
             profiles: {
               username: row.other_user_name || 'Unknown',
-              display_name: row.other_user_name || 'Unknown User',
+              display_name: displayNames.get(row.other_user_id) || row.other_user_name || 'Unknown User',
               avatar_url: row.other_user_avatar || undefined
             }
           }

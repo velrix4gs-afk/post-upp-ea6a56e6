@@ -732,7 +732,7 @@ const MessagesPage = () => {
     return chats
       .filter((chat) => {
         const otherP = chat.participants.find((p) => p.user_id !== user?.id);
-        const name = chat.name || otherP?.profiles?.display_name || '';
+        const name = (chat.is_group ? chat.name : undefined) || otherP?.profiles?.display_name || chat.name || '';
         const matchSearch =
           !searchQuery ||
           name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -980,7 +980,7 @@ const MessagesPage = () => {
           <div className="animate-stagger">
             {filteredChats.map((chat) => {
               const otherP = chat.participants.find((p) => p.user_id !== user?.id);
-              const name = chat.name || otherP?.profiles?.display_name || 'Unknown';
+              const name = (chat.is_group ? chat.name : undefined) || otherP?.profiles?.display_name || chat.name || 'Unknown';
               const avatar = chat.avatar_url || otherP?.profiles?.avatar_url;
               const isOnlineUser = otherP ? isUserOnline(otherP.user_id) : false;
               return (
@@ -1025,7 +1025,7 @@ const MessagesPage = () => {
   const renderChatView = () => {
     if (!selectedChat) return null;
     const otherP = selectedParticipants.find((p) => p.user_id !== user?.id);
-    const chatName = chatSettings?.nickname || selectedChat.name || otherP?.profiles?.display_name || 'User';
+    const chatName = chatSettings?.nickname || (selectedChat.is_group ? selectedChat.name : undefined) || otherP?.profiles?.display_name || selectedChat.name || 'User';
     const chatAvatar = selectedChat.avatar_url || otherP?.profiles?.avatar_url;
 
     return (

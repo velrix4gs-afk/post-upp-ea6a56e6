@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Bell, Heart, MessageCircle, UserPlus, Share2, AtSign, Phone, Video, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useDeliveryReceipts } from '@/hooks/useDeliveryReceipts';
+import { usePresence } from '@/hooks/usePresence';
 import { toast } from 'sonner';
 import { getNotificationPath } from '@/lib/notificationLink';
 
@@ -62,6 +64,8 @@ const Banner = ({ notification, onOpen, onDismiss }: {
 export const RealtimeNotifications = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  useDeliveryReceipts();
+  usePresence(); // keeps the user "online" app-wide, not just inside Messages
 
   useEffect(() => {
     if (!user) return;
