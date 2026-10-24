@@ -20,6 +20,8 @@ export interface VideoEditPlan {
   start: number;
   end: number;
   regions: BlurRegion[];
+  /** Centre-crop to this width/height ratio (e.g. 9/16). null = keep the original frame. */
+  cropAspect?: number | null;
 }
 
 const pickMime = (): { mime: string; ext: string } => {
@@ -62,9 +64,17 @@ export const exportEditedVideo = async (
       video.onerror = () => reject(new Error('Could not read this video'));
     });
 
-    const scale = Math.min(1, MAX_SIDE / Math.max(video.videoWidth, video.videoHeight));
-    const W = Math.max(2, Math.round((video.videoWidth * scale) / 2) * 2);
-    const H = Math.max(2, Math.round((video.videoHeight * scale) / 2) * 2);
+    // Source rectangle (centre crop) → output size
+    const vw = video.videoWidth, vh = video.videoHeight;
+    let sx = 0, sy = 0, sw = vw, sh = vh;
+    if (plan.cropAspect) {
+      const srcAspect = vw / vh;
+      if (srcAspect > plan.cropAspect) { sw = Math.round(vh * plan.cropAspect); sx = Math.round((vw - sw) / 2); }
+      else { sh = Math.round(vw / plan.cropAspect); sy = Math.round((vh - sh) / 2); }
+    }
+    const scale = Math.min(1, MAX_SIDE / Math.max(sw, sh));
+    const W = Math.max(2, Math.round((sw * scale) / 2) * 2);
+    const H = Math.max(2, Math.round((sh * scale) / 2) * 2);
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = H;
@@ -97,7 +107,7 @@ export const exportEditedVideo = async (
     await new Promise<void>((resolve) => { video.onseeked = () => resolve(); });
 
     const drawFrame = () => {
-      ctx.drawImage(video, 0, 0, W, H);
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
       const t = video.currentTime;
       for (const r of plan.regions) {
         if (t < r.from || t > r.to) continue;
@@ -108,14 +118,14 @@ export const exportEditedVideo = async (
         ctx.clip();
         if (supportsFilter) {
           ctx.filter = `blur(${Math.max(10, Math.round(W / 60))}px)`;
-          ctx.drawImage(video, 0, 0, W, H);
+          ctx.drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
         } else {
           // Pixelate fallback for WebViews without canvas filters.
           const px = 24;
           const tw = Math.max(1, Math.round(rw / px)), th = Math.max(1, Math.round(rh / px));
           const tmp = document.createElement('canvas');
           tmp.width = tw; tmp.height = th;
-          tmp.getContext('2d')!.drawImage(video, rx, ry, rw, rh, 0, 0, tw, th);
+          tmp.getContext('2d')!.drawImage(video, sx + (rx / W) * sw, sy + (ry / H) * sh, (rw / W) * sw, (rh / H) * sh, 0, 0, tw, th);
           ctx.imageSmoothingEnabled = true;
           ctx.drawImage(tmp, 0, 0, tw, th, rx, ry, rw, rh);
         }

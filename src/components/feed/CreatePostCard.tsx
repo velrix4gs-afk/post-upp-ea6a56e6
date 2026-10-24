@@ -1,4 +1,6 @@
 import { VideoEditorDialog } from "@/components/VideoEditorDialog";
+import { PhotoEditorDialog } from "@/components/PhotoEditorDialog";
+import { Sparkles } from "lucide-react";
 import { Scissors } from "lucide-react";
 import { useEntitlements } from '@/hooks/useEntitlements';
 import { formatMB } from '@/lib/entitlements';
@@ -93,6 +95,7 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [editingVideoIndex, setEditingVideoIndex] = useState<number | null>(null);
+  const [editingPhotoIndex, setEditingPhotoIndex] = useState<number | null>(null);
   const replaceMedia = (index: number, file: File) => {
     const old = previewImages[index];
     if (old?.startsWith('blob:')) URL.revokeObjectURL(old);
@@ -463,6 +466,18 @@ const CreatePostCard = ({ autoExpand = false, onPostCreated }: CreatePostCardPro
           onOpenChange={(o) => { if (!o) setEditingVideoIndex(null); }}
           onDone={(edited) => { if (editingVideoIndex !== null) replaceMedia(editingVideoIndex, edited); }}
         />
+        {selectedImages.map((f, i) => f.type.startsWith('image/') && (
+          <Button key={`photo-edit-${i}`} type="button" variant="outline" size="sm" className="mt-2 mr-2 h-8 gap-1.5" onClick={() => setEditingPhotoIndex(i)}>
+            <Sparkles className="h-4 w-4" />Edit photo{selectedImages.filter(x => x.type.startsWith('image/')).length > 1 ? ` ${i + 1}` : ''}
+          </Button>
+        ))}
+        <PhotoEditorDialog
+          file={editingPhotoIndex !== null ? selectedImages[editingPhotoIndex] ?? null : null}
+          open={editingPhotoIndex !== null}
+          onClose={() => setEditingPhotoIndex(null)}
+          onDone={(edited) => { if (editingPhotoIndex !== null) replaceMedia(editingPhotoIndex, edited); }}
+        />
+
 
       </div>}
 

@@ -1,4 +1,6 @@
 import { useEntitlements } from '@/hooks/useEntitlements';
+import { VideoEditorDialog } from '@/components/VideoEditorDialog';
+import { Scissors } from 'lucide-react';
 import { formatMB } from '@/lib/entitlements';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -72,6 +74,7 @@ const CreateShowcasePage = () => {
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | 'text'>('text');
+  const [videoEditorOpen, setVideoEditorOpen] = useState(false);
 
   // Text-only story
   const [storyText, setStoryText] = useState('');
@@ -444,6 +447,15 @@ const CreateShowcasePage = () => {
     <div className="fixed inset-0 z-[70] flex flex-col bg-[#09070f] text-white select-none">
       {/* Hidden inputs */}
       <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
+      <VideoEditorDialog
+        file={mediaType === 'video' ? mediaFile : null}
+        open={videoEditorOpen}
+        onOpenChange={setVideoEditorOpen}
+        onDone={(edited) => {
+          setMediaFile(edited);
+          setMediaPreview(URL.createObjectURL(edited));
+        }}
+      />
 
       {/* Showcase studio header */}
       <div
@@ -580,9 +592,13 @@ const CreateShowcasePage = () => {
         ))}
 
         {hasMedia && mediaType === 'video' && (
-          <div className="absolute bottom-24 left-4 z-10 rounded-full bg-black/55 px-3 py-1.5 text-xs text-white/80 backdrop-blur">
-            Videos are shared as selected. Photo editing tools apply to images.
-          </div>
+          <button
+            type="button"
+            onClick={() => setVideoEditorOpen(true)}
+            className="absolute bottom-24 left-4 z-10 flex items-center gap-2 rounded-full bg-black/65 px-4 py-2 text-sm font-medium text-white backdrop-blur active:scale-95"
+          >
+            <Scissors className="h-4 w-4" /> Edit video · trim, crop, blur
+          </button>
         )}
 
         {/* Text-only background picker */}

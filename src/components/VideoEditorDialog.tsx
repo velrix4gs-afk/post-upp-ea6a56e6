@@ -27,6 +27,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
   const stageRef = useRef<HTMLDivElement>(null);
   const [duration, setDuration] = useState(0);
   const [aspect, setAspect] = useState(9 / 16);
+  const [cropAspect, setCropAspect] = useState<number | null>(null);
   const [range, setRange] = useState<[number, number]>([0, 0]);
   const [now, setNow] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -38,7 +39,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
 
   useEffect(() => {
     if (!open) return;
-    setRegions([]); setSelected(null); setPlaying(false); setNow(0); setProgress(0); setExporting(false);
+    setCropAspect(null); setRegions([]); setSelected(null); setPlaying(false); setNow(0); setProgress(0); setExporting(false);
   }, [open, file]);
 
   const onMeta = () => {
@@ -118,7 +119,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
   const endDrag = () => { dragRef.current = null; };
 
   const sel = regions.find((r) => r.id === selected) || null;
-  const unchanged = regions.length === 0 && range[0] <= 0.05 && range[1] >= duration - 0.05;
+  const unchanged = !cropAspect && regions.length === 0 && range[0] <= 0.05 && range[1] >= duration - 0.05;
 
   const save = async () => {
     if (!file) return;
@@ -132,7 +133,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
     const ac = new AbortController();
     abortRef.current = ac;
     try {
-      const edited = await exportEditedVideo(file, { start: range[0], end: range[1], regions }, setProgress, ac.signal);
+      const edited = await exportEditedVideo(file, { start: range[0], end: range[1], regions, cropAspect }, setProgress, ac.signal);
       onDone(edited);
       onOpenChange(false);
     } catch (err) {
@@ -155,7 +156,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
         <div
           ref={stageRef}
           className="relative mx-auto w-full overflow-hidden rounded-xl bg-black"
-          style={{ aspectRatio: aspect, maxHeight: '48dvh' }}
+          style={{ aspectRatio: cropAspect ?? aspect, maxHeight: '48dvh' }}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
           onClick={() => setSelected(null)}
@@ -165,7 +166,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
               ref={videoRef}
               src={url}
               playsInline
-              className="h-full w-full"
+              className="h-full w-full object-cover"
               onLoadedMetadata={onMeta}
               onTimeUpdate={onTime}
               onPlay={() => setPlaying(true)}
@@ -205,6 +206,26 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
               <span>{fmt(range[1] - range[0])} kept</span>
               <span>End {fmt(range[1])}</span>
             </div>
+          </div>
+        </div>
+
+        <div className="space-y-2 rounded-xl border p-3">
+          <p className="text-sm font-medium">Crop</p>
+          <div className="flex flex-wrap gap-2">
+            {([['Original', null], ['9:16', 9 / 16], ['1:1', 1], ['4:5', 4 / 5], ['16:9', 16 / 9]] as const).map(([label, value]) => (
+              <button
+                key={label}
+                type="button"
+                disabled={exporting}
+                onClick={() => setCropAspect(value)}
+                className={cn(
+                  'rounded-full border px-3 py-1 text-xs font-medium',
+                  cropAspect === value ? 'border-primary bg-primary text-primary-foreground' : 'hover:bg-muted'
+                )}
+              >
+                {label}
+              </button>
+            ))}
           </div>
         </div>
 
