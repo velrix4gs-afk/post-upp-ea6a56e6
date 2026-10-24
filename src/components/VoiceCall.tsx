@@ -327,6 +327,8 @@ const VoiceCallInner = ({
   const { microphone, isMute } = useMicrophoneState();
   const participants = useParticipants();
   const remoteParticipants = participants.filter((p) => !p.isLocalParticipant);
+  // Whoever is louder right now — your own voice or theirs — drives the call orb.
+  const voiceLevel = Math.max(0, ...participants.map((p) => p.audioLevel ?? 0));
 
   const [callDuration, setCallDuration] = useState(0);
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -423,6 +425,7 @@ const VoiceCallInner = ({
       controls={controls}
       setupError={setupError}
       onRetry={onRetry}
+      voiceLevel={isConnected ? voiceLevel : 0}
     />
   );
 };

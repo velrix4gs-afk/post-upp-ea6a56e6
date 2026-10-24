@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "369970614932",
+    "project_id": "post-upp-19d90",
+    "storage_bucket": "post-upp-19d90.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:369970614932:android:e3a4b4fb611806680e5a81",
+        "android_client_info": {
+          "package_name": "com.postupp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnXCMxbzuFcZd2I72aKEZvIHI9ciKoO6U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

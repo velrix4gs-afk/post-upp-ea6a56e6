@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useDeliveryReceipts } from '@/hooks/useDeliveryReceipts';
 import { usePresence } from '@/hooks/usePresence';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { toast } from 'sonner';
 import { getNotificationPath } from '@/lib/notificationLink';
 
@@ -66,6 +67,7 @@ export const RealtimeNotifications = () => {
   const navigate = useNavigate();
   useDeliveryReceipts();
   usePresence(); // keeps the user "online" app-wide, not just inside Messages
+  usePushNotifications(); // native-only: registers this device for FCM pushes
 
   useEffect(() => {
     if (!user) return;

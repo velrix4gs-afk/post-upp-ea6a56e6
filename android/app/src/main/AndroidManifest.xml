@@ -24,6 +24,13 @@
 
         </activity>
 
+        <!-- Firebase Cloud Messaging: channel the @capacitor/push-notifications
+             plugin's default channel matches, so pushes from send-push (which
+             sets android.notification.channel_id = "default") land correctly. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="default" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -54,6 +61,10 @@
 
     <!-- Network & Internet Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Push notifications: runtime-requested on Android 13+ (API 33) via
+         PushNotifications.requestPermissions() in usePushNotifications.ts. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
       Haptic feedback. The app calls navigator.vibrate in src/lib/haptics.ts

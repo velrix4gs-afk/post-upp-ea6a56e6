@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { createPortal } from 'react-dom';
+import { CallAudioOrb } from '@/components/visualizers/CallAudioOrb';
 
 interface CallShellProps {
   kind: 'voice' | 'video';
@@ -26,6 +27,8 @@ interface CallShellProps {
   onRetry?: () => void;
   /** When true on video calls, auto-hide chrome after 3s of idle. */
   autoHideControls?: boolean;
+  /** 0-1 live call loudness (voice calls only) — drives the CrystalizedBall behind the avatar. Omit to show the plain static glow. */
+  voiceLevel?: number;
 }
 
 export const CallShell = ({
@@ -44,6 +47,7 @@ export const CallShell = ({
   setupError,
   onRetry,
   autoHideControls = false,
+  voiceLevel,
 }: CallShellProps) => {
   const [chromeVisible, setChromeVisible] = useState(true);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -257,7 +261,13 @@ export const CallShell = ({
           {/* Voice-call hero (avatar + name) */}
           {kind === 'voice' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-8 text-center">
-              <div className="pointer-events-none absolute h-[30rem] w-[30rem] rounded-full bg-[hsl(262_83%_70%)]/20 blur-3xl" />
+              {voiceLevel === undefined ? (
+                <div className="pointer-events-none absolute h-[30rem] w-[30rem] rounded-full bg-[hsl(262_83%_70%)]/20 blur-3xl" />
+              ) : (
+                <div className="pointer-events-none absolute h-[26rem] w-[26rem]">
+                  <CallAudioOrb level={voiceLevel} color="#c13aed" preset="abyss" />
+                </div>
+              )}
               <Avatar className="relative h-36 w-36 ring-4 ring-primary/50 shadow-[0_0_60px_rgba(59,130,246,0.2)]">
                 <AvatarImage src={participantAvatar} />
                 <AvatarFallback className="bg-slate-800 text-5xl text-white">
