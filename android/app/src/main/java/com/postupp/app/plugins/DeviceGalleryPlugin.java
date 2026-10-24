@@ -156,7 +156,7 @@ public class DeviceGalleryPlugin extends Plugin {
                 ret.put("items", toJson(queryMedia(quantity, types)));
                 call.resolve(ret);
             } catch (Exception e) {
-                call.reject("Could not read device media", "filesystemError");
+                call.reject("Could not read device media: " + e.getMessage(), "filesystemError");
             }
         });
     }
@@ -263,13 +263,23 @@ public class DeviceGalleryPlugin extends Plugin {
     }
 
     private void collect(Uri collection, String kind, List<MediaItem> out, int quantity) {
-        String[] projection = new String[] {
-            MediaStore.MediaColumns._ID,
-            MediaStore.MediaColumns.DISPLAY_NAME,
-            MediaStore.MediaColumns.MIME_TYPE,
-            MediaStore.MediaColumns.DATE_ADDED,
-            MediaStore.MediaColumns.DURATION
-        };
+        // DURATION only exists on API 29+ and only means something for videos; asking for it on images
+        // (or on older phones) made the whole query fail, so the gallery came back empty.
+        boolean withDuration = Build.VERSION.SDK_INT >= 29 && "video".equals(kind);
+        String[] projection = withDuration
+            ? new String[] {
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.MediaColumns.DATE_ADDED,
+                MediaStore.MediaColumns.DURATION
+            }
+            : new String[] {
+                MediaStore.MediaColumns._ID,
+                MediaStore.MediaColumns.DISPLAY_NAME,
+                MediaStore.MediaColumns.MIME_TYPE,
+                MediaStore.MediaColumns.DATE_ADDED
+            };
         String sort = MediaStore.MediaColumns.DATE_ADDED + " DESC";
         try (Cursor cursor = getContext().getContentResolver().query(collection, projection, null, null, sort)) {
             if (cursor == null) return;
@@ -277,7 +287,7 @@ public class DeviceGalleryPlugin extends Plugin {
             int nameCol = cursor.getColumnIndex(MediaStore.MediaColumns.DISPLAY_NAME);
             int mimeCol = cursor.getColumnIndex(MediaStore.MediaColumns.MIME_TYPE);
             int dateCol = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED);
-            int durCol = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION);
+            int durCol = withDuration ? cursor.getColumnIndex(MediaStore.MediaColumns.DURATION) : -1;
             int counted = 0;
             while (cursor.moveToNext() && counted < quantity) {
                 long id = cursor.getLong(idCol);
@@ -302,12 +312,12 @@ public class DeviceGalleryPlugin extends Plugin {
         Bitmap bmp = null;
         try {
             if (Build.VERSION.SDK_INT >= 29) {
-                bmp = getContext().getContentResolver().loadThumbnail(uri, new Size(256, 256), null);
+                bmp = getContext().getContentResolver().loadThumbnail(uri, new Size(192, 192), null);
             } else {
                 return "";
             }
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            bmp.compress(Bitmap.CompressFormat.JPEG, 70, baos);
+            bmp.compress(Bitmap.CompressFormat.JPEG, 60, baos);
             return "data:image/jpeg;base64," + Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
         } catch (Exception e) {
             return "";

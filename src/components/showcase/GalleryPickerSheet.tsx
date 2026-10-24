@@ -58,7 +58,7 @@ export const GalleryPickerSheet = ({
   const [confirming, setConfirming] = useState(false);
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const [access, setAccess] = useState<AccessState>('checking');
-  const [quantity, setQuantity] = useState(120);
+  const [quantity, setQuantity] = useState(60);
   // Set when we hold permission but the media read failed. Distinct from
   // `access === 'denied'` so the user is never asked to grant twice.
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -78,7 +78,7 @@ export const GalleryPickerSheet = ({
     if (!open) {
       setSelected([]);
       setFilter('all');
-      setQuantity(120);
+      setQuantity(60);
       setBusyId(null);
       return;
     }
