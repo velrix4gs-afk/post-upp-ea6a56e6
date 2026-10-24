@@ -105,7 +105,15 @@ export const useFriends = () => {
         .or(`requester_id.eq.${user.id},addressee_id.eq.${user.id}`);
 
       if (error) throw error;
-      setFriendships((data as any) || []);
+      // One row per person-pair: A→B and B→A rows must not show the same account twice.
+      const rank = (s: string) => (s === 'accepted' ? 0 : s === 'pending' ? 1 : 2);
+      const byPair = new Map<string, Friendship>();
+      for (const row of ((data as any[]) || []) as Friendship[]) {
+        const key = [row.requester_id, row.addressee_id].sort().join(':');
+        const existing = byPair.get(key);
+        if (!existing || rank(row.status) < rank(existing.status)) byPair.set(key, row);
+      }
+      setFriendships([...byPair.values()]);
     } catch (err: any) {
       // Silent — do not spam console/toast during offline retries.
       // Keep whatever we already had cached in state.

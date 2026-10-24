@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { usePresence } from '@/hooks/usePresence';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '@/components/Navigation';
 import { BackNavigation } from '@/components/BackNavigation';
@@ -54,7 +55,8 @@ const FriendsPage = () => {
     friend.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const onlineFriends = filteredFriends; // TODO: Add online status tracking
+  const { isUserOnline } = usePresence();
+  const onlineFriends = filteredFriends.filter((f) => isUserOnline(f.id));
   const suggestions = results.filter(r => 
     r.type === 'user' && 
     !friends.some(f => f.id === r.id) &&
