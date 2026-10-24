@@ -19,6 +19,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
   const postsRef = useRef<Post[]>([]);
   const feedTypeRef = useRef(feedType);
   feedTypeRef.current = feedType;
+  const cacheScope = () => `${user?.id ?? 'anon'}:${feedTypeRef.current}`;
 
   useEffect(() => {
     postsRef.current = posts;
@@ -118,12 +119,12 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       if (isInitialPage) {
         setPosts(ranked);
         // Save to cache on fresh fetch
-        CacheHelper.saveFeed(ranked);
+        CacheHelper.saveFeed(ranked, cacheScope());
       } else {
         setPosts(prev => {
           const existingIds = new Set(prev.map((post) => post.id));
           const combined = [...prev, ...ranked.filter((post) => !existingIds.has(post.id))];
-          CacheHelper.saveFeed(combined);
+          CacheHelper.saveFeed(combined, cacheScope());
           return combined;
         });
       }
@@ -201,7 +202,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
           : all.sort(
               (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             );
-        CacheHelper.saveFeed(merged);
+        CacheHelper.saveFeed(merged, cacheScope());
         return merged;
       });
     } catch (error) {
@@ -217,7 +218,7 @@ export const useFeed = (feedType: FeedType = 'for-you') => {
       // Load cached feed first for instant display, then refresh without
       // replacing the visible feed with a full-page skeleton.
       const bootFeed = async () => {
-        const cached = await CacheHelper.getFeed();
+        const cached = await CacheHelper.getFeed(cacheScope());
         if (cancelled) return;
         if (cached && cached.length > 0) {
           const visibleCached = feedTypeRef.current === 'for-you'

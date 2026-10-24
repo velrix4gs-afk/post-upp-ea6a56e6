@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { FeedSkeleton } from '@/components/skeletons/FeedSkeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useFeed } from '@/hooks/useFeed';
 import { useNavigate } from 'react-router-dom';
@@ -74,28 +75,7 @@ const Feed = () => {
         </div>
 
         {/* Feed Content */}
-        {activeTab === 'trending' ? <TrendingFeed /> : loading ? <div className="space-y-4 p-4">
-          {[1, 2, 3].map(i => <div key={i} className="bg-card rounded-xl p-4 border border-border">
-            {/* Header row: avatar + name/time, matching the real post card */}
-            <div className="flex items-center gap-3 mb-3">
-              <Skeleton className="h-10 w-10 rounded-full flex-shrink-0" />
-              <div className="flex-1 space-y-1.5">
-                <Skeleton className="h-3.5 w-28" />
-                <Skeleton className="h-3 w-16" />
-              </div>
-            </div>
-            {/* Caption line */}
-            <Skeleton className="h-3.5 w-4/5 mb-3" />
-            {/* Media block -- real posts render a full-width 4:3 image/video */}
-            <Skeleton className="w-full aspect-[4/3] max-h-[420px] rounded-xl mb-3" />
-            {/* Action row: like / comment / share */}
-            <div className="flex items-center gap-6">
-              <Skeleton className="h-5 w-12" />
-              <Skeleton className="h-5 w-12" />
-              <Skeleton className="h-5 w-12" />
-            </div>
-          </div>)}
-        </div> : posts.length === 0 ? <div className="p-12 text-center">
+        {activeTab === 'trending' ? <TrendingFeed /> : loading ? <FeedSkeleton /> : posts.length === 0 ? <div className="p-12 text-center">
           <Sparkles className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
           <p className="text-muted-foreground">Be the first to share something!</p>

@@ -3548,3 +3548,43 @@ html.dark[data-contrast='dim'][data-accent='pink'] { --primary: 330 81% 60%; --p
     border-radius: 26px;
   }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   ACCENT COLOURS — final authority.
+   The accent picker used to lose to colour-theme / dark-mode blocks (higher
+   specificity or later in the file), so "Red" came out as whatever the theme's
+   primary was (often an orange-brown). These rules are last and specific enough
+   to win, and set every token the UI derives from the accent. "default" and
+   "blue" are left to the active colour theme.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root:root[data-accent='red'],           :root:root[data-color-theme][data-accent='red'] {
+  --primary: 0 84% 50%; --primary-hover: 0 84% 44%; --primary-glow: 0 90% 64%; --ring: 0 84% 50%; --primary-foreground: 0 0% 100%;
+}
+:root:root[data-accent='orange'],        :root:root[data-color-theme][data-accent='orange'] {
+  --primary: 24 95% 48%; --primary-hover: 24 95% 42%; --primary-glow: 27 96% 62%; --ring: 24 95% 48%; --primary-foreground: 0 0% 100%;
+}
+:root:root[data-accent='green'],         :root:root[data-color-theme][data-accent='green'] {
+  --primary: 142 72% 34%; --primary-hover: 142 72% 29%; --primary-glow: 142 70% 52%; --ring: 142 72% 34%; --primary-foreground: 0 0% 100%;
+}
+:root:root[data-accent='purple'],        :root:root[data-color-theme][data-accent='purple'] {
+  --primary: 262 83% 55%; --primary-hover: 262 83% 49%; --primary-glow: 262 90% 72%; --ring: 262 83% 55%; --primary-foreground: 0 0% 100%;
+}
+:root:root[data-accent='pink'],          :root:root[data-color-theme][data-accent='pink'] {
+  --primary: 330 85% 52%; --primary-hover: 330 85% 46%; --primary-glow: 330 90% 70%; --ring: 330 85% 52%; --primary-foreground: 0 0% 100%;
+}
+/* Dark mode: same hues, lifted so they stay vivid on dark surfaces */
+:root:root.dark[data-accent='red'],      :root:root.dark[data-color-theme][data-accent='red'],      html.dark[data-contrast][data-accent='red'] {
+  --primary: 0 90% 60%; --primary-hover: 0 90% 66%; --primary-glow: 0 95% 72%; --ring: 0 90% 60%;
+}
+:root:root.dark[data-accent='orange'],   :root:root.dark[data-color-theme][data-accent='orange'],   html.dark[data-contrast][data-accent='orange'] {
+  --primary: 27 96% 56%; --primary-hover: 27 96% 62%; --primary-glow: 30 97% 68%; --ring: 27 96% 56%;
+}
+:root:root.dark[data-accent='green'],    :root:root.dark[data-color-theme][data-accent='green'],    html.dark[data-contrast][data-accent='green'] {
+  --primary: 142 70% 46%; --primary-hover: 142 70% 52%; --primary-glow: 142 72% 60%; --ring: 142 70% 46%;
+}
+:root:root.dark[data-accent='purple'],   :root:root.dark[data-color-theme][data-accent='purple'],   html.dark[data-contrast][data-accent='purple'] {
+  --primary: 262 90% 68%; --primary-hover: 262 90% 74%; --primary-glow: 262 95% 80%; --ring: 262 90% 68%;
+}
+:root:root.dark[data-accent='pink'],     :root:root.dark[data-color-theme][data-accent='pink'],     html.dark[data-contrast][data-accent='pink'] {
+  --primary: 330 90% 62%; --primary-hover: 330 90% 68%; --primary-glow: 330 95% 76%; --ring: 330 90% 62%;
+}

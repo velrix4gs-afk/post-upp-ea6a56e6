@@ -64,14 +64,15 @@ export const CacheHelper = {
     return data ? JSON.parse(data) : null;
   },
 
-  async saveFeed(feed: any[]) {
-    await AsyncStorage.setItem('feed_cache', JSON.stringify(feed));
-    await AsyncStorage.setItem('feed_timestamp', Date.now().toString());
+  // Feed caches are per account AND per tab, so switching accounts or tabs never shows the wrong feed.
+  async saveFeed(feed: any[], scope = 'for-you') {
+    await AsyncStorage.setItem(`feed_cache:${scope}`, JSON.stringify(feed.slice(0, 60)));
+    await AsyncStorage.setItem(`feed_timestamp:${scope}`, Date.now().toString());
   },
 
-  async getFeed() {
-    const data = await AsyncStorage.getItem('feed_cache');
-    const timestamp = await AsyncStorage.getItem('feed_timestamp');
+  async getFeed(scope = 'for-you') {
+    const data = await AsyncStorage.getItem(`feed_cache:${scope}`);
+    const timestamp = await AsyncStorage.getItem(`feed_timestamp:${scope}`);
     
     if (!data || !timestamp) return null;
     
