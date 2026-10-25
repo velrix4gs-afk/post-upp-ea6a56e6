@@ -33,7 +33,6 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import CreatePost from '@/components/CreatePost';
 import { canViewFullProfile } from '@/lib/profilePrivacy';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
@@ -464,7 +463,6 @@ const ProfilePage = () => {
         <div className="py-4 px-px">
           {/* Posts Tab */}
           {activeTab === 'posts' && <div className="space-y-4">
-            {isOwnProfile && <CreatePost />}
 
             {/* Pinned Posts */}
             {pinnedPosts.length > 0 && <div className="space-y-4">

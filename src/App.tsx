@@ -64,6 +64,7 @@ const StarredMessagesPage = lazy(() => import("./pages/StarredMessagesPage"));
 const ChatMediaPage = lazy(() => import("./pages/ChatMediaPage"));
 const ChatSettingsPage = lazy(() => import("./pages/ChatSettingsPage"));
 const CreateShowcasePage = lazy(() => import("./pages/CreateShowcasePage"));
+const CreatePostPage = lazy(() => import("./pages/CreatePostPage"));
 const CreatePagePage = lazy(() => import("./pages/CreatePagePage"));
 const EditPagePage = lazy(() => import("./pages/EditPagePage"));
 const PageProfilePage = lazy(() => import("./pages/PageProfilePage"));
@@ -454,6 +455,13 @@ const App = () => (
                         </ProtectedRoute>
                       } />
                       <Route path="/create/story" element={<Navigate to="/create/showcase" replace />} />
+                      <Route path="/create/post" element={
+                        <ProtectedRoute>
+                          <Suspense fallback={<PageLoader />}>
+                            <CreatePostPage />
+                          </Suspense>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/create/page" element={
                         <ProtectedRoute>
                           <Suspense fallback={<PageLoader />}>

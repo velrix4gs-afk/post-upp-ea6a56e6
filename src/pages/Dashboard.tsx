@@ -1,6 +1,6 @@
 import Navigation from "@/components/Navigation";
 import { profilePath } from "@/lib/profilePath";
-import CreatePost from "@/components/CreatePost";
+import ComposerTriggerBar from "@/components/feed/ComposerTriggerBar";
 import { PostCard } from "@/components/PostCard";
 
 import Showcase from "@/components/Showcase";
@@ -108,7 +108,7 @@ const Dashboard = () => {
             <Showcase />
 
             {/* Create Post */}
-            <CreatePost />
+            <ComposerTriggerBar />
 
             {/* Posts Feed */}
             <div className="space-y-6">
