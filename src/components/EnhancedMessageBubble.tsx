@@ -46,6 +46,7 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
+import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "./ui/carousel";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { MessageReactions } from "./messaging/MessageReactions";
 import { ReactionPicker } from "./ReactionPicker";
@@ -113,6 +114,10 @@ interface EnhancedMessageBubbleProps {
   reactions?: MessageReaction[];
   bubbleColor?: string;
   replyTo?: ReplyToMessage;
+  /**
+   * Optional array of media URLs for multi‑image messages.
+   */
+  mediaUrls?: string[];
   onEdit?: (id: string, content: string) => void;
   onDelete?: (id: string, deleteFor: 'me' | 'everyone') => void;
   onReply?: () => void;
@@ -145,6 +150,7 @@ export const EnhancedMessageBubble = ({
   reactions: _reactions = [],
   bubbleColor,
   replyTo,
+  mediaUrls,
   onEdit,
   onDelete,
   onReply,
@@ -166,6 +172,7 @@ export const EnhancedMessageBubble = ({
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const swipeFiredRef = useRef(false);
   const { reactions, loading: reactionsLoading } = useMessageReactions(id);
+  const [activeMultiIndex, setActiveMultiIndex] = useState(0);
 
   const SWIPE_TRIGGER = 64;
 
@@ -315,6 +322,39 @@ export const EnhancedMessageBubble = ({
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                 </div>
               )}
+
+                    {/* Multi‑image carousel */}
+                    {mediaUrls && mediaUrls.length > 0 && (
+                      <div className="relative mt-2">
+                        <Carousel
+                          setApi={(api) => {
+                            if (!api) return;
+                            const update = () => {
+                              const idx = api.selectedScrollSnap?.() ?? 0;
+                              setActiveMultiIndex(idx);
+                            };
+                            api.on('select', update);
+                            // initialize state
+                            update();
+                          }}
+                        >
+                          <CarouselContent>
+                            {mediaUrls.map((url, i) => (
+                              <CarouselItem key={url} className="basis-full">
+                                <img
+                                  src={url}
+                                  alt={`Image ${i + 1}`}
+                                  className="w-full h-full object-cover cursor-pointer"
+                                  onClick={() => setShowImageViewer(true)}
+                                />
+                              </CarouselItem>
+                            ))}
+                          </CarouselContent>
+                          <CarouselPrevious />
+                          <CarouselNext />
+                        </Carousel>
+                      </div>
+                    )}
 
               {(() => {
                 const isImageOnly = !!mediaUrl &&

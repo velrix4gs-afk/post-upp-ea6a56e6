@@ -1187,6 +1187,7 @@ const MessagesPage = () => {
                       showSenderAvatar={!!selectedChat?.is_group}
                       mediaUrl={message.media_url}
                       mediaType={message.media_type}
+                      mediaUrls={message.media_urls}
                       isEdited={message.is_edited}
                       status={message.status}
                       isForwarded={message.is_forwarded}
