@@ -35,6 +35,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { canViewFullProfile } from '@/lib/profilePrivacy';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import GradualBlur from '@/components/flair/GradualBlur';
 
 const getSocialHref = (value: string, domain: string): string | null => {
   const trimmed = value.trim();
@@ -602,6 +603,20 @@ const ProfilePage = () => {
         </Card>
       </div>}
     </main>
+
+    {/* Soft fade at the bottom edge while scrolling through this profile's posts */}
+    {activeTab === 'posts' && canViewFull && (
+      <GradualBlur
+        position="bottom"
+        height="4.5rem"
+        target="page"
+        strength={1.6}
+        layers={6}
+        tint="hsl(var(--background))"
+        autoHide
+        zIndex={30}
+      />
+    )}
 
     {/* Modals */}
     {showProfileEdit && <ProfileEdit onClose={handleProfileEditClose} />}

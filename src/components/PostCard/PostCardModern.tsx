@@ -3,7 +3,7 @@ import { profilePathFor } from '@/lib/profilePath';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MoreHorizontal, Pencil, Trash2, UserPlus, UserMinus, BellOff, AlertCircle, Ban, UserCircle, Pin, PinOff, MessageCircle, Repeat2, Share2, Bookmark, Heart, ExternalLink } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, UserPlus, UserMinus, BellOff, AlertCircle, Ban, UserCircle, Pin, PinOff, MessageCircle, Repeat2, Share2, Bookmark, Heart, ExternalLink, Expand } from "lucide-react";
 import { useState, useEffect, memo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePosts } from "@/hooks/usePosts";
@@ -40,6 +40,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { GalleryPickerSheet } from "@/components/showcase/GalleryPickerSheet";
 import { useDwellTracker } from "@/hooks/useDwellTracker";
 import { extractHashtags, detectPostFormat } from "@/lib/affinityProfile";
+import ClickSpark from "@/components/flair/ClickSpark";
+import PulseHeart from "@/components/flair/PulseHeart";
+import DepthCarousel from "@/components/flair/DepthCarousel";
 import React from 'react';
 export interface PostCardModernProps {
   post: {
@@ -163,6 +166,7 @@ const PostCardModernComponent = ({
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [galleryOriginRect, setGalleryOriginRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+  const [depthIndex, setDepthIndex] = useState(0);
 
   const captureOriginRect = (target: HTMLElement | null) => {
     const img = target?.querySelector('img') || target;
@@ -606,7 +610,47 @@ const PostCardModernComponent = ({
 
           </>}
 
-          {mediaItems.length > 1 && (
+          {mediaItems.length > 1 && mediaItems.every(url => !isVideoUrl(url)) ? (
+            // All-image posts get the depth carousel; videos still need the plain
+            // one below since DepthCarousel only renders <img>, no video playback.
+            <div
+              data-no-app-swipe
+              className="post-media relative mb-3 h-[280px] overflow-hidden rounded-xl bg-black sm:h-[340px]"
+              onClick={e => e.stopPropagation()}
+            >
+              <DepthCarousel
+                items={mediaItems.map((url, i) => ({ image: url, alt: `Post media ${i + 1}` }))}
+                cardWidth={220}
+                cardHeight={260}
+                radius={16}
+                tint="#000000"
+                depth={140}
+                spread={60}
+                tilt={16}
+                visibleCards={3}
+                falloff={0.25}
+                blur={4}
+                showControls
+                showIndicators={mediaItems.length <= 8}
+                onChange={(idx) => setDepthIndex(idx)}
+              />
+              <button
+                type="button"
+                className="absolute top-2.5 right-2.5 z-[3100] flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md"
+                onClick={e => {
+                  e.stopPropagation();
+                  captureOriginRect(e.currentTarget as HTMLElement);
+                  setGalleryImages(mediaItems);
+                  setGalleryStartIndex(depthIndex);
+                  setShowImageGallery(true);
+                }}
+                aria-label="View full size"
+              >
+                <Expand className="h-3 w-3" />
+                {depthIndex + 1} / {mediaItems.length}
+              </button>
+            </div>
+          ) : mediaItems.length > 1 && (
             <div data-no-app-swipe className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
               <Carousel className="w-full">
                 <CarouselContent>
@@ -729,57 +773,68 @@ const PostCardModernComponent = ({
 
           {/* Action Buttons */}
           <div className="flex items-center justify-between pt-1 -mx-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-destructive/10 transition-all", userReaction && "text-destructive", isLikeAnimating && "scale-110")} onClick={e => {
-                  e.stopPropagation();
-                  handleLikeWithAnimation();
-                }}>
-                  <Heart className={cn("h-5 w-5 transition-all", userReaction && "fill-current")} />
-                  <span className="text-sm font-medium">Like</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Like this post</TooltipContent>
-            </Tooltip>
+            <ClickSpark sparkColor="#ff4d6d" shape="dot" sparkCount={7} sparkSize={9} sparkRadius={22} duration={420} className="flex-1">
+              <div className="flex h-10 items-center justify-center rounded-lg hover:bg-destructive/10 transition-all" title="Like this post">
+                <PulseHeart
+                  liked={userReaction === 'like'}
+                  count={localReactionCount}
+                  showCount
+                  icon="heart"
+                  size={22}
+                  corner={10}
+                  likedColor="hsl(var(--destructive))"
+                  idleColor="hsl(var(--muted-foreground))"
+                  pillColor="transparent"
+                  textColor="hsl(var(--muted-foreground))"
+                  onChange={() => handleLikeWithAnimation()}
+                />
+              </div>
+            </ClickSpark>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex-1 gap-2 h-10 rounded-lg hover:bg-primary/10" onClick={e => {
-                  e.stopPropagation();
-                  setShowComments(!showComments);
-                }}>
-                  <MessageCircle className="h-5 w-5" />
-                  <span className="text-sm font-medium">Comment</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Comment on this post</TooltipContent>
-            </Tooltip>
+            <ClickSpark sparkColor="#3b82f6" shape="dot" sparkCount={6} sparkSize={8} sparkRadius={18} duration={400} className="flex-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full gap-2 h-10 rounded-lg hover:bg-primary/10" onClick={e => {
+                    e.stopPropagation();
+                    setShowComments(!showComments);
+                  }}>
+                    <MessageCircle className="h-5 w-5" />
+                    <span className="text-sm font-medium">Comment</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Comment on this post</TooltipContent>
+              </Tooltip>
+            </ClickSpark>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
-                  e.stopPropagation();
-                  handleRepost();
-                }}>
-                  <Repeat2 className="h-5 w-5" />
-                  <span className="text-sm font-medium">Share</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Share this post</TooltipContent>
-            </Tooltip>
+            <ClickSpark sparkColor="#22c55e" shape="dot" sparkCount={6} sparkSize={8} sparkRadius={18} duration={400} className="flex-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className={cn("w-full gap-2 h-10 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
+                    e.stopPropagation();
+                    handleRepost();
+                  }}>
+                    <Repeat2 className="h-5 w-5" />
+                    <span className="text-sm font-medium">Share</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Share this post</TooltipContent>
+              </Tooltip>
+            </ClickSpark>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className={cn("flex-1 gap-2 h-10 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
-                  e.stopPropagation();
-                  toggleBookmark(post.id);
-                }}>
-                  <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) && "fill-current")} />
-                  <span className="text-sm font-medium">Save</span>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Save this post</TooltipContent>
-            </Tooltip>
+            <ClickSpark sparkColor="#f59e0b" shape="dot" sparkCount={6} sparkSize={8} sparkRadius={18} duration={400} className="flex-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className={cn("w-full gap-2 h-10 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
+                    e.stopPropagation();
+                    toggleBookmark(post.id);
+                  }}>
+                    <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) && "fill-current")} />
+                    <span className="text-sm font-medium">Save</span>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Save this post</TooltipContent>
+              </Tooltip>
+            </ClickSpark>
           </div>
 
           {/* Comments Section */}
