@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { shareOrigin } from '@/lib/siteUrl';
 import { useParams } from 'react-router-dom';
 import { ensurePrivateChat } from '@/lib/chatCreation';
@@ -604,8 +605,11 @@ const ProfilePage = () => {
       </div>}
     </main>
 
-    {/* Soft fade at the bottom edge while scrolling through this profile's posts */}
-    {activeTab === 'posts' && canViewFull && (
+    {/* Soft fade at the bottom edge while scrolling through this profile's posts.
+        Portaled to <body> because the page-transition wrapper (.fb-page-enter) leaves a
+        lingering CSS transform after its mount animation, which turns `position: fixed`
+        into something positioned relative to that wrapper instead of the viewport. */}
+    {activeTab === 'posts' && canViewFull && typeof document !== 'undefined' && createPortal(
       <GradualBlur
         position="bottom"
         height="4.5rem"
@@ -615,7 +619,8 @@ const ProfilePage = () => {
         tint="hsl(var(--background))"
         autoHide
         zIndex={30}
-      />
+      />,
+      document.body
     )}
 
     {/* Modals */}

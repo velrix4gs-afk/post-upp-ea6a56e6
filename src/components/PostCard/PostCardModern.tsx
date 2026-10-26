@@ -3,7 +3,7 @@ import { profilePathFor } from '@/lib/profilePath';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MoreHorizontal, Pencil, Trash2, UserPlus, UserMinus, BellOff, AlertCircle, Ban, UserCircle, Pin, PinOff, MessageCircle, Repeat2, Share2, Bookmark, Heart, ExternalLink, Expand } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, UserPlus, UserMinus, BellOff, AlertCircle, Ban, UserCircle, Pin, PinOff, MessageCircle, Repeat2, Share2, Bookmark, Heart, ExternalLink } from "lucide-react";
 import { useState, useEffect, memo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePosts } from "@/hooks/usePosts";
@@ -42,7 +42,6 @@ import { useDwellTracker } from "@/hooks/useDwellTracker";
 import { extractHashtags, detectPostFormat } from "@/lib/affinityProfile";
 import ClickSpark from "@/components/flair/ClickSpark";
 import PulseHeart from "@/components/flair/PulseHeart";
-import DepthCarousel from "@/components/flair/DepthCarousel";
 import React from 'react';
 export interface PostCardModernProps {
   post: {
@@ -166,7 +165,6 @@ const PostCardModernComponent = ({
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryStartIndex, setGalleryStartIndex] = useState(0);
   const [galleryOriginRect, setGalleryOriginRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-  const [depthIndex, setDepthIndex] = useState(0);
 
   const captureOriginRect = (target: HTMLElement | null) => {
     const img = target?.querySelector('img') || target;
@@ -610,47 +608,7 @@ const PostCardModernComponent = ({
 
           </>}
 
-          {mediaItems.length > 1 && mediaItems.every(url => !isVideoUrl(url)) ? (
-            // All-image posts get the depth carousel; videos still need the plain
-            // one below since DepthCarousel only renders <img>, no video playback.
-            <div
-              data-no-app-swipe
-              className="post-media relative mb-3 h-[280px] overflow-hidden rounded-xl bg-black sm:h-[340px]"
-              onClick={e => e.stopPropagation()}
-            >
-              <DepthCarousel
-                items={mediaItems.map((url, i) => ({ image: url, alt: `Post media ${i + 1}` }))}
-                cardWidth={220}
-                cardHeight={260}
-                radius={16}
-                tint="#000000"
-                depth={140}
-                spread={60}
-                tilt={16}
-                visibleCards={3}
-                falloff={0.25}
-                blur={4}
-                showControls
-                showIndicators={mediaItems.length <= 8}
-                onChange={(idx) => setDepthIndex(idx)}
-              />
-              <button
-                type="button"
-                className="absolute top-2.5 right-2.5 z-[3100] flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md"
-                onClick={e => {
-                  e.stopPropagation();
-                  captureOriginRect(e.currentTarget as HTMLElement);
-                  setGalleryImages(mediaItems);
-                  setGalleryStartIndex(depthIndex);
-                  setShowImageGallery(true);
-                }}
-                aria-label="View full size"
-              >
-                <Expand className="h-3 w-3" />
-                {depthIndex + 1} / {mediaItems.length}
-              </button>
-            </div>
-          ) : mediaItems.length > 1 && (
+          {mediaItems.length > 1 && (
             <div data-no-app-swipe className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
               <Carousel className="w-full">
                 <CarouselContent>

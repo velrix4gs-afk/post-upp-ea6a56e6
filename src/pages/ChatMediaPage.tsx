@@ -10,6 +10,7 @@ import { Image, Video, File, Download } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatDistanceToNow } from 'date-fns';
+import GradualBlur from '@/components/flair/GradualBlur';
 
 interface MediaItem {
   id: string;
@@ -114,7 +115,7 @@ const ChatMediaPage = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="images">
+          <TabsContent value="images" className="relative">
             <ScrollArea className="h-[calc(100vh-250px)]">
               {loading ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4">
@@ -153,6 +154,18 @@ const ChatMediaPage = () => {
                 </div>
               )}
             </ScrollArea>
+            {!loading && images.length > 0 && (
+              <GradualBlur
+                position="bottom"
+                height="3.5rem"
+                target="parent"
+                strength={1.4}
+                layers={6}
+                tint="hsl(var(--background))"
+                zIndex={20}
+                className="rounded-b-lg"
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="videos">
