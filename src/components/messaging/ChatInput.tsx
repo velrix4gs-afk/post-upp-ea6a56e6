@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { Plus, Smile, Send, Mic, Camera, X } from 'lucide-react';
+import { Plus, Smile, Send, Camera, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import VoicePill from '@/components/flair/VoicePill';
 
 interface ChatInputProps {
   value: string;
@@ -138,27 +139,42 @@ export const ChatInput = ({
       </div>
 
       {/* Send / Mic swap with scale-in animation */}
-      <Button
-        type="button"
-        size="icon"
-        onClick={(e) => {
-          e.preventDefault();
-          if (hasContent) {
+      {hasContent ? (
+        <Button
+          type="button"
+          size="icon"
+          onClick={(e) => {
+            e.preventDefault();
             onSend();
-          } else {
-            onMicClick();
-          }
-        }}
-        disabled={disabled}
-        className={cn(
-          'h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex-shrink-0',
-          'tap-scale shadow-md animate-scale-in'
-        )}
-        key={hasContent ? 'send' : 'mic'}
-        aria-label={hasContent ? 'Send' : 'Record voice'}
-      >
-        {hasContent ? <Send className="h-4 w-4" /> : <Mic className="h-5 w-5" />}
-      </Button>
+          }}
+          disabled={disabled}
+          className={cn(
+            'h-10 w-10 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 flex-shrink-0',
+            'tap-scale shadow-md animate-scale-in'
+          )}
+          key="send"
+          aria-label="Send"
+        >
+          <Send className="h-4 w-4" />
+        </Button>
+      ) : (
+        <VoicePill
+          key="mic"
+          mode="hold"
+          reactive="simulated"
+          waveform={false}
+          showTime={false}
+          slideToCancel={false}
+          size={40}
+          background="hsl(var(--primary))"
+          iconColor="hsl(var(--primary-foreground))"
+          accentColor="hsl(var(--primary-foreground))"
+          disabled={disabled}
+          ariaLabel="Hold to record voice message"
+          onStart={() => onMicClick()}
+          className="flex-shrink-0 shadow-md animate-scale-in"
+        />
+      )}
     </div>
   );
 };

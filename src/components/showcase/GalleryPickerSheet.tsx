@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
+import JellyRadio from '@/components/flair/JellyRadio';
 import {
   listRecentMedia,
   rememberRecentMedia,
@@ -359,21 +360,22 @@ export const GalleryPickerSheet = ({
                 {canUseNativeGallery() ? 'Photos and videos on this device' : 'Photos and videos from this device'}
               </SheetDescription>
             </div>
-            <div className="flex rounded-full bg-muted p-0.5">
-              {(['all', 'photos', 'videos'] as GalleryFilter[]).map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setFilter(key)}
-                  className={cn(
-                    'px-3 h-7 rounded-full text-[11px] font-medium capitalize transition-colors',
-                    filter === key ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground',
-                  )}
-                >
-                  {key}
-                </button>
-              ))}
-            </div>
+            <JellyRadio
+              items={[
+                { value: 'all', label: 'All' },
+                { value: 'photos', label: 'Photos' },
+                { value: 'videos', label: 'Videos' },
+              ]}
+              value={filter}
+              onChange={(value) => setFilter(value as GalleryFilter)}
+              chipColor="hsl(var(--muted))"
+              activeColor="hsl(var(--background))"
+              textColor="hsl(var(--muted-foreground))"
+              activeTextColor="hsl(var(--foreground))"
+              size="sm"
+              gap={2}
+              ariaLabel="Media filter"
+            />
           </div>
         </div>
 
