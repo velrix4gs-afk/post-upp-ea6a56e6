@@ -594,45 +594,81 @@ const MessagesPage = () => {
       }
       let mediaUrl = null;
       let mediaType = null;
-      if (currentImage) {
-        const fileExt = currentImage.name.split('.').pop();
-        const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
-        mediaType = currentIsVideo ? `video/${fileExt}` : `image/${fileExt}`;
-        setPendingUpload({ mediaType, progress: 0 });
-        mediaUrl = await uploadWithProgress({
-          bucket: 'messages',
-          path: fileName,
-          file: currentImage,
-          contentType: currentImage.type || undefined,
-          onProgress: (progress) => setPendingUpload({ mediaType: mediaType!, progress }),
-        });
-        setPendingUpload(null);
-      }
-      await sendMessage(
-        currentText.trim(),
-        currentReplyingTo?.id,
-        mediaUrl || undefined,
-        mediaType || undefined
-      );
-
-      // Send any additional selected media as follow-up messages
-      for (const extra of currentQueued) {
-        const extraExt = extra.name.split('.').pop();
-        const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
-        try {
-          setPendingUpload({ mediaType: extra.type, progress: 0 });
-          const extraUrl = await uploadWithProgress({
+      // All-image multi-select (no video mixed in) goes out as ONE message with
+      // media_urls, so it renders as a single neat multi-image bubble instead of
+      // a flood of separate messages. A video in the mix, or a single file,
+      // keeps the old one-file-per-message behavior.
+      const allImages = !currentIsVideo && currentQueued.every(f => f.type.startsWith('image/'));
+      if (currentImage && currentQueued.length > 0 && allImages) {
+        const filesToUpload = [currentImage, ...currentQueued];
+        const uploadedUrls: string[] = [];
+        for (let i = 0; i < filesToUpload.length; i++) {
+          const file = filesToUpload[i];
+          const ext = file.name.split('.').pop();
+          const path = `${user?.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2)}.${ext}`;
+          setPendingUpload({ mediaType: file.type, progress: Math.round((i / filesToUpload.length) * 100) });
+          const url = await uploadWithProgress({
             bucket: 'messages',
-            path: extraName,
-            file: extra,
-            contentType: extra.type,
-            onProgress: (progress) => setPendingUpload({ mediaType: extra.type, progress }),
+            path,
+            file,
+            contentType: file.type || undefined,
+            onProgress: (progress) => setPendingUpload({
+              mediaType: file.type,
+              progress: Math.round(((i + progress / 100) / filesToUpload.length) * 100),
+            }),
           });
-          await sendMessage('', undefined, extraUrl, extra.type);
-        } catch {
-          continue;
-        } finally {
+          uploadedUrls.push(url);
+        }
+        setPendingUpload(null);
+        await sendMessage(
+          currentText.trim(),
+          currentReplyingTo?.id,
+          uploadedUrls[0],
+          filesToUpload[0].type || 'image',
+          uploadedUrls
+        );
+      } else {
+        if (currentImage) {
+          const fileExt = currentImage.name.split('.').pop();
+          const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
+          mediaType = currentIsVideo ? `video/${fileExt}` : `image/${fileExt}`;
+          setPendingUpload({ mediaType, progress: 0 });
+          mediaUrl = await uploadWithProgress({
+            bucket: 'messages',
+            path: fileName,
+            file: currentImage,
+            contentType: currentImage.type || undefined,
+            onProgress: (progress) => setPendingUpload({ mediaType: mediaType!, progress }),
+          });
           setPendingUpload(null);
+        }
+        await sendMessage(
+          currentText.trim(),
+          currentReplyingTo?.id,
+          mediaUrl || undefined,
+          mediaType || undefined
+        );
+
+        // Send any additional selected media as follow-up messages
+        // (mixed photo+video selections still go one-per-message).
+        for (const extra of currentQueued) {
+          const extraExt = extra.name.split('.').pop();
+          const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
+          try {
+            setPendingUpload({ mediaType: extra.type, progress: 0 });
+            const extraUrl = await uploadWithProgress({
+              bucket: 'messages',
+              path: extraName,
+              file: extra,
+              contentType: extra.type,
+              onProgress: (progress) => setPendingUpload({ mediaType: extra.type, progress }),
+            });
+            await sendMessage('', undefined, extraUrl, extra.type);
+          } catch {
+            continue;
+          } finally {
+            setPendingUpload(null);
+          }
         }
       }
 
@@ -1187,6 +1223,7 @@ const MessagesPage = () => {
                       showSenderAvatar={!!selectedChat?.is_group}
                       mediaUrl={message.media_url}
                       mediaType={message.media_type}
+                      mediaUrls={message.media_urls}
                       isEdited={message.is_edited}
                       status={message.status}
                       isForwarded={message.is_forwarded}

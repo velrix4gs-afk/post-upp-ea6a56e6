@@ -60,6 +60,7 @@ import { ensurePrivateChat } from "@/lib/chatCreation";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getBubbleColorValue, getBubbleTextColor } from "@/lib/chatTheme";
+import DepthCarousel from "@/components/flair/DepthCarousel";
 
 interface MessageReaction {
   user_id: string;
@@ -95,6 +96,8 @@ interface EnhancedMessageBubbleProps {
   isNew?: boolean;
   mediaUrl?: string;
   mediaType?: string;
+  /** Set when several images were sent together as one message. */
+  mediaUrls?: string[];
   isEdited?: boolean;
   isForwarded?: boolean;
   isStarred?: boolean;
@@ -134,6 +137,7 @@ export const EnhancedMessageBubble = ({
   isNew = false,
   mediaUrl,
   mediaType,
+  mediaUrls,
   isEdited = false,
   isForwarded = false,
   isStarred = false,
@@ -161,6 +165,8 @@ export const EnhancedMessageBubble = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFor, setDeleteFor] = useState<'me' | 'everyone'>('me');
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [activeMultiIndex, setActiveMultiIndex] = useState(0);
+  const isMultiImage = !!mediaUrls && mediaUrls.length > 1;
   const [swipeX, setSwipeX] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -317,8 +323,8 @@ export const EnhancedMessageBubble = ({
               )}
 
               {(() => {
-                const isImageOnly = !!mediaUrl &&
-                  (mediaType?.startsWith('image') || mediaType === 'image') &&
+                const isImageOnly = (isMultiImage || (!!mediaUrl &&
+                  (mediaType?.startsWith('image') || mediaType === 'image'))) &&
                   !content && !replyTo && !isForwarded;
                 const customBg = isOwn && bubbleColor ? getBubbleColorValue(bubbleColor) : undefined;
                 return (
@@ -401,7 +407,41 @@ export const EnhancedMessageBubble = ({
                       </div>
                     )}
 
-                    {mediaUrl && (
+                    {isMultiImage && (
+                      <div className={cn("relative group", isNew && "media-drop", isImageOnly ? "mb-0" : "mb-2")}>
+                        <div
+                          className="relative w-[min(76vw,320px)] h-[220px] overflow-hidden rounded-[18px] bg-black"
+                          onClick={() => setShowImageViewer(true)}
+                        >
+                          <DepthCarousel
+                            items={mediaUrls!.map((url, i) => ({ image: url, alt: `Photo ${i + 1}` }))}
+                            cardWidth={160}
+                            cardHeight={200}
+                            radius={14}
+                            tint="#000000"
+                            depth={110}
+                            spread={48}
+                            tilt={14}
+                            visibleCards={3}
+                            falloff={0.25}
+                            blur={4}
+                            showControls
+                            showIndicators={mediaUrls!.length <= 8}
+                            onChange={(idx) => setActiveMultiIndex(idx)}
+                          />
+                        </div>
+                        {isImageOnly && (
+                          <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/85 text-card-foreground text-[11px] backdrop-blur-sm">
+                            <span>
+                              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <ReadReceiptIndicator status={status} isOwn={isOwn} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {!isMultiImage && mediaUrl && (
                       <div className={cn("relative group", isNew && "media-drop", isImageOnly ? "mb-0" : "mb-2")}>
                         {mediaType?.startsWith('image') || mediaType === 'image' ? (
                           <div className="relative inline-block">
@@ -710,11 +750,11 @@ export const EnhancedMessageBubble = ({
       </AlertDialog>
 
       {/* Image Viewer */}
-      {mediaUrl && (mediaType?.startsWith('image') || mediaType === 'image') && (
+      {(isMultiImage || (mediaUrl && (mediaType?.startsWith('image') || mediaType === 'image'))) && (
         <ImageViewer
           open={showImageViewer}
           onOpenChange={setShowImageViewer}
-          imageUrl={mediaUrl}
+          imageUrl={isMultiImage ? mediaUrls![activeMultiIndex] : mediaUrl!}
           onReply={onReply}
           onForward={() => onForward?.(id)}
           onStar={() => isStarred ? onUnstar?.(id) : onStar?.(id)}

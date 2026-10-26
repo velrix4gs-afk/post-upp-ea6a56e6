@@ -45,6 +45,8 @@ export interface Message {
   content?: string;
   media_url?: string;
   media_type?: string;
+  /** Set when several images were sent together as one message; media_url/media_type still hold the first one for previews. */
+  media_urls?: string[];
   expires_at?: string | null;
   reply_to?: string;
   is_edited: boolean;
@@ -137,6 +139,7 @@ const normalizeCachedMessages = (value: unknown, chatId: string): Message[] => {
       content: typeof message.content === 'string' ? message.content : undefined,
       media_url: typeof message.media_url === 'string' ? message.media_url : undefined,
       media_type: typeof message.media_type === 'string' ? message.media_type : undefined,
+      media_urls: Array.isArray(message.media_urls) ? message.media_urls : undefined,
       expires_at: typeof message.expires_at === 'string' ? message.expires_at : null,
       reply_to: typeof message.reply_to === 'string' ? message.reply_to : undefined,
       is_edited: message.is_edited === true,
@@ -765,7 +768,7 @@ export const useMessages = (chatId?: string) => {
     }
   };
 
-  const sendMessage = async (content: string, replyTo?: string, mediaUrl?: string, mediaType?: string): Promise<boolean> => {
+  const sendMessage = async (content: string, replyTo?: string, mediaUrl?: string, mediaType?: string, mediaUrls?: string[]): Promise<boolean> => {
     if (!chatId || (!content.trim() && !mediaUrl) || !user) return false;
 
     // Generate temporary ID for optimistic update
@@ -779,6 +782,7 @@ export const useMessages = (chatId?: string) => {
       content: content.trim() || undefined,
       media_url: mediaUrl,
       media_type: mediaType,
+      media_urls: mediaUrls && mediaUrls.length > 1 ? mediaUrls : undefined,
       reply_to: replyTo,
       is_edited: false,
       created_at: new Date().toISOString(),
@@ -797,6 +801,7 @@ export const useMessages = (chatId?: string) => {
 
     // Persist status in localStorage
     const messageStatusKey = `msg_status_${tempId}`;
+    const multiUrls = mediaUrls && mediaUrls.length > 1 ? mediaUrls : null;
 
     // If offline, queue the action and mark as queued
     if (!navigator.onLine) {
@@ -810,6 +815,7 @@ export const useMessages = (chatId?: string) => {
         content: content.trim() || null,
         media_url: mediaUrl || null,
         media_type: mediaType || null,
+        media_urls: multiUrls,
         reply_to: replyTo || null,
         status: 'sent'
       });
@@ -833,6 +839,7 @@ export const useMessages = (chatId?: string) => {
           content: content.trim() || null,
           media_url: mediaUrl || null,
           media_type: mediaType || null,
+          media_urls: multiUrls,
           reply_to: replyTo || null,
           status: 'sent'
         })
@@ -891,6 +898,7 @@ export const useMessages = (chatId?: string) => {
           content: content.trim() || null,
           media_url: mediaUrl || null,
           media_type: mediaType || null,
+          media_urls: multiUrls,
           reply_to: replyTo || null,
           status: 'sent'
         });
