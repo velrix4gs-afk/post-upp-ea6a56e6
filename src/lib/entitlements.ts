@@ -15,9 +15,11 @@ export interface Entitlements {
   chatTheme: boolean;
 }
 
+// Chat wallpaper + chat theme color are free for everyone regardless of plan —
+// only the other entitlements below still scale with the paid tiers.
 export const PLAN_ENTITLEMENTS: Record<PlanId, Entitlements> = {
-  free:  { plan: 'free',  photoMB: 10,  videoMB: 100,  storyPhotoMB: 50,  storyVideoMB: 50,   storyHours: 24, chatWallpaper: false, chatTheme: false },
-  basic: { plan: 'basic', photoMB: 25,  videoMB: 150,  storyPhotoMB: 50,  storyVideoMB: 150,  storyHours: 24, chatWallpaper: true,  chatTheme: false },
+  free:  { plan: 'free',  photoMB: 10,  videoMB: 100,  storyPhotoMB: 50,  storyVideoMB: 50,   storyHours: 24, chatWallpaper: true, chatTheme: true },
+  basic: { plan: 'basic', photoMB: 25,  videoMB: 150,  storyPhotoMB: 50,  storyVideoMB: 150,  storyHours: 24, chatWallpaper: true,  chatTheme: true },
   pro:   { plan: 'pro',   photoMB: 50,  videoMB: 500,  storyPhotoMB: 50,  storyVideoMB: 500,  storyHours: 48, chatWallpaper: true,  chatTheme: true },
   elite: { plan: 'elite', photoMB: 100, videoMB: 2048, storyPhotoMB: 100, storyVideoMB: 2048, storyHours: 72, chatWallpaper: true,  chatTheme: true },
 };
