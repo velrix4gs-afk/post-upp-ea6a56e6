@@ -321,11 +321,15 @@ export const EnhancedMessageBubble = ({
               {/* Multi-image carousel using DepthCarousel */}
               {mediaUrls && mediaUrls.length > 0 && (
                 <div
-                  className="relative w-[min(76vw,300px)] h-[340px] flex items-center justify-center overflow-hidden rounded-[18px] mt-2 cursor-pointer"
+                  className="relative w-[min(76vw,300px)] h-[340px] flex items-center justify-center overflow-hidden rounded-[18px] mt-2 cursor-pointer touch-none"
                   onClick={() => {
                     setGalleryIndex(activeMultiIndex);
                     setShowGallery(true);
                   }}
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchMove={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                 >
                   <DepthCarousel
                     items={mediaUrls}
@@ -336,6 +340,7 @@ export const EnhancedMessageBubble = ({
                     visibleCards={3}
                     cardWidth={240}
                     cardHeight={300}
+                    showControls={false}
                     onChange={(idx) => setActiveMultiIndex(idx)}
                   />
                 </div>
