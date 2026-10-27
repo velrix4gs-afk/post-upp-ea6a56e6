@@ -1,6 +1,7 @@
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRef } from 'react';
 
 interface MediaGalleryModalProps {
   open: boolean;
@@ -17,14 +18,28 @@ export const MediaGalleryModal = ({
   initialIndex = 0,
   onSelect,
 }: MediaGalleryModalProps) => {
-  const handleClick = (url: string) => {
-    onSelect(url);
-    onOpenChange(false);
+  const touchStartY = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaY = touchEndY - touchStartY.current;
+    // If user swipes down by more than 100px, close it
+    if (deltaY > 100) {
+      onOpenChange(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl p-2 bg-black border-none sm:rounded-2xl [&>button]:hidden">
+      <DialogContent
+        className="max-w-3xl p-2 bg-black border-none sm:rounded-2xl [&>button]:hidden"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         {/* Floating Close Button */}
         <button
           onClick={() => onOpenChange(false)}
@@ -42,7 +57,10 @@ export const MediaGalleryModal = ({
                 "relative aspect-square overflow-hidden rounded-xl cursor-pointer",
                 i === initialIndex && "ring-2 ring-white/50"
               )}
-              onClick={() => handleClick(url)}
+              onClick={() => {
+                onSelect(url);
+                onOpenChange(false);
+              }}
             >
               <img
                 src={url}
