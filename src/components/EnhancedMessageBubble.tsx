@@ -321,7 +321,7 @@ export const EnhancedMessageBubble = ({
               {/* Multi-image carousel using DepthCarousel */}
               {mediaUrls && mediaUrls.length > 0 && (
                 <div
-                  className="relative mt-2"
+                  className="relative w-[min(76vw,320px)] h-[300px] flex items-center justify-center overflow-hidden rounded-[18px] mt-2 cursor-pointer"
                   onClick={() => {
                     setGalleryIndex(activeMultiIndex);
                     setShowGallery(true);
@@ -331,8 +331,8 @@ export const EnhancedMessageBubble = ({
                     items={mediaUrls}
                     tint="transparent"
                     depth={80}
-                    spread={40}
-                    tilt={10}
+                    spread={45}
+                    tilt={12}
                     visibleCards={3}
                     cardWidth={200}
                     cardHeight={260}
