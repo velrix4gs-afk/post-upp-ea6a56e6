@@ -46,7 +46,6 @@ import {
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { cn } from "@/lib/utils";
-import { Carousel, CarouselContent, CarouselItem, CarouselPrevious, CarouselNext } from "./ui/carousel";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { MessageReactions } from "./messaging/MessageReactions";
 import { ReactionPicker } from "./ReactionPicker";
@@ -62,6 +61,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { getBubbleColorValue, getBubbleTextColor } from "@/lib/chatTheme";
 import DepthCarousel from "@/components/flair/DepthCarousel";
+import { MediaGalleryModal } from "./messaging/MediaGalleryModal";
 
 interface MessageReaction {
   user_id: string;
@@ -117,10 +117,6 @@ interface EnhancedMessageBubbleProps {
   reactions?: MessageReaction[];
   bubbleColor?: string;
   replyTo?: ReplyToMessage;
-  /**
-   * Optional array of media URLs for multi‑image messages.
-   */
-  mediaUrls?: string[];
   onEdit?: (id: string, content: string) => void;
   onDelete?: (id: string, deleteFor: 'me' | 'everyone') => void;
   onReply?: () => void;
@@ -129,7 +125,7 @@ interface EnhancedMessageBubbleProps {
   onStar?: (messageId: string) => void;
   onUnstar?: (messageId: string) => void;
   onForward?: (messageId: string) => void;
-  onSchedule?: () => void;
+  onSchedule?: (messageId: string) => void;
   onScrollToMessage?: (messageId: string) => void;
 }
 
@@ -154,7 +150,6 @@ export const EnhancedMessageBubble = ({
   reactions: _reactions = [],
   bubbleColor,
   replyTo,
-  mediaUrls,
   onEdit,
   onDelete,
   onReply,
@@ -171,6 +166,9 @@ export const EnhancedMessageBubble = ({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteFor, setDeleteFor] = useState<'me' | 'everyone'>('me');
   const [showImageViewer, setShowImageViewer] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [activeMultiIndex, setActiveMultiIndex] = useState(0);
   const isMultiImage = !!mediaUrls && mediaUrls.length > 1;
   const [swipeX, setSwipeX] = useState(0);
@@ -178,7 +176,6 @@ export const EnhancedMessageBubble = ({
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const swipeFiredRef = useRef(false);
   const { reactions, loading: reactionsLoading } = useMessageReactions(id);
-  const [activeMultiIndex, setActiveMultiIndex] = useState(0);
 
   const SWIPE_TRIGGER = 64;
 
@@ -225,13 +222,6 @@ export const EnhancedMessageBubble = ({
     setShowDeleteDialog(false);
   };
 
-  // Call-log messages (missed/declined/completed calls) get a compact,
-  // centered row instead of the normal chat bubble — matching how
-  // WhatsApp shows call history inline in the thread.
-  // Defensively detect call records even when media_type isn't 'call'
-  // (some legacy/migrated messages can have null media_type but JSON
-  // content shaped like {"kind":"voice","status":"..."}); without this,
-  // the raw JSON would leak through as a text message.
   const showcaseReply = parseShowcaseReply(content);
   const contactShare = parseContactShare(content);
   const bodyText = showcaseReply ? showcaseReply.text : contactShare ? '' : content;
@@ -241,6 +231,7 @@ export const EnhancedMessageBubble = ({
     if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) return false;
     try { const p = JSON.parse(trimmed); return 'kind' in p && 'status' in p; } catch { return false; }
   })();
+
   if (mediaType === 'call' || contentLooksLikeCallRecord) {
     const callInfo = parseCallRecord(content) ?? { kind: 'voice' as const, status: 'unknown' as const };
     const isVideo = callInfo.kind === 'video';
@@ -284,7 +275,6 @@ export const EnhancedMessageBubble = ({
           isNew && !isOwn && "animate-message-receive"
         )}
       >
-        {/* Swipe-to-reply affordance */}
         {swipeX > 0 && (
           <span
             className="swipe-reply-hint absolute left-0 top-1/2 -translate-y-1/2 -ml-8 text-muted-foreground"
@@ -294,7 +284,6 @@ export const EnhancedMessageBubble = ({
           </span>
         )}
 
-        {/* Slide-to-see-time peek */}
         <span className="msg-peek-time">
           {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -329,38 +318,28 @@ export const EnhancedMessageBubble = ({
                 </div>
               )}
 
-                    {/* Multi‑image carousel */}
-                    {mediaUrls && mediaUrls.length > 0 && (
-                      <div className="relative mt-2">
-                        <Carousel
-                          setApi={(api) => {
-                            if (!api) return;
-                            const update = () => {
-                              const idx = api.selectedScrollSnap?.() ?? 0;
-                              setActiveMultiIndex(idx);
-                            };
-                            api.on('select', update);
-                            // initialize state
-                            update();
-                          }}
-                        >
-                          <CarouselContent>
-                            {mediaUrls.map((url, i) => (
-                              <CarouselItem key={url} className="basis-full">
-                                <img
-                                  src={url}
-                                  alt={`Image ${i + 1}`}
-                                  className="w-full h-full object-cover cursor-pointer"
-                                  onClick={() => setShowImageViewer(true)}
-                                />
-                              </CarouselItem>
-                            ))}
-                          </CarouselContent>
-                          <CarouselPrevious />
-                          <CarouselNext />
-                        </Carousel>
-                      </div>
-                    )}
+              {/* Multi-image carousel using DepthCarousel */}
+              {mediaUrls && mediaUrls.length > 0 && (
+                <div
+                  className="relative mt-2"
+                  onClick={() => {
+                    setGalleryIndex(activeMultiIndex);
+                    setShowGallery(true);
+                  }}
+                >
+                  <DepthCarousel
+                    items={mediaUrls}
+                    tint="transparent"
+                    depth={80}
+                    spread={40}
+                    tilt={10}
+                    visibleCards={3}
+                    cardWidth={200}
+                    cardHeight={260}
+                    onChange={(idx) => setActiveMultiIndex(idx)}
+                  />
+                </div>
+              )}
 
               {(() => {
                 const isImageOnly = (isMultiImage || (!!mediaUrl &&
@@ -381,18 +360,12 @@ export const EnhancedMessageBubble = ({
                       isImageOnly
                         ? "p-0 bg-transparent shadow-none"
                         : cn("bubble-squircle px-3.5 py-[7px] md:px-4 md:py-2 shadow-sm", (mediaType?.startsWith("audio") || mediaType === "audio") ? "rounded-[28px]" : "rounded-[18px]"),
-                      // True WhatsApp palette — light mode sent bubbles are
-                      // pale green (#d9fdd3), not blue; dark mode already
-                      // matched WhatsApp's actual dark colors.
                       !isImageOnly && !customBg && (isOwn
                         ? "bg-[#8e24d6] dark:bg-[#9500bb] text-white"
                         : "bg-white dark:bg-[#202c33] text-black dark:text-white border border-black/5 dark:border-white/5"),
                       typeof uploadProgress === 'number' && uploadProgress < 100 && "relative overflow-hidden"
                     )}
                   >
-
-
-                    {/* Delivery progress for large media / voice / video */}
                     {typeof uploadProgress === 'number' && uploadProgress < 100 && (
                       <>
                         <div className="absolute inset-x-0 bottom-0 h-[3px] bg-black/10 dark:bg-white/10">
@@ -413,8 +386,6 @@ export const EnhancedMessageBubble = ({
                       </div>
                     )}
 
-
-                    {/* Reply-to preview */}
                     {replyTo && (
                       <div
                         className={cn(
@@ -444,40 +415,6 @@ export const EnhancedMessageBubble = ({
                             {replyTo.content || (replyTo.media_type?.startsWith('image') ? '📷 Photo' : replyTo.media_type?.startsWith('video') ? '🎥 Video' : '📎 Media')}
                           </div>
                         </div>
-                      </div>
-                    )}
-
-                    {isMultiImage && (
-                      <div className={cn("relative group", isNew && "media-drop", isImageOnly ? "mb-0" : "mb-2")}>
-                        <div
-                          className="relative w-[min(76vw,320px)] h-[220px] overflow-hidden rounded-[18px] bg-black"
-                          onClick={() => setShowImageViewer(true)}
-                        >
-                          <DepthCarousel
-                            items={mediaUrls!.map((url, i) => ({ image: url, alt: `Photo ${i + 1}` }))}
-                            cardWidth={160}
-                            cardHeight={200}
-                            radius={14}
-                            tint="#000000"
-                            depth={110}
-                            spread={48}
-                            tilt={14}
-                            visibleCards={3}
-                            falloff={0.25}
-                            blur={4}
-                            showControls
-                            showIndicators={mediaUrls!.length <= 8}
-                            onChange={(idx) => setActiveMultiIndex(idx)}
-                          />
-                        </div>
-                        {isImageOnly && (
-                          <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/85 text-card-foreground text-[11px] backdrop-blur-sm">
-                            <span>
-                              {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            <ReadReceiptIndicator status={status} isOwn={isOwn} />
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -597,7 +534,6 @@ export const EnhancedMessageBubble = ({
                         {isEdited && (
                           <span className="text-[11px] opacity-60 ml-1.5">(edited)</span>
                         )}
-                        {/* Inline timestamp: floats right on the last line when it fits, wraps under otherwise */}
                         {!mediaUrl && (
                           <span className="float-right ml-3 mt-[7px] inline-flex items-center gap-1 text-[11px] leading-none opacity-70 select-none">
                             {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -607,7 +543,6 @@ export const EnhancedMessageBubble = ({
                       </p>
                     )}
 
-                    {/* Timestamp and read receipt — hidden when image-only (overlaid on image) or when shown inline with text */}
                     {!isImageOnly && !(bodyText && !mediaUrl) && (
                       <div className="flex justify-end items-center gap-1 mt-1">
                         <span className="text-[11px] opacity-70">
@@ -620,7 +555,6 @@ export const EnhancedMessageBubble = ({
                 );
               })()}
 
-              {/* Reactions display using MessageReactions component */}
               {!reactionsLoading && reactions.length > 0 && (
                 <MessageReactions
                   reactions={reactions}
@@ -771,7 +705,6 @@ export const EnhancedMessageBubble = ({
         </div>
       </div>
 
-      {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -789,18 +722,28 @@ export const EnhancedMessageBubble = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Image Viewer */}
-      {(isMultiImage || (mediaUrl && (mediaType?.startsWith('image') || mediaType === 'image'))) && (
+      {selectedImageUrl && (
         <ImageViewer
           open={showImageViewer}
           onOpenChange={setShowImageViewer}
-          imageUrl={isMultiImage ? mediaUrls![activeMultiIndex] : mediaUrl!}
+          imageUrl={selectedImageUrl}
           onReply={onReply}
           onForward={() => onForward?.(id)}
           onStar={() => isStarred ? onUnstar?.(id) : onStar?.(id)}
           isStarred={isStarred}
         />
       )}
+
+      <MediaGalleryModal
+        open={showGallery}
+        onOpenChange={setShowGallery}
+        mediaUrls={mediaUrls || []}
+        initialIndex={galleryIndex}
+        onSelect={(url) => {
+          setSelectedImageUrl(url);
+          setShowImageViewer(true);
+        }}
+      />
     </>
   );
 };
