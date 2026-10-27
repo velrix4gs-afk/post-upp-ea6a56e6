@@ -34,7 +34,7 @@ export const MediaGalleryModal = ({
         </button>
 
         {/* 2x2 Grid */}
-        <div className="grid grid-cols-2 gap-2 mt-4">
+        <div className="grid grid-cols-2 gap-2 mt-10 max-h-[75vh] overflow-y-auto pb-6">
           {mediaUrls.map((url, i) => (
             <div
               key={url}
