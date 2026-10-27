@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -722,11 +722,13 @@ export const EnhancedMessageBubble = ({
         </AlertDialogContent>
       </AlertDialog>
 
-      {selectedImageUrl && (
+      {/* Image Viewer */}
+      {showImageViewer && (
         <ImageViewer
           open={showImageViewer}
           onOpenChange={setShowImageViewer}
-          imageUrl={selectedImageUrl}
+          imageUrls={mediaUrls || (mediaUrl ? [mediaUrl] : [])}
+          initialIndex={galleryIndex}
           onReply={onReply}
           onForward={() => onForward?.(id)}
           onStar={() => isStarred ? onUnstar?.(id) : onStar?.(id)}
@@ -734,12 +736,15 @@ export const EnhancedMessageBubble = ({
         />
       )}
 
+      {/* Media Gallery Modal */}
       <MediaGalleryModal
         open={showGallery}
         onOpenChange={setShowGallery}
         mediaUrls={mediaUrls || []}
         initialIndex={galleryIndex}
         onSelect={(url) => {
+          const idx = (mediaUrls || []).indexOf(url);
+          setGalleryIndex(idx >= 0 ? idx : 0);
           setSelectedImageUrl(url);
           setShowImageViewer(true);
         }}

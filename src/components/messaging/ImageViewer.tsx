@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { X, Download, Reply, Forward, Star, Share2, ZoomIn, ZoomOut } from 'lucide-react';
@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils';
 interface ImageViewerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  imageUrl: string;
+  imageUrls: string[];
+  initialIndex: number;
   onReply?: () => void;
   onForward?: () => void;
   onStar?: () => void;
@@ -17,13 +18,52 @@ interface ImageViewerProps {
 export const ImageViewer = ({
   open,
   onOpenChange,
-  imageUrl,
+  imageUrls,
+  initialIndex,
   onReply,
   onForward,
   onStar,
   isStarred = false,
 }: ImageViewerProps) => {
   const [zoom, setZoom] = useState(1);
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [touchStartX, setTouchStartX] = useState(0);
+  const [touchDelta, setTouchDelta] = useState(0);
+
+  // Update current index when initialIndex prop changes (e.g., opening a different image)
+  React.useEffect(() => {
+    setCurrentIndex(initialIndex);
+  }, [initialIndex]);
+
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(imageUrls[currentIndex]);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `image-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+    }
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Shared Image',
+          url: imageUrls[currentIndex],
+        });
+      } catch (error) {
+        console.error('Share failed:', error);
+      }
+    }
+  };
 
   const handleDownload = async () => {
     try {
@@ -93,10 +133,24 @@ export const ImageViewer = ({
           </Button>
         </div>
 
-        {/* Image */}
-        <div className="flex items-center justify-center w-full h-full overflow-auto p-4">
+        {/* Image with swipe support */}
+        <div
+          className="flex items-center justify-center w-full h-full overflow-auto p-4"
+          onTouchStart={e => setTouchStartX(e.touches[0].clientX)}
+          onTouchMove={e => setTouchDelta(e.touches[0].clientX - touchStartX)}
+          onTouchEnd={() => {
+            if (touchDelta > 60) {
+              // swipe right -> previous
+              setCurrentIndex(prev => (prev - 1 + imageUrls.length) % imageUrls.length);
+            } else if (touchDelta < -60) {
+              // swipe left -> next
+              setCurrentIndex(prev => (prev + 1) % imageUrls.length);
+            }
+            setTouchDelta(0);
+          }}
+        >
           <img
-            src={imageUrl}
+            src={imageUrls[currentIndex]}
             alt="Full size"
             className="max-w-full max-h-full object-contain transition-transform duration-200"
             style={{ transform: `scale(${zoom})` }}
