@@ -31,9 +31,9 @@ export const ImageViewer = ({
   const [touchDelta, setTouchDelta] = useState(0);
 
   // Update current index when initialIndex prop changes (e.g., opening a different image)
-  React.useEffect(() => {
-    setCurrentIndex(initialIndex);
-  }, [initialIndex]);
+   useEffect(() => {
+     setCurrentIndex(initialIndex);
+   }, [initialIndex]);
 
   const handleDownload = async () => {
     try {
@@ -65,35 +65,7 @@ export const ImageViewer = ({
     }
   };
 
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `image-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download failed:', error);
-    }
-  };
-
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Shared Image',
-          url: imageUrl,
-        });
-      } catch (error) {
-        console.error('Share failed:', error);
-      }
-    }
-  };
+  // The duplicated handleDownload and handleShare definitions have been removed.
 
   const handleZoomIn = () => setZoom(Math.min(zoom + 0.25, 3));
   const handleZoomOut = () => setZoom(Math.max(zoom - 0.25, 0.5));
