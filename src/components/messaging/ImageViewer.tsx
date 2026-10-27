@@ -1,199 +1,125 @@
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { X, Download, Reply, Forward, Star, Share2, ZoomIn, ZoomOut } from 'lucide-react';
-import { cn } from '@/lib/utils';
+﻿import { useState, useEffect, useRef } from 'react';
+import { X, Download, Camera } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { formatDistanceToNow } from 'date-fns';
 
 interface ImageViewerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  imageUrls: string[];
-  initialIndex: number;
-  onReply?: () => void;
-  onForward?: () => void;
-  onStar?: () => void;
-  isStarred?: boolean;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    imageUrls: string[];
+    initialIndex?: number;
+    sender: { display_name: string; avatar_url?: string };
+    timestamp: string;
+    onReply?: () => void;
 }
 
 export const ImageViewer = ({
-  open,
-  onOpenChange,
-  imageUrls,
-  initialIndex,
-  onReply,
-  onForward,
-  onStar,
-  isStarred = false,
+    open,
+    onOpenChange,
+    imageUrls,
+    initialIndex = 0,
+    sender,
+    timestamp,
+    onReply,
 }: ImageViewerProps) => {
-  const [zoom, setZoom] = useState(1);
-  const [currentIndex, setCurrentIndex] = useState(initialIndex);
-  const [touchStartX, setTouchStartX] = useState(0);
-  const [touchDelta, setTouchDelta] = useState(0);
+    const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [scale, setScale] = useState(1);
+    const touchStartX = useRef(0);
+    const touchEndX = useRef(0);
 
-  // Update current index when initialIndex prop changes (e.g., opening a different image)
-   useEffect(() => {
-     setCurrentIndex(initialIndex);
-   }, [initialIndex]);
+    useEffect(() => {
+        if (open) {
+            setCurrentIndex(initialIndex);
+            setScale(1);
+        }
+    }, [open, initialIndex]);
 
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(imageUrls[currentIndex]);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `image-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download failed:', error);
-    }
-  };
+    if (!open || imageUrls.length === 0) return null;
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Shared Image',
-          url: imageUrls[currentIndex],
-        });
-      } catch (error) {
-        console.error('Share failed:', error);
-      }
-    }
-  };
+    const handleTouchStart = (e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX;
+    };
 
-  // The duplicated handleDownload and handleShare definitions have been removed.
+    const handleTouchEnd = () => {
+        if (scale > 1) return; // Don't swipe if zoomed in
+        const delta = touchStartX.current - touchEndX.current;
+        if (delta > 50 && currentIndex < imageUrls.length - 1) {
+            setCurrentIndex((prev) => prev + 1);
+        } else if (delta < -50 && currentIndex > 0) {
+            setCurrentIndex((prev) => prev - 1);
+        }
+    };
 
-  const handleZoomIn = () => setZoom(Math.min(zoom + 0.25, 3));
-  const handleZoomOut = () => setZoom(Math.max(zoom - 0.25, 0.5));
+    const handleTouchMove = (e: React.TouchEvent) => {
+        touchEndX.current = e.touches[0].clientX;
+    };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black/95 border-none">
-        {/* Header with actions */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/80 to-transparent">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleZoomOut}
-              className="text-white hover:bg-white/20"
+    const handleDownload = () => {
+        const link = document.createElement('a');
+        link.href = imageUrls[currentIndex];
+        link.download = `image-${currentIndex}.jpg`;
+        link.click();
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 backdrop-blur-xl">
+            {/* Top Bar */}
+            <div className="absolute top-0 inset-x-0 z-50 flex items-center justify-between p-4 bg-gradient-to-b from-black/60 to-transparent">
+                <button onClick={() => onOpenChange(false)} className="p-2 text-white/80 hover:text-white">
+                    <X className="h-6 w-6" />
+                </button>
+
+                <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={sender.avatar_url} />
+                        <AvatarFallback>{sender.display_name?.[0] || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex flex-col">
+                        <span className="text-white text-sm font-semibold">{sender.display_name || 'User'}</span>
+                        <span className="text-white/60 text-xs">{formatDistanceToNow(new Date(timestamp), { addSuffix: true })}</span>
+                    </div>
+                </div>
+
+                <button onClick={handleDownload} className="p-2 text-white/80 hover:text-white">
+                    <Download className="h-5 w-5" />
+                </button>
+            </div>
+
+            {/* Image Area */}
+            <div
+                className="flex-1 flex items-center justify-center overflow-hidden touch-none"
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onDoubleClick={() => setScale(1)}
             >
-              <ZoomOut className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleZoomIn}
-              className="text-white hover:bg-white/20"
-            >
-              <ZoomIn className="h-5 w-5" />
-            </Button>
-            <span className="text-white text-sm">{Math.round(zoom * 100)}%</span>
-          </div>
+                <img
+                    src={imageUrls[currentIndex]}
+                    alt={`Image ${currentIndex + 1}`}
+                    className="max-h-full max-w-full object-contain transition-transform duration-200"
+                    style={{ transform: `scale(${scale})` }}
+                />
+            </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onOpenChange(false)}
-            className="text-white"
-          >
-            <X className="h-5 w-5" />
-          </Button>
+            {/* Pagination Dots (Optional but nice) */}
+            {imageUrls.length > 1 && (
+                <div className="absolute bottom-24 inset-x-0 flex justify-center gap-1.5 z-50">
+                    {imageUrls.map((_, i) => (
+                        <div key={i} className={`h-1.5 rounded-full transition-all ${i === currentIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/40'}`} />
+                    ))}
+                </div>
+            )}
+
+            {/* Bottom Bar */}
+            <div className="absolute bottom-0 inset-x-0 z-50 p-4 bg-gradient-to-t from-black/60 to-transparent">
+                <div
+                    onClick={() => { onOpenChange(false); onReply?.(); }}
+                    className="flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-3 cursor-text"
+                >
+                    <Camera className="h-5 w-5 text-white/60" />
+                    <span className="text-white/60 text-sm flex-1">Reply...</span>
+                </div>
+            </div>
         </div>
-
-        {/* Image with swipe support */}
-        <div
-          className="flex items-center justify-center w-full h-full overflow-auto p-4"
-          onTouchStart={e => setTouchStartX(e.touches[0].clientX)}
-          onTouchMove={e => setTouchDelta(e.touches[0].clientX - touchStartX)}
-          onTouchEnd={() => {
-            if (touchDelta > 60) {
-              // swipe right -> previous
-              setCurrentIndex(prev => (prev - 1 + imageUrls.length) % imageUrls.length);
-            } else if (touchDelta < -60) {
-              // swipe left -> next
-              setCurrentIndex(prev => (prev + 1) % imageUrls.length);
-            }
-            setTouchDelta(0);
-          }}
-        >
-          <img
-            src={imageUrls[currentIndex]}
-            alt="Full size"
-            className="max-w-full max-h-full object-contain transition-transform duration-200"
-            style={{ transform: `scale(${zoom})` }}
-          />
-        </div>
-
-        {/* Bottom actions */}
-        <div className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-2 p-4 bg-gradient-to-t from-black/80 to-transparent">
-          {onReply && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onReply();
-                onOpenChange(false);
-              }}
-              className="text-white hover:bg-white/20"
-            >
-              <Reply className="h-4 w-4 mr-2" />
-              Reply
-            </Button>
-          )}
-          {onForward && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onForward();
-                onOpenChange(false);
-              }}
-              className="text-white hover:bg-white/20"
-            >
-              <Forward className="h-4 w-4 mr-2" />
-              Forward
-            </Button>
-          )}
-          {onStar && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                onStar();
-              }}
-              className="text-white hover:bg-white/20"
-            >
-              <Star className={cn("h-4 w-4 mr-2", isStarred && "fill-yellow-400 text-yellow-400")} />
-              {isStarred ? 'Unstar' : 'Star'}
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDownload}
-            className="text-white hover:bg-white/20"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Download
-          </Button>
-          {navigator.share && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleShare}
-              className="text-white hover:bg-white/20"
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+    );
 };

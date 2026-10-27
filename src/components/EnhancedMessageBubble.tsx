@@ -735,10 +735,9 @@ export const EnhancedMessageBubble = ({
           onOpenChange={setShowImageViewer}
           imageUrls={mediaUrls || (mediaUrl ? [mediaUrl] : [])}
           initialIndex={galleryIndex}
+          sender={sender}
+          timestamp={timestamp}
           onReply={onReply}
-          onForward={() => onForward?.(id)}
-          onStar={() => isStarred ? onUnstar?.(id) : onStar?.(id)}
-          isStarred={isStarred}
         />
       )}
 
