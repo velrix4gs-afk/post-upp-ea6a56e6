@@ -21,7 +21,6 @@ export interface DeviceGalleryItem {
 
 const IMAGE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v|avi|mkv|3gp)$/i;
-const SKIP_DIRS = new Set(['node_modules', '.git', 'windows', 'program files', 'system volume information']);
 const MIME_BY_EXTENSION: Record<string, string> = {
   avif: 'image/avif',
   bmp: 'image/bmp',
@@ -41,18 +40,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   webp: 'image/webp',
 };
 
-interface DirectoryPickerWindow extends Window {
-  showDirectoryPicker?: (options?: { mode?: 'read' }) => Promise<FileSystemDirectoryHandle>;
-}
-
-interface DirectoryEntriesHandle {
-  entries(): AsyncIterableIterator<[string, FileSystemHandle]>;
-}
-
 export const canUseNativeGallery = () => isNativeGalleryAvailable();
-
-export const canUseFolderPicker = () =>
-  typeof window !== 'undefined' && typeof (window as DirectoryPickerWindow).showDirectoryPicker === 'function';
 
 export async function checkDeviceGalleryAccess(): Promise<boolean> {
   if (!canUseNativeGallery()) return false;
@@ -164,37 +152,6 @@ export function filesToGalleryItems(files: File[]): DeviceGalleryItem[] {
     })
     .filter((x): x is DeviceGalleryItem => x !== null)
     .sort((a, b) => (b.file?.lastModified || 0) - (a.file?.lastModified || 0));
-}
-
-async function walkDirectory(
-  dir: FileSystemDirectoryHandle,
-  acc: File[],
-  depth = 0,
-): Promise<void> {
-  if (acc.length >= 400 || depth > 6) return;
-  // FileSystemDirectoryHandle.entries() is not in the DOM lib's type for
-  // this handle in every TS version, hence the cast through unknown.
-  for await (const [name, handle] of (dir as unknown as DirectoryEntriesHandle).entries()) {
-    if (acc.length >= 400) return;
-    if (handle.kind === 'directory') {
-      if (SKIP_DIRS.has(name.toLowerCase())) continue;
-      await walkDirectory(handle as FileSystemDirectoryHandle, acc, depth + 1);
-    } else if (handle.kind === 'file') {
-      const file = await (handle as FileSystemFileHandle).getFile();
-      if (fileKind(file)) acc.push(file);
-    }
-  }
-}
-
-export async function pickDeviceFolder(): Promise<DeviceGalleryItem[]> {
-  const picker = (window as DirectoryPickerWindow).showDirectoryPicker;
-  if (!picker) {
-    throw new Error('Folder access is not supported in this browser');
-  }
-  const dir = await picker({ mode: 'read' });
-  const files: File[] = [];
-  await walkDirectory(dir, files);
-  return filesToGalleryItems(files);
 }
 
 export function formatDuration(ms?: number): string {

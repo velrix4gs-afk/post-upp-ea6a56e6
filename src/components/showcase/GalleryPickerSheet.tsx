@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Check, File as FileIcon, FolderOpen, ImagePlus, Images, Loader2, Play, RefreshCw, Shield } from 'lucide-react';
+import { Check, File as FileIcon, ImagePlus, Images, Loader2, Play, RefreshCw, Shield } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptic } from '@/lib/haptics';
 import JellyRadio from '@/components/flair/JellyRadio';
@@ -21,7 +21,6 @@ import {
   formatDuration,
   listNativeDeviceMedia,
   openDeviceGallerySettings,
-  pickDeviceFolder,
   requestDeviceGalleryAccess,
   revokeGalleryThumbs,
   type DeviceGalleryItem,
@@ -39,11 +38,6 @@ interface GalleryPickerSheetProps {
 
 type AccessState = 'checking' | 'ready' | 'denied' | 'web';
 
-/**
- * In-app camera-roll picker. On Android it reads the device library;
- * on web it uses folder access or the system file picker, then shows
- * the same stylish grid.
- */
 export const GalleryPickerSheet = ({
   open,
   onOpenChange,
@@ -60,20 +54,9 @@ export const GalleryPickerSheet = ({
   const [filter, setFilter] = useState<GalleryFilter>('all');
   const [access, setAccess] = useState<AccessState>('checking');
   const [quantity, setQuantity] = useState(60);
-  // Set when we hold permission but the media read failed. Distinct from
-  // `access === 'denied'` so the user is never asked to grant twice.
   const [loadError, setLoadError] = useState<string | null>(null);
-  // Media used recently anywhere in the app. Shown as a row above the camera
-  // roll so a photo picked in chat is immediately available in the feed
-  // instead of having to be hunted down again.
   const [recent, setRecent] = useState<RecentMediaItem[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    folderInputRef.current?.setAttribute('webkitdirectory', '');
-    folderInputRef.current?.setAttribute('directory', '');
-  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -83,8 +66,6 @@ export const GalleryPickerSheet = ({
       setBusyId(null);
       return;
     }
-    // Refresh the recent row each time the sheet opens, so it reflects picks
-    // made elsewhere since the last time it was shown.
     let cancelled = false;
     void listRecentMedia().then((rows) => {
       if (!cancelled) setRecent(rows);
@@ -115,7 +96,6 @@ export const GalleryPickerSheet = ({
       const next = await Promise.race([
         listNativeDeviceMedia(count, nextFilter),
         new Promise<DeviceGalleryItem[]>((_, reject) => {
-          // A large camera roll legitimately takes a while on first open.
           timeoutId = window.setTimeout(() => reject(new Error('Gallery loading timed out')), 30000);
         }),
       ]).then((media) => media.filter((item) => item.kind === 'image' || item.kind === 'video'));
@@ -127,11 +107,6 @@ export const GalleryPickerSheet = ({
       setLoadError(null);
     } catch (err) {
       reportSilently('GALLERY_001', err);
-      // Permission is NOT the problem here — we already hold it, the read
-      // just failed or was slow. Flipping back to the "Allow access" wall
-      // made the user re-grant permission they had already given, and the
-      // sheet could never recover because the ready effect never re-ran.
-      // Stay in 'ready' and surface a retry instead.
       setLoadError(err instanceof Error ? err.message : 'Could not load your gallery.');
     } finally {
       if (timeoutId) window.clearTimeout(timeoutId);
@@ -146,12 +121,14 @@ export const GalleryPickerSheet = ({
     const boot = async () => {
       if (!canUseNativeGallery()) {
         setAccess('web');
+        // Auto-trigger the standard web file picker
+        setTimeout(() => {
+          if (!cancelled) inputRef.current?.click();
+        }, 150);
         return;
       }
       setAccess('checking');
       setLoading(true);
-      // Ask once. If the user already granted it, this resolves immediately
-      // without showing a prompt, so the gallery opens straight away.
       const already = await checkDeviceGalleryAccess();
       const granted = already || (await requestDeviceGalleryAccess());
       if (cancelled) return;
@@ -168,11 +145,6 @@ export const GalleryPickerSheet = ({
     };
   }, [open]);
 
-  // Fixes: tapping "Open settings", granting access there, then coming
-  // back left the sheet stuck showing "Allow access" forever — nothing
-  // was re-checking permission once the app regained focus. This
-  // re-verifies whenever the app becomes visible again while the denied
-  // screen is showing.
   useEffect(() => {
     if (!open || access !== 'denied' || !canUseNativeGallery()) return;
 
@@ -208,8 +180,6 @@ export const GalleryPickerSheet = ({
           .filter((item): item is DeviceGalleryItem => Boolean(item));
         const files = await Promise.all(chosen.map((item) => deviceItemToFile(item)));
         emitFiles(files);
-        // Remember only what the user actually committed to, and only after
-        // delivery succeeded, so an abandoned selection is not stored.
         void rememberRecentMedia(files);
         onOpenChange(false);
       } catch (err) {
@@ -281,14 +251,10 @@ export const GalleryPickerSheet = ({
     [multiple],
   );
 
-  /** Re-uses an item from the shared recent list without re-picking. */
   const pickRecent = useCallback(
     async (item: RecentMediaItem) => {
       haptic('light');
       if (multiple) {
-        // Re-adding a recent item in multi-select would need a File now, so
-        // deliver it immediately instead of toggling — matches how a tapped
-        // recents entry behaves elsewhere.
         setConfirming(true);
         try {
           emitFiles([recentItemToFile(item)]);
@@ -311,29 +277,6 @@ export const GalleryPickerSheet = ({
     [multiple, emitFiles, onOpenChange],
   );
 
-  const openFolder = useCallback(async () => {
-    try {
-      const allItems = await pickDeviceFolder();
-      const next = allItems.filter((item) => item.kind === 'image' || item.kind === 'video');
-      revokeGalleryThumbs(allItems.filter((item) => item.kind === 'file'));
-      if (next.length === 0) {
-        toast({
-          title: 'No photos or videos found',
-          description: 'Choose a folder that contains image or video files.',
-          variant: 'destructive',
-        });
-      }
-      setItems((prev) => {
-        revokeGalleryThumbs(prev);
-        return next;
-      });
-      setAccess('web');
-    } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      folderInputRef.current?.click();
-    }
-  }, []);
-
   const visible = items.filter((item) => {
     if (item.kind === 'file') return false;
     if (filter === 'photos') return item.kind === 'image';
@@ -341,7 +284,7 @@ export const GalleryPickerSheet = ({
     return true;
   });
 
-  const showGrant = access === 'denied' || (access === 'web' && items.length === 0 && !loading);
+  const showGrant = access === 'denied';
   const showLoadError = !showGrant && access === 'ready' && !!loadError && items.length === 0 && !loading;
 
   return (
@@ -432,42 +375,43 @@ export const GalleryPickerSheet = ({
               </div>
               <p className="text-base font-semibold mb-1">Show your camera roll</p>
               <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-                {canUseNativeGallery()
-                  ? 'Allow photo and video access to pick from a stylish in-app gallery.'
-                  : 'Browsers cannot open the full camera roll automatically. Choose your Pictures folder, or browse files.'}
+                Allow photo and video access to pick from a stylish in-app gallery.
               </p>
-              {canUseNativeGallery() ? (
-                <div className="flex flex-col gap-2 w-full max-w-xs">
-                  <Button className="rounded-xl h-11" onClick={() => requestDeviceGalleryAccess().then((ok) => ok && setAccess('ready'))}>
-                    <Shield className="h-4 w-4 mr-2" />
-                    Allow access
-                  </Button>
-                  <Button variant="outline" className="rounded-xl h-11" onClick={() => openDeviceGallerySettings()}>
-                    Open settings
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="rounded-xl h-11"
-                    onClick={() => {
-                      setAccess('web');
-                      inputRef.current?.click();
-                    }}
-                  >
-                    Use system picker instead
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2 w-full max-w-xs">
-                  <Button className="rounded-xl h-11" onClick={openFolder}>
-                    <FolderOpen className="h-4 w-4 mr-2" />
-                    Choose photos folder
-                  </Button>
-                  <Button variant="outline" className="rounded-xl h-11" onClick={() => inputRef.current?.click()}>
-                    <ImagePlus className="h-4 w-4 mr-2" />
-                    Browse files
-                  </Button>
-                </div>
-              )}
+              <div className="flex flex-col gap-2 w-full max-w-xs">
+                <Button className="rounded-xl h-11" onClick={() => requestDeviceGalleryAccess().then((ok) => ok && setAccess('ready'))}>
+                  <Shield className="h-4 w-4 mr-2" />
+                  Allow access
+                </Button>
+                <Button variant="outline" className="rounded-xl h-11" onClick={() => openDeviceGallerySettings()}>
+                  Open settings
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="rounded-xl h-11"
+                  onClick={() => {
+                    setAccess('web');
+                    inputRef.current?.click();
+                  }}
+                >
+                  Use system picker instead
+                </Button>
+              </div>
+            </div>
+          ) : access === 'web' && items.length === 0 ? (
+             <div className="h-full flex flex-col items-center justify-center text-center px-8 py-10">
+              <div className="h-16 w-16 rounded-2xl bg-muted text-muted-foreground flex items-center justify-center mb-4">
+                <ImagePlus className="h-8 w-8" />
+              </div>
+              <p className="text-base font-semibold mb-1">Select Photos or Videos</p>
+              <p className="text-sm text-muted-foreground mb-5 max-w-xs">
+                Your browser will open your device's file picker.
+              </p>
+              <Button
+                className="rounded-xl h-11 w-full max-w-xs"
+                onClick={() => inputRef.current?.click()}
+              >
+                Browse device
+              </Button>
             </div>
           ) : (
             <>
@@ -589,19 +533,6 @@ export const GalleryPickerSheet = ({
             type="file"
             accept="image/*,video/*"
             multiple={multiple}
-            className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []);
-              e.target.value = '';
-              if (files.length === 0) return;
-              ingestFiles(files);
-            }}
-          />
-          <input
-            ref={folderInputRef}
-            type="file"
-            accept="image/*,video/*"
-            multiple
             className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files || []);
