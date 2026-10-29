@@ -43,6 +43,7 @@ import { extractHashtags, detectPostFormat } from "@/lib/affinityProfile";
 import ClickSpark from "@/components/flair/ClickSpark";
 import PulseHeart from "@/components/flair/PulseHeart";
 import React from 'react';
+
 export interface PostCardModernProps {
   post: {
     id: string;
@@ -102,6 +103,7 @@ const formatRelativeTime = (dateString: string) => {
   if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)}w`;
   return format(date, 'MMM d');
 };
+
 const PostCardModernComponent = ({
   post
 }: PostCardModernProps) => {
@@ -182,6 +184,7 @@ const PostCardModernComponent = ({
   const displayUsername = isPagePost ? post.page_username : post.author_username;
   const displayVerified = isPagePost ? post.page_is_verified : post.is_verified;
   const linkPreview = extractLinkPreview(post.content || '');
+
   // Silent interest tracking (docs/FEED_ALGORITHM.md v1) — no visible effect.
   const dwell = useDwellTracker({
     postId: post.id,
@@ -189,6 +192,7 @@ const PostCardModernComponent = ({
     hashtags: extractHashtags(post.content || ''),
     format: detectPostFormat(post),
   });
+
   const handleFollowToggle = async () => {
     if (isFollowingAuthor) {
       await unfollowUser(post.author_id);
@@ -203,14 +207,17 @@ const PostCardModernComponent = ({
       });
     }
   };
+
   const handleMuteUser = () => {
     toast({
       title: 'Mute feature coming soon'
     });
   };
+
   const handleReportPost = () => {
     setShowReportDialog(true);
   };
+
   const handlePinToggle = async () => {
     if (isPinned(post.id)) {
       await unpinPost(post.id);
@@ -218,15 +225,18 @@ const PostCardModernComponent = ({
       await pinPost(post.id);
     }
   };
+
   const handleBlockUser = async () => {
     await blockUser(post.author_id, 'Blocked from post');
     toast({
       title: 'User Blocked'
     });
   };
+
   useEffect(() => {
     setLocalReactionCount(getTotalReactions());
   }, [reactionCounts]);
+
   const handleEdit = async () => {
     if (!editContent.trim() && editMedia.length === 0) return;
     await updatePost(post.id, {
@@ -264,6 +274,7 @@ const PostCardModernComponent = ({
       setUploadingMedia(false);
     }
   };
+
   const handleDelete = async () => {
     await deletePost(post.id);
     setShowDeleteDialog(false);
@@ -271,6 +282,7 @@ const PostCardModernComponent = ({
       title: "Post deleted"
     });
   };
+
   const handleRepost = async () => {
     if (!user) return;
     const wasReposted = isReposted(post.id);
@@ -281,6 +293,7 @@ const PostCardModernComponent = ({
       setLocalRepostCount(post.shares_count || 0);
     }
   };
+
   const handleLikeWithAnimation = async () => {
     haptic('light');
     setIsLikeAnimating(true);
@@ -288,18 +301,22 @@ const PostCardModernComponent = ({
     await handleReactionToggle('like');
     setTimeout(() => setIsLikeAnimating(false), 300);
   };
+
   const handleShare = () => {
     dwell.reportShare();
     setShowShareDialog(true);
   };
+
   const handleBookmarkToggle = () => {
     dwell.reportBookmark();
     toggleBookmark(post.id);
   };
+
   const handleCommentsToggle = () => {
     if (!showComments) dwell.reportCommentExpand();
     setShowComments(!showComments);
   };
+
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
@@ -370,6 +387,7 @@ const PostCardModernComponent = ({
       navigate(profilePathFor(post.author_id, post.author_username));
     }
   };
+
   return <TooltipProvider>
     <>
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
@@ -440,305 +458,215 @@ const PostCardModernComponent = ({
           <span>Pinned post</span>
         </div>}
 
-        <div className="p-4">
-          {/* Post Header */}
-          <div className="flex items-start gap-3 mb-3">
-            {isPagePost ? (
+        {/* Post Header */}
+        <div className="flex items-start gap-3 px-4 py-2">
+          {isPagePost ? (
+            <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
+              <AvatarImage src={displayAvatar} />
+              <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                {getAvatarFallback()}
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <ProfileHoverCard userId={post.author_id}>
               <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
                 <AvatarImage src={displayAvatar} />
                 <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
                   {getAvatarFallback()}
                 </AvatarFallback>
               </Avatar>
+            </ProfileHoverCard>
+          )}
+
+          <div className="flex-1 min-w-0">
+            {isPagePost ? (
+              <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
+                {displayName}
+                {displayVerified && <VerificationBadge isVerified={true} />}
+              </button>
             ) : (
               <ProfileHoverCard userId={post.author_id}>
-                <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
-                  <AvatarImage src={displayAvatar} />
-                  <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                    {getAvatarFallback()}
-                  </AvatarFallback>
-                </Avatar>
+                <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
+                  {displayName}
+                  <VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
+                </button>
               </ProfileHoverCard>
             )}
 
-            <div className="flex-1 min-w-0">
-              {isPagePost ? (
-                <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                  {displayName}
-                  {displayVerified && <VerificationBadge isVerified={true} />}
-                </button>
-              ) : (
-                <ProfileHoverCard userId={post.author_id}>
-                  <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                    {displayName}
-                    <VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
-                  </button>
-                </ProfileHoverCard>
-              )}
+            {displayUsername && <div className="text-muted-foreground text-sm">@{displayUsername}</div>}
+            {isPagePost && <div className="text-muted-foreground text-xs">Published by {post.author_name}</div>}
 
-              {displayUsername && <div className="text-muted-foreground text-sm">@{displayUsername}</div>}
-              {isPagePost && <div className="text-muted-foreground text-xs">Published by {post.author_name}</div>}
-
-              <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="hover:underline cursor-default">
-                      {formatRelativeTime(post.created_at)}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+            <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="hover:underline cursor-default">
+                    {formatRelativeTime(post.created_at)}
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-
-            {/* Follow button - only show if not following and not the owner */}
-            {!isOwner && user && !isFollowingAuthor && <Button variant="default" size="sm" className="h-8 px-4 rounded-full text-xs font-semibold bg-primary hover:bg-primary/90" onClick={e => {
-              e.stopPropagation();
-              handleFollowToggle();
-            }}>
-              Follow
-            </Button>}
-
-            {/* More options menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}>
-                  <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {isOwner ? <>
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    handlePinToggle();
-                  }}>
-                    {isPinned(post.id) ? <><PinOff className="h-4 w-4 mr-2" />Unpin from Profile</> : <><Pin className="h-4 w-4 mr-2" />Pin to Profile</>}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    setShowEditDialog(true);
-                  }}>
-                    <Pencil className="h-4 w-4 mr-2" />Edit Post
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    setShowDeleteDialog(true);
-                  }} className="text-destructive focus:text-destructive">
-                    <Trash2 className="h-4 w-4 mr-2" />Delete Post
-                  </DropdownMenuItem>
-                </> : <>
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    navigate(profilePathFor(post.author_id, post.author_username));
-                  }}>
-                    <UserCircle className="h-4 w-4 mr-2" />View Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    toggleBookmark(post.id);
-                  }}>
-                    <Bookmark className="h-4 w-4 mr-2" />Save Post
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    handleMuteUser();
-                  }}>
-                    <BellOff className="h-4 w-4 mr-2" />Mute User
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    handleReportPost();
-                  }} className="text-destructive">
-                    <AlertCircle className="h-4 w-4 mr-2" />Report Post
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={e => {
-                    e.stopPropagation();
-                    handleBlockUser();
-                  }} className="text-destructive">
-                    <Ban className="h-4 w-4 mr-2" />Block User
-                  </DropdownMenuItem>
-                </>}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
-          {/* Post Content */}
-          <div className="mb-3">
-            <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
-              {renderContent(post.content)}
-            </p>
-          </div>
+          {/* Follow button - only show if not following and not the owner */}
+          {!isOwner && user && !isFollowingAuthor && <Button variant="default" size="sm" className="h-7 px-3 rounded-full text-xs font-semibold bg-primary hover:bg-primary/90" onClick={e => {
+            e.stopPropagation();
+            handleFollowToggle();
+          }}>
+            Follow
+          </Button>}
 
-          {/* Link Preview */}
-          {linkPreview && <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="block mb-3 border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">
-            <div className="p-3 flex items-center gap-3">
-              <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                <ExternalLink className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p>
-                <p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p>
-              </div>
-            </div>
-          </a>}
+          {/* More options menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}>
+                <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {isOwner ? <>
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  handlePinToggle();
+                }}>
+                  {isPinned(post.id) ? <><PinOff className="h-4 w-4 mr-2" />Unpin from Profile</> : <><Pin className="h-4 w-4 mr-2" />Pin to Profile</>}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  setShowEditDialog(true);
+                }}>
+                  <Pencil className="h-4 w-4 mr-2" />Edit Post
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  setShowDeleteDialog(true);
+                }} className="text-destructive focus:text-destructive">
+                  <Trash2 className="h-4 w-4 mr-2" />Delete Post
+                </DropdownMenuItem>
+              </> : <>
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  navigate(profilePathFor(post.author_id, post.author_username));
+                }}>
+                  <UserCircle className="h-4 w-4 mr-2" />View Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  toggleBookmark(post.id);
+                }}>
+                  <Bookmark className="h-4 w-4 mr-2" />Save Post
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  handleMuteUser();
+                }}>
+                  <BellOff className="h-4 w-4 mr-2" />Mute User
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  handleReportPost();
+                }} className="text-destructive">
+                  <AlertCircle className="h-4 w-4 mr-2" />Report Post
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => {
+                  e.stopPropagation();
+                  handleBlockUser();
+                }} className="text-destructive">
+                  <Ban className="h-4 w-4 mr-2" />Block User
+                </DropdownMenuItem>
+              </>}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-          {/* Media */}
-          {mediaItems.length === 1 && <>
-            {isVideoUrl(mediaItems[0]) ? <div className="post-media rounded-xl overflow-hidden mb-3">
+        {/* Media - Edge to Edge */}
+        {mediaItems.length === 1 && (
+          <div className="w-full">
+            {isVideoUrl(mediaItems[0]) ? (
               <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
-            </div> : <div className="post-media rounded-xl overflow-hidden mb-3 cursor-pointer hover:opacity-95 transition" onClick={e => {
-              e.stopPropagation();
-              captureOriginRect(e.currentTarget as HTMLElement);
-              setGalleryImages(mediaItems);
-              setGalleryStartIndex(0);
-              setShowImageGallery(true);
-            }}>
-              <img
-                src={mediaItems[0]}
-                alt="Post media"
-                className="w-full h-auto max-h-[360px] sm:max-h-[420px] object-cover"
-                loading="lazy"
-              />
-            </div>}
-
-
-          </>}
-
-          {mediaItems.length > 1 && (
-            <div data-no-app-swipe className="post-media rounded-xl overflow-hidden mb-3" onClick={e => e.stopPropagation()}>
-              <Carousel className="w-full">
-                <CarouselContent>
-                  {mediaItems.map((url, i) => (
-                    <CarouselItem key={url + i}>
-                      {isVideoUrl(url) ? (
-                        <div className="relative w-full h-[280px] sm:h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-black">
-                          <VideoViewer videoUrl={url} playOnFocus objectFit="cover" />
-                        </div>
-                      ) : (
-                        <div
-                          className="relative w-full h-[280px] sm:h-[340px] flex items-center justify-center overflow-hidden rounded-xl bg-black cursor-pointer"
-                          onClick={e => {
-                            captureOriginRect(e.currentTarget as HTMLElement);
-                            setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
-                            setGalleryStartIndex(i);
-                            setShowImageGallery(true);
-                          }}
-                        >
-                          {/* Ambient Blur */}
-                          <img
-                            src={url}
-                            alt=""
-                            aria-hidden="true"
-                            className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 select-none pointer-events-none"
-                          />
-                          {/* Sharp Image */}
-                          <img
-                            src={url}
-                            alt={`Post media ${i + 1}`}
-                            className="relative z-10 max-h-full max-w-full object-contain"
-                            loading="lazy"
-                          />
-                          {/* Sleek Pill Counter */}
-                          <div className="absolute top-2.5 right-2.5 z-20 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-wide pointer-events-none">
-                            {i + 1} / {mediaItems.length}
-                          </div>
-                        </div>
-                      )}
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="left-2 z-30" />
-                <CarouselNext className="right-2 z-30" />
-              </Carousel>
-            </div>
-          )}
-
-
-          {/* Engagement Stats */}
-          {(localReactionCount > 0 || post.comments_count > 0 || localRepostCount > 0) && <div className="flex items-center justify-between py-2 border-b border-border text-xs text-muted-foreground">
-            <div className="flex items-center gap-4">
-              {localReactionCount > 0 && <span className="flex items-center gap-1.5">
-                <span className="flex -space-x-1">
-                  <span className="h-4 w-4 rounded-full bg-destructive flex items-center justify-center">
-                    <Heart className="h-2.5 w-2.5 text-white fill-white" />
-                  </span>
-                </span>
-                <span className="font-medium">{localReactionCount}</span>
-              </span>}
-            </div>
-            <div className="flex items-center gap-3">
-              {post.comments_count > 0 && <button onClick={e => {
+            ) : (
+              <div className="cursor-pointer hover:opacity-95 transition" onClick={e => {
                 e.stopPropagation();
-                setShowComments(!showComments);
-              }} className="hover:underline">
-                {post.comments_count} comment{post.comments_count !== 1 ? 's' : ''}
-              </button>}
-              {localRepostCount > 0 && <span>{localRepostCount} share{localRepostCount !== 1 ? 's' : ''}</span>}
-            </div>
-          </div>}
-
-          {/* Top Comment Preview */}
-          {topComment && !showComments && (
-            <div
-              className="flex items-start gap-2 py-2 cursor-pointer hover:bg-muted/50 rounded-lg px-1 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowComments(true);
-              }}
-            >
-              <Avatar className="h-6 w-6 flex-shrink-0">
-                <AvatarImage src={topComment.user?.avatar_url} />
-                <AvatarFallback className="text-[10px]">
-                  {topComment.user?.display_name?.[0] || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold text-xs text-foreground">
-                    {topComment.user?.display_name}
-                  </span>
-                  <TopCommentBadge
-                    isVerified={topComment.user?.is_verified}
-                    verificationType={topComment.user?.verification_type}
-                  />
-                  {topComment.likes_count > 0 && (
-                    <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
-                      <Heart className="h-2.5 w-2.5 fill-current text-destructive" />
-                      {topComment.likes_count}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-foreground/80 line-clamp-2">{topComment.content}</p>
+                captureOriginRect(e.currentTarget as HTMLElement);
+                setGalleryImages(mediaItems);
+                setGalleryStartIndex(0);
+                setShowImageGallery(true);
+              }}>
+                <img
+                  src={mediaItems[0]}
+                  alt="Post media"
+                  className="w-full h-auto max-h-[500px] object-cover"
+                  loading="lazy"
+                />
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {post.comments_count > 1 && !showComments && (
-            <button
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors pb-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowComments(true);
-              }}
-            >
-              View all {post.comments_count} comments
-            </button>
-          )}
+        {mediaItems.length > 1 && (
+          <div data-no-app-swipe className="w-full" onClick={e => e.stopPropagation()}>
+            <Carousel className="w-full">
+              <CarouselContent>
+                {mediaItems.map((url, i) => (
+                  <CarouselItem key={url + i} className="p-0">
+                    {isVideoUrl(url) ? (
+                      <div className="relative w-full h-[300px] sm:h-[400px] flex items-center justify-center overflow-hidden bg-black">
+                        <VideoViewer videoUrl={url} playOnFocus objectFit="cover" />
+                      </div>
+                    ) : (
+                      <div
+                        className="relative w-full h-[300px] sm:h-[400px] flex items-center justify-center overflow-hidden bg-black cursor-pointer"
+                        onClick={e => {
+                          captureOriginRect(e.currentTarget as HTMLElement);
+                          setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
+                          setGalleryStartIndex(i);
+                          setShowImageGallery(true);
+                        }}
+                      >
+                        {/* Ambient Blur */}
+                        <img
+                          src={url}
+                          alt=""
+                          aria-hidden="true"
+                          className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 select-none pointer-events-none"
+                        />
+                        {/* Sharp Image */}
+                        <img
+                          src={url}
+                          alt={`Post media ${i + 1}`}
+                          className="relative z-10 max-h-full max-w-full object-contain"
+                          loading="lazy"
+                        />
+                        {/* Sleek Pill Counter */}
+                        <div className="absolute top-2.5 right-2.5 z-20 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-wide pointer-events-none">
+                          {i + 1} / {mediaItems.length}
+                        </div>
+                      </div>
+                    )}
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-2 z-30" />
+              <CarouselNext className="right-2 z-30" />
+            </Carousel>
+          </div>
+        )}
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-1 -mx-2">
-            <ClickSpark sparkColor="#ff4d6d" shape="dot" sparkCount={7} sparkSize={9} sparkRadius={22} duration={420} className="flex-1">
-              <div className="flex h-10 items-center justify-center rounded-lg hover:bg-destructive/10 transition-all" title="Like this post">
+        {/* Action Bar - Icons Only */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-4">
+            <ClickSpark sparkColor="#ff4d6d" shape="dot" sparkCount={7} sparkSize={9} sparkRadius={22} duration={420}>
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 transition-all">
                 <PulseHeart
                   liked={userReaction === 'like'}
                   count={localReactionCount}
-                  showCount
+                  showCount={false}
                   icon="heart"
-                  size={22}
+                  size={24}
                   corner={10}
                   likedColor="hsl(var(--destructive))"
                   idleColor="hsl(var(--muted-foreground))"
@@ -749,55 +677,121 @@ const PostCardModernComponent = ({
               </div>
             </ClickSpark>
 
-            <ClickSpark sparkColor="#3b82f6" shape="dot" sparkCount={6} sparkSize={8} sparkRadius={18} duration={400} className="flex-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="w-full gap-2 h-10 rounded-lg hover:bg-primary/10" onClick={e => {
-                    e.stopPropagation();
-                    setShowComments(!showComments);
-                  }}>
-                    <MessageCircle className="h-5 w-5" />
-                    <span className="text-sm font-medium">Comment</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Comment on this post</TooltipContent>
-              </Tooltip>
-            </ClickSpark>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg hover:bg-primary/10" onClick={e => {
+                  e.stopPropagation();
+                  setShowComments(!showComments);
+                }}>
+                  <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Comment on this post</TooltipContent>
+            </Tooltip>
 
-            <ClickSpark sparkColor="#22c55e" shape="dot" sparkCount={6} sparkSize={8} sparkRadius={18} duration={400} className="flex-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn("w-full gap-2 h-10 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
-                    e.stopPropagation();
-                    handleRepost();
-                  }}>
-                    <Repeat2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">Share</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Share this post</TooltipContent>
-              </Tooltip>
-            </ClickSpark>
-
-            <ClickSpark sparkColor="#f59e0b" shape="dot" sparkCount={6} sparkSize={8} sparkRadius={18} duration={400} className="flex-1">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className={cn("w-full gap-2 h-10 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
-                    e.stopPropagation();
-                    toggleBookmark(post.id);
-                  }}>
-                    <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) && "fill-current")} />
-                    <span className="text-sm font-medium">Save</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Save this post</TooltipContent>
-              </Tooltip>
-            </ClickSpark>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" className={cn("h-9 w-9 p-0 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
+                  e.stopPropagation();
+                  handleRepost();
+                }}>
+                  <Repeat2 className={cn("h-5 w-5", isReposted(post.id) ? "text-success" : "text-muted-foreground")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Share this post</TooltipContent>
+            </Tooltip>
           </div>
 
-          {/* Comments Section */}
-          {/* Comments now open in a bottom-sheet popup (see below) */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="sm" className={cn("h-9 w-9 p-0 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
+                e.stopPropagation();
+                toggleBookmark(post.id);
+              }}>
+                <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) ? "fill-current text-warning" : "text-muted-foreground")} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Save this post</TooltipContent>
+          </Tooltip>
         </div>
+
+        {/* Caption */}
+        {post.content && (
+          <div className="px-4 py-1 pb-3">
+            <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
+              <span className="font-semibold cursor-pointer hover:underline mr-1" onClick={handleAuthorClick}>
+                {displayName}
+              </span>
+              {renderContent(post.content)}
+            </p>
+          </div>
+        )}
+
+        {/* Link Preview */}
+        {linkPreview && (
+          <div className="px-4 pb-3" onClick={e => e.stopPropagation()}>
+            <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" className="block border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">
+              <div className="p-3 flex items-center gap-3">
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+                  <ExternalLink className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p>
+                </div>
+              </div>
+            </a>
+          </div>
+        )}
+
+        {/* Top Comment Preview */}
+        {topComment && !showComments && (
+          <div
+            className="flex items-start gap-2 px-4 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowComments(true);
+            }}
+          >
+            <Avatar className="h-6 w-6 flex-shrink-0">
+              <AvatarImage src={topComment.user?.avatar_url} />
+              <AvatarFallback className="text-[10px]">
+                {topComment.user?.display_name?.[0] || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="font-semibold text-xs text-foreground">
+                  {topComment.user?.display_name}
+                </span>
+                <TopCommentBadge
+                  isVerified={topComment.user?.is_verified}
+                  verificationType={topComment.user?.verification_type}
+                />
+                {topComment.likes_count > 0 && (
+                  <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
+                    <Heart className="h-2.5 w-2.5 fill-current text-destructive" />
+                    {topComment.likes_count}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-foreground/80 line-clamp-2">{topComment.content}</p>
+            </div>
+          </div>
+        )}
+
+        {post.comments_count > 1 && !showComments && (
+          <button
+            className="px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowComments(true);
+            }}
+          >
+            View all {post.comments_count} comments
+          </button>
+        )}
+
       </Card>
 
       <SharePostDialog postId={post.id} open={showShareDialog} onOpenChange={setShowShareDialog} />
@@ -823,6 +817,7 @@ const PostCardModernComponent = ({
     </>
   </TooltipProvider>;
 };
+
 export const PostCardModern = memo(PostCardModernComponent, (prevProps, nextProps) => {
   return (
     prevProps.post.id === nextProps.post.id &&

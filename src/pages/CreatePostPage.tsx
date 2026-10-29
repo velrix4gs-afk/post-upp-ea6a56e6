@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, Image as ImageIcon, Smile, MapPin, Users, Clock, Save, Globe, Lock, UserCheck,
+  X, Image as ImageIcon, MapPin, Clock, Save, Globe, Lock, UserCheck,
   Scissors, Sparkles, Plus, Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,36 +27,13 @@ import { cn } from '@/lib/utils';
 import { MentionTextarea } from '@/components/composer/MentionTextarea';
 import { ReorderableThumbs } from '@/components/composer/ReorderableThumbs';
 import DraftsDialog from '@/components/DraftsDialog';
-import { UserTagSelector } from '@/components/UserTagSelector';
 import { GalleryPickerSheet } from '@/components/showcase/GalleryPickerSheet';
 import { VideoEditorDialog } from '@/components/VideoEditorDialog';
 import { PhotoEditorDialog } from '@/components/PhotoEditorDialog';
 import { normalizeMediaFile } from '@/lib/deviceGallery';
 
-const FEELINGS = [
-  { emoji: '😊', label: 'happy' },
-  { emoji: '😍', label: 'loved' },
-  { emoji: '😎', label: 'cool' },
-  { emoji: '😢', label: 'sad' },
-  { emoji: '😤', label: 'frustrated' },
-  { emoji: '🤔', label: 'thoughtful' },
-  { emoji: '🎉', label: 'excited' },
-  { emoji: '😴', label: 'tired' },
-  { emoji: '🤗', label: 'grateful' },
-  { emoji: '💪', label: 'motivated' },
-];
-
 const MAX_CHARS = 5000;
 
-/**
- * Full-screen "new post" composer (replaces the old inline CreatePost /
- * CreatePostCard cards). Media picking is front and center: an empty post
- * opens straight onto a big "Add photos or videos" tile, and once something's
- * picked it becomes a reorderable thumbnail strip with a "+" to add more —
- * same functionality the old composers had (captions, feelings, location,
- * tagging, scheduling, privacy, drafts, photo/video trim+crop+blur editing),
- * just as one shared screen instead of two drifting copies.
- */
 const CreatePostPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -76,9 +53,6 @@ const CreatePostPage = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [scheduledDate, setScheduledDate] = useState<Date>();
   const [location, setLocation] = useState('');
-  const [taggedUsers, setTaggedUsers] = useState<string[]>([]);
-  const [feeling, setFeeling] = useState('');
-  const [showFeelings, setShowFeelings] = useState(false);
   const [privacy, setPrivacy] = useState<'public' | 'friends' | 'private'>('public');
 
   const previewMediaRef = useRef<string[]>([]);
@@ -205,8 +179,6 @@ const CreatePostPage = () => {
     clearPreviewUrls();
     setPreviewMedia([]);
     setLocation('');
-    setTaggedUsers([]);
-    setFeeling('');
     setScheduledDate(undefined);
     setUploadProgress(0);
     clearGhostDraft();
@@ -235,13 +207,10 @@ const CreatePostPage = () => {
           return;
         }
       }
-      let contentWithFeeling = postContent.trim();
-      if (feeling) {
-        const feelingData = FEELINGS.find((f) => f.label === feeling);
-        contentWithFeeling = `${feelingData?.emoji} feeling ${feeling}\n\n${contentWithFeeling}`;
-      }
+
       const postData: any = { privacy };
-      if (contentWithFeeling) postData.content = contentWithFeeling;
+      if (postContent.trim()) postData.content = postContent.trim();
+
       if (mediaUrls.length > 0) {
         if (mediaUrls.length === 1) {
           postData.media_url = mediaUrls[0];
@@ -251,14 +220,15 @@ const CreatePostPage = () => {
           postData.media_type = 'multiple';
         }
       }
+
       if (location.trim()) postData.location = location.trim();
-      if (taggedUsers.length > 0) postData.tagged_users = taggedUsers;
       if (scheduledDate) postData.scheduled_for = scheduledDate.toISOString();
 
       const createdPost = await createPost(postData);
-      if (!('queued' in createdPost) && contentWithFeeling) {
-        await processHashtags(createdPost.id, contentWithFeeling);
+      if (!('queued' in createdPost) && postContent.trim()) {
+        await processHashtags(createdPost.id, postContent.trim());
       }
+
       toast({
         title: 'queued' in createdPost ? 'Post queued' : 'Posted!',
         description:
@@ -266,6 +236,7 @@ const CreatePostPage = () => {
             ? "Your post will be published when you're back online"
             : scheduledDate ? 'Post scheduled successfully' : 'Your post is now live',
       });
+
       resetForm();
       navigate(-1);
     } catch (error: any) {
@@ -374,7 +345,7 @@ const CreatePostPage = () => {
             </div>
           </div>
 
-          {/* Media: big empty-state tile, or a thumbnail strip with a "+" to add more */}
+          {/* Media Preview */}
           <div className="mt-4">
             {previewMedia.length === 0 ? (
               <button
@@ -424,30 +395,6 @@ const CreatePostPage = () => {
 
           {/* Option chips */}
           <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/60 py-3">
-            <Popover open={showFeelings} onOpenChange={setShowFeelings}>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-full bg-muted/50 px-3">
-                  <Smile className="h-4 w-4 text-warning" />
-                  <span className="text-xs">{feeling ? `${FEELINGS.find((f) => f.label === feeling)?.emoji} ${feeling}` : 'Feeling'}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-3">
-                <div className="grid grid-cols-5 gap-2">
-                  {FEELINGS.map((f) => (
-                    <Button
-                      key={f.label}
-                      variant={feeling === f.label ? 'secondary' : 'ghost'}
-                      className="flex h-12 flex-col items-center justify-center p-1"
-                      onClick={() => { setFeeling(feeling === f.label ? '' : f.label); setShowFeelings(false); }}
-                    >
-                      <span className="text-xl">{f.emoji}</span>
-                      <span className="mt-0.5 truncate text-[9px]">{f.label}</span>
-                    </Button>
-                  ))}
-                </div>
-              </PopoverContent>
-            </Popover>
-
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-full bg-muted/50 px-3">
@@ -457,18 +404,6 @@ const CreatePostPage = () => {
               </PopoverTrigger>
               <PopoverContent className="w-80">
                 <Input placeholder="Add location..." value={location} onChange={(e) => setLocation(e.target.value)} />
-              </PopoverContent>
-            </Popover>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-full bg-muted/50 px-3">
-                  <Users className="h-4 w-4 text-accent" />
-                  <span className="text-xs">Tag {taggedUsers.length > 0 && `(${taggedUsers.length})`}</span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <UserTagSelector selectedUsers={taggedUsers} onUsersChange={setTaggedUsers} />
               </PopoverContent>
             </Popover>
 
