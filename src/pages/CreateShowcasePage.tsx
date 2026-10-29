@@ -140,12 +140,14 @@ const CreateShowcasePage = () => {
 
   // Drag helpers (percent-based relative to canvas)
   const dragRef = useRef<{ id: string; kind: 'text' | 'sticker'; offX: number; offY: number } | null>(null);
+
   const beginDrag = (id: string, kind: 'text' | 'sticker') => (e: React.PointerEvent) => {
     e.stopPropagation();
     if (!canvasRef.current) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     dragRef.current = { id, kind, offX: 0, offY: 0 };
   };
+
   const onDragMove = (e: React.PointerEvent) => {
     if (!dragRef.current || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -158,6 +160,7 @@ const CreateShowcasePage = () => {
       setStickers(prev => prev.map(s => s.id === id ? { ...s, x, y } : s));
     }
   };
+
   const endDrag = () => { dragRef.current = null; };
 
   // Text
@@ -364,7 +367,6 @@ const CreateShowcasePage = () => {
             uploadedPath = null;
           } else if (confirmationError) {
             console.error('Could not confirm whether the story insert completed:', confirmationError);
-            // Keep the uploaded object if the insert outcome cannot be verified.
             uploadedPath = null;
             throw insErr;
           } else {
@@ -376,15 +378,9 @@ const CreateShowcasePage = () => {
       }
       uploadedPath = null;
 
-      // Drop the cached list before navigating. The feed mounts and reads
-      // this cache on arrival; if it still holds the pre-post list the new
-      // item is treated as missing until the 2-minute window lapses.
       await CacheHelper.clearStories();
 
       toast({ title: 'Showcase shared 🎉' });
-      // Ask the feed to refetch on mount rather than waiting for the
-      // realtime INSERT event, which is best-effort and can arrive late or
-      // not at all on a flaky connection.
       navigate('/feed', { state: { refreshShowcase: Date.now() } });
     } catch (err) {
       console.error('Share Showcase error', err);
@@ -447,6 +443,7 @@ const CreateShowcasePage = () => {
     <div className="fixed inset-0 z-[70] flex flex-col bg-[#09070f] text-white select-none">
       {/* Hidden inputs */}
       <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={onFile} className="hidden" />
+
       <VideoEditorDialog
         file={mediaType === 'video' ? mediaFile : null}
         open={videoEditorOpen}
@@ -571,7 +568,6 @@ const CreateShowcasePage = () => {
             style={{ left: `${s.x}%`, top: `${s.y}%`, transform: 'translate(-50%, -50%)' }}
           >
             <div className="pointer-events-none">
-              {/* Reuse StickerDisplay visual but disable its own positioning */}
               <div className="relative">
                 {s.type === 'emoji' && <span className="text-5xl">{s.data.emoji}</span>}
                 {s.type !== 'emoji' && (
