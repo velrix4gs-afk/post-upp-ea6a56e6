@@ -181,17 +181,23 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
     navigate(`/post/${post.id}`);
   };
 
-  const renderContent = (text: string) => {
-    if (!text) return null;
-    let displayText = text;
-    if (linkPreview) displayText = text.replace(linkPreview.url, '').trim();
-    const parts = displayText.split(/(@\w+|#\w+)/g);
+  const splitContent = (text: string) => {
+    const parts = text.split(/(@\w+|#\w+)/g);
+    const plainText = parts.filter(p => !p.startsWith('@') && !p.startsWith('#')).join('').trim();
+    const tags = parts.filter(p => p.startsWith('@') || p.startsWith('#'));
+    return { plainText, tags };
+  };
+
+  const renderInlineTags = (text: string) => {
+    const parts = text.split(/(@\w+|#\w+)/g);
     return parts.map((part, index) => {
       if (part.startsWith('@')) return <button key={index} onClick={e => e.stopPropagation()} className="text-primary hover:underline font-medium">{part}</button>;
       if (part.startsWith('#')) return <button key={index} onClick={e => { e.stopPropagation(); navigate(`/hashtag/${part.slice(1)}`); }} className="text-primary hover:underline font-medium">{part}</button>;
       return <span key={index}>{part}</span>;
     });
   };
+
+  const { plainText: captionText, tags: allTags } = splitContent(post.content || '');
 
   const getAvatarFallback = () => displayName?.charAt(0).toUpperCase() || 'U';
   const handleAuthorClick = (e: React.MouseEvent) => { e.stopPropagation(); if (isPagePost && post.page_username) navigate(`/page/${post.page_username}`); else navigate(profilePathFor(post.author_id, post.author_username)); };
@@ -239,8 +245,8 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
           </DropdownMenu>
         </div>
 
-        {/* Caption FIRST */}
-        {post.content && (
+        {/* Caption */}
+        {captionText && (
           <div className="px-4 pb-2">
             {isTextOnly ? (
               <div className={cn("rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-[160px]", postTheme.bg, postTheme.text)}>
@@ -248,8 +254,8 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
               </div>
             ) : (
               <div className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
-                <p className={cn(!expanded && "line-clamp-3")}>{renderContent(post.content)}</p>
-                {post.content.length > 100 && (
+                <p className={cn(!expanded && "line-clamp-3")}>{renderInlineTags(captionText)}</p>
+                {captionText.length > 100 && (
                   <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="text-muted-foreground text-sm font-semibold mt-1">
                     {expanded ? 'See less' : 'See more'}
                   </button>
@@ -325,6 +331,18 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
         </div>
 
         {/* Hashtags & Tags footer */}
+        {allTags.length > 0 && (
+          <div className="px-4 pb-2 flex flex-wrap gap-x-2 gap-y-0.5 text-[13px]">
+            {allTags.map((tag, i) => (
+              tag.startsWith('#') ? (
+                <button key={i} onClick={e => { e.stopPropagation(); navigate(`/hashtag/${tag.slice(1)}`); }} className="text-primary hover:underline font-medium">{tag}</button>
+              ) : (
+                <button key={i} onClick={e => e.stopPropagation()} className="text-primary hover:underline font-medium">{tag}</button>
+              )
+            ))}
+          </div>
+        )}
+
         {linkPreview && (
           <div className="px-4 pb-3" onClick={e => e.stopPropagation()}>
             <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" className="block border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">

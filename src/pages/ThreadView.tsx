@@ -168,6 +168,17 @@ export const ThreadView = () => {
             </div>
           )}
 
+          {/* Caption */}
+          {post.content && (
+            <div className="mt-3 text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
+              {post.content.split(/(@\w+|#\w+)/g).map((part, i) => {
+                if (part.startsWith('#')) return <button key={i} onClick={() => navigate(`/hashtag/${part.slice(1)}`)} className="text-primary hover:underline font-medium">{part}</button>;
+                if (part.startsWith('@')) return <span key={i} className="text-primary font-medium">{part}</span>;
+                return <span key={i}>{part}</span>;
+              })}
+            </div>
+          )}
+
           {/* Timestamp line */}
           {created && (
             <p className="mt-4 text-sm text-muted-foreground">
