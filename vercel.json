@@ -12,19 +12,16 @@
       "destination": "/api/profile-og?handle=:handle"
     },
     {
+      "source": "/profile/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/profile/(manifest.webmanifest|registerSW.js)",
+      "destination": "/$1"
+    },
+    {
       "source": "/((?!.*\\.).*)",
       "destination": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/manifest.webmanifest",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/manifest+json"
-        }
-      ]
     }
   ]
 }
