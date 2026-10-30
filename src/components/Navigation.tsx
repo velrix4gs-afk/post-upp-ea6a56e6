@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import ThemeToggle from './ThemeToggle';
-import { Home, User, Bell, Menu, Search, MessageCircle, Users, Compass, Bookmark, BarChart3, Settings, Crown, BadgeCheck, FileText, Shield } from 'lucide-react';
+import { Home, User, Bell, Menu, Search, MessageCircle, Users, Compass, Bookmark, BarChart3, Settings, Crown, BadgeCheck, FileText, Shield, Plus } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -14,20 +14,12 @@ import NotificationCenter from './NotificationCenter';
 import { MenuPanel } from './MenuPanel';
 import { AccountSwitcherSheet, rememberAccount } from './AccountSwitcherSheet';
 import { cn } from '@/lib/utils';
+
 const Navigation = () => {
-  const {
-    user,
-    signOut
-  } = useAuth();
-  const {
-    profile
-  } = useProfile();
-  const {
-    unreadCount
-  } = useNotifications();
-  const {
-    isAdmin
-  } = useAdmin();
+  const { user, signOut } = useAuth();
+  const { profile } = useProfile();
+  const { unreadCount } = useNotifications();
+  const { isAdmin } = useAdmin();
   const navigate = useNavigate();
   const location = useLocation();
   const [showNotifications, setShowNotifications] = useState(false);
@@ -104,9 +96,7 @@ const Navigation = () => {
     if (!isFeedPage) return;
     const events = ['scroll', 'touchstart', 'touchmove', 'mousemove', 'click'];
     events.forEach(event => {
-      window.addEventListener(event, handleInteraction, {
-        passive: true
-      });
+      window.addEventListener(event, handleInteraction, { passive: true });
     });
     return () => {
       events.forEach(event => {
@@ -114,7 +104,9 @@ const Navigation = () => {
       });
     };
   }, [handleInteraction, isFeedPage]);
+
   const isProfilePage = location.pathname.startsWith("/profile");
+
   if (isAuthPage || isMessagesPage || isCreatorPage || isProfilePage) {
     return null;
   }
@@ -122,88 +114,92 @@ const Navigation = () => {
   // Compact mode for non-feed pages
   const isHomePage = location.pathname === '/feed' || location.pathname === '/' || location.pathname === '/dashboard';
   const isCompactMode = !isHomePage;
-  return <nav style={{
-    position: 'static',
-    paddingTop: 'env(safe-area-inset-top)'
-  }} className={cn("progressive-blur surface-rim bg-card/60 z-50 transition-all duration-300", isCompactMode ? 'py-1' : 'py-1.5',
-  // On feed pages, nav scrolls with page (not sticky). On other pages, it's sticky.
-  isFeedPage ? "" : "sticky top-0",
-  // Force non-sticky everywhere (requested)
-  "static")}>
+
+  return (
+    <nav style={{ position: 'static', paddingTop: 'env(safe-area-inset-top)' }} className={cn("progressive-blur surface-rim bg-card/60 z-50 transition-all duration-300", isCompactMode ? 'py-1' : 'py-1.5', isFeedPage ? "" : "sticky top-0", "static")}>
       <div className="container mx-auto px-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-6">
-            <Link to="/feed" className={`font-bold text-primary hover:opacity-80 transition-all duration-300 ${isCompactMode ? 'text-lg' : 'text-2xl'}`}>
-              POST UP
-            </Link>
-            
+
+            {/* REPLACED "POST UP" LINK WITH + BUTTON */}
+            <Button
+              onClick={() => navigate('/create/post')}
+              className={cn(
+                "flex items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all active:scale-95",
+                isCompactMode ? "h-8 w-8" : "h-10 w-10"
+              )}
+              aria-label="Create Post"
+            >
+              <Plus className={isCompactMode ? "h-5 w-5 stroke-[2.5]" : "h-6 w-6 stroke-[2.5]"} />
+            </Button>
+
             {user && !isCompactMode && <div className="hidden lg:flex items-center gap-2">
-                <Link to="/feed">
-                  <Button variant={isActive('/feed') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <Home className="h-4 w-4" />
-                    Feed
-                  </Button>
-                </Link>
-                <Link to="/messages">
-                  <Button variant={isActive('/messages') ? 'default' : 'ghost'} size="sm" className="gap-2 relative">
-                    <MessageCircle className="h-4 w-4" />
-                    Messages
-                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                      3
-                    </Badge>
-                  </Button>
-                </Link>
-                <Link to="/friends">
-                  <Button variant={isActive('/friends') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <Users className="h-4 w-4" />
-                    Friends
-                  </Button>
-                </Link>
-                <Link to="/explore">
-                  <Button variant={isActive('/explore') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <Compass className="h-4 w-4" />
-                    Explore
-                  </Button>
-                </Link>
-                <Link to="/bookmarks">
-                  <Button variant={isActive('/bookmarks') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <Bookmark className="h-4 w-4" />
-                    Saved
-                  </Button>
-                </Link>
-                <Link to="/pages">
-                  <Button variant={isActive('/pages') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <FileText className="h-4 w-4" />
-                    Pages
-                  </Button>
-                </Link>
-                <Link to="/verification">
-                  <Button variant={isActive('/verification') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <BadgeCheck className="h-4 w-4" />
-                    Verify
-                  </Button>
-                </Link>
-                <Link to="/premium">
-                  <Button variant={isActive('/premium') ? 'default' : 'ghost'} size="sm" className="gap-2">
-                    <Crown className="h-4 w-4" />
-                    Premium
-                  </Button>
-                </Link>
-              </div>}
+              <Link to="/feed">
+                <Button variant={isActive('/feed') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <Home className="h-4 w-4" />
+                  Feed
+                </Button>
+              </Link>
+              <Link to="/messages">
+                <Button variant={isActive('/messages') ? 'default' : 'ghost'} size="sm" className="gap-2 relative">
+                  <MessageCircle className="h-4 w-4" />
+                  Messages
+                  <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    3
+                  </Badge>
+                </Button>
+              </Link>
+              <Link to="/friends">
+                <Button variant={isActive('/friends') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <Users className="h-4 w-4" />
+                  Friends
+                </Button>
+              </Link>
+              <Link to="/explore">
+                <Button variant={isActive('/explore') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <Compass className="h-4 w-4" />
+                  Explore
+                </Button>
+              </Link>
+              <Link to="/bookmarks">
+                <Button variant={isActive('/bookmarks') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <Bookmark className="h-4 w-4" />
+                  Saved
+                </Button>
+              </Link>
+              <Link to="/pages">
+                <Button variant={isActive('/pages') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <FileText className="h-4 w-4" />
+                  Pages
+                </Button>
+              </Link>
+              <Link to="/verification">
+                <Button variant={isActive('/verification') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <BadgeCheck className="h-4 w-4" />
+                  Verify
+                </Button>
+              </Link>
+              <Link to="/premium">
+                <Button variant={isActive('/premium') ? 'default' : 'ghost'} size="sm" className="gap-2">
+                  <Crown className="h-4 w-4" />
+                  Premium
+                </Button>
+              </Link>
+            </div>}
           </div>
 
           {user && !isCompactMode && !isFeedPage && <div className="md:hidden flex items-center justify-end ml-auto">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
-                <Search className="h-5 w-5" />
-              </Button>
-            </div>}
+            <Button variant="ghost" size="sm" onClick={() => navigate('/search')}>
+              <Search className="h-5 w-5" />
+            </Button>
+          </div>}
 
           {user && !isCompactMode && !isFeedPage && <div className="hidden md:flex flex-1 max-w-md">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search..." className="pl-9 w-full" onClick={() => navigate('/search')} readOnly />
-              </div>
-            </div>}
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Search..." className="pl-9 w-full" onClick={() => navigate('/search')} readOnly />
+            </div>
+          </div>}
 
           <div className={`flex items-center transition-all duration-300 ${isCompactMode ? 'gap-2' : 'gap-3'}`}>
             {user && isFeedPage && (
@@ -219,39 +215,40 @@ const Navigation = () => {
               </Button>
             )}
             {!isFeedPage && <ThemeToggle />}
-            
+
             {user ? <>
-                <Button variant="ghost" size={isCompactMode ? "icon" : "sm"} className="relative" onClick={() => setShowNotifications(true)}>
-                  <Bell className={isCompactMode ? "h-4 w-4" : "h-5 w-5"} />
-                  {unreadCount > 0 && <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                      {unreadCount}
-                    </Badge>}
-                </Button>
+              <Button variant="ghost" size={isCompactMode ? "icon" : "sm"} className="relative" onClick={() => setShowNotifications(true)}>
+                <Bell className={isCompactMode ? "h-4 w-4" : "h-5 w-5"} />
+                {unreadCount > 0 && <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {unreadCount}
+                </Badge>}
+              </Button>
 
-                <NotificationCenter isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
+              <NotificationCenter isOpen={showNotifications} onClose={() => setShowNotifications(false)} />
 
-                <MenuPanel isOpen={showMenu} onOpenChange={setShowMenu} trigger={<Button
-                  variant="ghost"
-                  className={`relative rounded-full transition-all duration-300 ${isCompactMode ? 'h-8 w-8' : 'h-10 w-10'}`}
-                  onDoubleClick={openAccountSwitcher}
-                  onTouchEnd={handleProfileTouchEnd}
-                  aria-label="Profile menu. Double-tap to switch accounts."
-                >
-                      <Avatar className={isCompactMode ? 'h-7 w-7' : ''}>
-                        <AvatarImage src={profile?.avatar_url} />
-                        <AvatarFallback>{profile?.display_name?.[0] || 'U'}</AvatarFallback>
-                      </Avatar>
-                      {isAdmin && <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">
-                          <Shield className="h-3 w-3" />
-                        </Badge>}
-                    </Button>} />
-                <AccountSwitcherSheet open={showAccountSwitcher} onOpenChange={setShowAccountSwitcher} />
-              </> : <Link to="/auth">
-                <Button>Sign In</Button>
-              </Link>}
+              <MenuPanel isOpen={showMenu} onOpenChange={setShowMenu} trigger={<Button
+                variant="ghost"
+                className={`relative rounded-full transition-all duration-300 ${isCompactMode ? 'h-8 w-8' : 'h-10 w-10'}`}
+                onDoubleClick={openAccountSwitcher}
+                onTouchEnd={handleProfileTouchEnd}
+                aria-label="Profile menu. Double-tap to switch accounts."
+              >
+                <Avatar className={isCompactMode ? 'h-7 w-7' : ''}>
+                  <AvatarImage src={profile?.avatar_url} />
+                  <AvatarFallback>{profile?.display_name?.[0] || 'U'}</AvatarFallback>
+                </Avatar>
+                {isAdmin && <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center">
+                  <Shield className="h-3 w-3" />
+                </Badge>}
+              </Button>} />
+              <AccountSwitcherSheet open={showAccountSwitcher} onOpenChange={setShowAccountSwitcher} />
+            </> : <Link to="/auth">
+              <Button>Sign In</Button>
+            </Link>}
           </div>
         </div>
       </div>
-    </nav>;
+    </nav>
+  );
 };
 export default Navigation;

@@ -1049,8 +1049,6 @@ const MessagesPage = () => {
                   onArchive={() => archiveChat(chat.id, filterTab !== 'archived')}
                   isArchived={archivedChatIds.includes(chat.id)}
                   onDelete={() => setDeleteTarget({ id: chat.id, name: name })}
-
-                  // ADD THESE TWO LINES:
                   hasShowcase={true}
                   onShowcaseClick={() => navigate(`/showcase/${otherP?.user_id}`)}
                 />
