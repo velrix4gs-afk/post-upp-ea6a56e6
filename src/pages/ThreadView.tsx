@@ -153,6 +153,7 @@ export const ThreadView = () => {
                     src={url}
                     controls
                     playsInline
+                    preload="metadata"
                     className="w-full rounded-2xl border border-border bg-black"
                   />
                 ) : (

@@ -184,6 +184,7 @@ const StarredMessagesPage = () => {
                               src={message.media_url}
                               className="rounded-lg max-w-xs max-h-48"
                               controls
+                              preload="metadata"
                             />
                           ) : null}
                         </div>

@@ -62,6 +62,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useEntitlements } from '@/hooks/useEntitlements';
+import { useStories } from '@/hooks/useShowcases';
+import ShowcaseViewer from '@/components/ShowcaseViewer';
 import { buildContactShare, contactSharePreview, type SharedContact } from '@/lib/contactShare';
 import { formatCallRecord, parseCallRecord } from '@/lib/callRecord';
 import { showcaseReplyPreview } from '@/lib/showcaseReply';
@@ -85,6 +87,8 @@ const formatLastMessagePreview = (text?: string): string | undefined => {
 const MessagesPage = () => {
   const navigate = useNavigate();
   const entitlements = useEntitlements();
+  const { stories } = useStories();
+  const [showcaseViewerIndex, setShowcaseViewerIndex] = useState<number | null>(null);
   const openWallpaper = () => {
     if (!entitlements.chatWallpaper) {
       toast({ title: 'Premium feature', description: 'Custom chat wallpapers are part of a Premium plan.' });
@@ -1049,8 +1053,12 @@ const MessagesPage = () => {
                   onArchive={() => archiveChat(chat.id, filterTab !== 'archived')}
                   isArchived={archivedChatIds.includes(chat.id)}
                   onDelete={() => setDeleteTarget({ id: chat.id, name: name })}
-                  hasShowcase={true}
-                  onShowcaseClick={() => navigate(`/showcase/${otherP?.user_id}`)}
+                  hasShowcase={otherP?.user_id ? stories.some(s => s.user_id === otherP.user_id) : false}
+                  onShowcaseClick={() => {
+                    if (!otherP?.user_id) return;
+                    const idx = stories.findIndex(s => s.user_id === otherP.user_id);
+                    if (idx >= 0) setShowcaseViewerIndex(idx);
+                  }}
                 />
               );
             })}
@@ -1305,7 +1313,7 @@ const MessagesPage = () => {
           {imagePreview && (
             <div className="px-3 py-2 flex items-center gap-3 bg-muted/40 animate-slide-up">
               {isVideo ? (
-                <video src={imagePreview} className="h-16 w-24 object-cover rounded-lg" />
+                <video src={imagePreview} className="h-16 w-24 object-cover rounded-lg" preload="metadata" />
               ) : (
                 <img src={imagePreview} alt="Preview" className="h-16 w-16 object-cover rounded-lg" />
               )}
@@ -1654,6 +1662,18 @@ const MessagesPage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {showcaseViewerIndex !== null && (
+        <ShowcaseViewer
+          stories={stories}
+          currentIndex={showcaseViewerIndex}
+          onClose={() => setShowcaseViewerIndex(null)}
+          onNext={() => setShowcaseViewerIndex(prev => (prev !== null ? Math.min(prev + 1, stories.length - 1) : null))}
+          onPrevious={() => setShowcaseViewerIndex(prev => (prev !== null ? Math.max(prev - 1, 0) : null))}
+          onReply={async () => { toast({ description: 'Sent' }); return true; }}
+          canReply={false}
+        />
+      )}
     </div>
   );
 };

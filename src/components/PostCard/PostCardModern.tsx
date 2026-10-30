@@ -254,7 +254,7 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
               </div>
             ) : (
               <div className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
-                <p className={cn(!expanded && "line-clamp-3")}>{renderInlineTags(captionText)}</p>
+                <p className={cn(!expanded && "line-clamp-3")} style={{ textOverflow: 'clip' }}>{renderInlineTags(captionText)}</p>
                 {captionText.length > 100 && (
                   <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="text-muted-foreground text-sm font-semibold mt-1">
                     {expanded ? 'See less' : 'See more'}

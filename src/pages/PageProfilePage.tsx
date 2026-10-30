@@ -226,7 +226,7 @@ const PageProfilePage = () => {
                     {mediaPreview && (
                       <div className="relative mt-3 rounded-lg overflow-hidden">
                         {mediaFile?.type.startsWith('video/') ? (
-                          <video src={mediaPreview} className="max-h-64 w-full object-cover rounded-lg" controls />
+                          <video src={mediaPreview} className="max-h-64 w-full object-cover rounded-lg" controls preload="metadata" />
                         ) : (
                           <img src={mediaPreview} alt="Preview" className="max-h-64 w-full object-cover rounded-lg" />
                         )}

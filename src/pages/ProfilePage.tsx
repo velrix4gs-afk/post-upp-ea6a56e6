@@ -308,7 +308,7 @@ const ProfilePage = () => {
                         {hasMedia ? (
                           isVideo ? (
                             <div className="w-full h-full relative flex items-center justify-center bg-black/90">
-                              <video src={post.media_url!} className="w-full h-full object-cover opacity-80" muted playsInline />
+                              <video src={post.media_url!} className="w-full h-full object-cover opacity-80" muted playsInline preload="metadata" />
                               <Play className="absolute h-8 w-8 text-white/80 fill-white/80" />
                             </div>
                           ) : (

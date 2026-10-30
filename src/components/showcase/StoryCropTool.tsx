@@ -269,7 +269,7 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-black text-white" style={{ height: '100dvh' }}>
+    <div className="fixed inset-0 z-50 flex flex-col bg-black/80 text-white backdrop-blur-xl" style={{ height: '100dvh' }}>
       <div
         className="flex shrink-0 items-center justify-between px-4 pb-3"
         style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
@@ -307,6 +307,17 @@ export const StoryCropTool = ({ imageUrl, onSave, onClose }: StoryCropToolProps)
               pointerEvents: 'none',
             }}
           />
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-50 pointer-events-none">
+            <div className="border-r border-b border-white/30"></div>
+            <div className="border-r border-b border-white/30"></div>
+            <div className="border-b border-white/30"></div>
+            <div className="border-r border-b border-white/30"></div>
+            <div className="border-r border-b border-white/30"></div>
+            <div className="border-b border-white/30"></div>
+            <div className="border-r border-white/30"></div>
+            <div className="border-r border-white/30"></div>
+            <div></div>
+          </div>
           {!loaded && !saveError && <div className="absolute inset-0 animate-pulse bg-white/10" />}
         </div>
       </div>

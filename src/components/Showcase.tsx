@@ -189,16 +189,16 @@ const Showcase = () => {
         {/* Always offer a way to post, whether or not you have an active item.
               Without this the tray was read-only and posting meant finding the
               create menu. */}
-        <div className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
+        <div className="flex w-[60px] shrink-0 snap-start flex-col items-center gap-1">
           <button
             type="button"
-            className="relative grid h-[68px] w-[68px] place-items-center rounded-full border-2 border-dashed border-primary/60 bg-primary/10 transition-transform duration-200 hover:scale-105 active:scale-95"
+            className="relative grid h-[52px] w-[52px] place-items-center rounded-full border-2 border-dashed border-primary/60 bg-primary/10 transition-transform duration-200 hover:scale-105 active:scale-95"
             onClick={() => navigate('/create/showcase')}
             aria-label="Add to your Showcase"
           >
-            <Plus className="h-6 w-6 text-primary" aria-hidden="true" />
+            <Plus className="h-5 w-5 text-primary" aria-hidden="true" />
           </button>
-          <span className="max-w-full truncate text-[11px] font-medium text-primary">
+          <span className="max-w-full truncate text-[10px] font-medium text-primary">
             Your Showcase
           </span>
         </div>
@@ -211,10 +211,10 @@ const Showcase = () => {
           // the whole Showcase strip.
           const displayName = story.profiles?.display_name || story.profiles?.username || 'User';
           return (
-            <div key={userId} className="flex w-[76px] shrink-0 snap-start flex-col items-center gap-1.5">
+            <div key={userId} className="flex w-[60px] shrink-0 snap-start flex-col items-center gap-1">
               <button
                 type="button"
-                className="relative h-[68px] w-[68px] rounded-full bg-gradient-to-br from-primary via-accent to-primary p-[2.5px] transition-transform duration-200 hover:scale-105 active:scale-95"
+                className="relative h-[52px] w-[52px] rounded-full bg-gradient-to-br from-primary via-accent to-primary p-[2px] transition-transform duration-200 hover:scale-105 active:scale-95"
                 onClick={() => handleStoryClick(firstStory)}
                 aria-label={`Open ${displayName}'s Showcase, ${userStories.length} active ${userStories.length === 1 ? 'item' : 'items'}`}
               >
@@ -222,17 +222,17 @@ const Showcase = () => {
                   {story.media_url && story.media_type !== 'video' && (
                     <AvatarImage src={story.media_url} alt="" className="object-cover" />
                   )}
-                  <AvatarFallback className="bg-gradient-to-br from-primary/30 via-accent/20 to-background text-base font-semibold">
+                  <AvatarFallback className="bg-gradient-to-br from-primary/30 via-accent/20 to-background text-sm font-semibold">
                     {displayName[0]?.toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
                 {userStories.length > 1 && (
-                  <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full border-2 border-background bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                  <span className="absolute -right-0.5 -top-0.5 grid h-4 min-w-4 place-items-center rounded-full border-2 border-background bg-primary px-1 text-[9px] font-bold text-primary-foreground">
                     {userStories.length}
                   </span>
                 )}
               </button>
-              <span className="max-w-full truncate text-[11px] text-muted-foreground">{isOwnStory ? 'You' : displayName}</span>
+              <span className="max-w-full truncate text-[10px] text-muted-foreground">{isOwnStory ? 'You' : displayName}</span>
             </div>
           );
         })}

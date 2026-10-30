@@ -193,6 +193,7 @@ export const VideoEditorDialog = ({ file, open, onOpenChange, onDone }: Props) =
               ref={videoRef}
               src={url}
               playsInline
+              preload="metadata"
               className="h-full w-full object-cover"
               onLoadedMetadata={onMeta}
               onTimeUpdate={onTime}

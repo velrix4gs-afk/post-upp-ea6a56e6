@@ -188,6 +188,7 @@ const ChatMediaPage = () => {
                       <video
                         src={item.media_url}
                         controls
+                        preload="metadata"
                         className="w-full aspect-video rounded-lg"
                       />
                       <div className="mt-2 text-sm text-muted-foreground">

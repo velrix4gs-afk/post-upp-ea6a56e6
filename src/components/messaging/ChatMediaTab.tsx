@@ -171,6 +171,7 @@ export const ChatMediaTab = ({ chatId, open, onOpenChange }: ChatMediaTabProps) 
                   <video
                     src={item.media_url || undefined}
                     controls
+                    preload="metadata"
                     className="w-full h-full object-cover"
                   />
                 </div>

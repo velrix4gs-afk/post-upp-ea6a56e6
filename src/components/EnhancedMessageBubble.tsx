@@ -250,7 +250,7 @@ export const EnhancedMessageBubble = ({
                             {isImageOnly && <div className="absolute bottom-1.5 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-card/85 text-card-foreground text-[11px] backdrop-blur-sm"><span>{new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span><ReadReceiptIndicator status={status} isOwn={isOwn} /></div>}
                           </div>
                         ) : mediaType?.startsWith('video') || mediaType === 'video' ? (
-                          <video controls src={mediaUrl} className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted" />
+                          <video controls preload="metadata" src={mediaUrl} className="rounded-2xl w-[min(76vw,320px)] max-h-[340px] bg-muted" />
                         ) : mediaType?.startsWith('audio') || mediaType === 'audio' ? (
                           <VoiceMessagePlayer audioUrl={mediaUrl} isOwn={isOwn} avatarUrl={showSenderAvatar ? sender.avatar_url : undefined} fallbackName={showSenderAvatar ? (sender.display_name || sender.username) : undefined} />
                         ) : (

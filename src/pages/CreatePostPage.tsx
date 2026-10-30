@@ -170,7 +170,7 @@ const CreatePostPage = () => {
               <div className="w-full max-w-sm">
                 <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-black">
                   {selectedMedia[0]?.type.startsWith('video/') ? (
-                    <video src={previewMedia[0]} className="h-full w-full object-cover" autoPlay loop controls playsInline />
+                    <video src={previewMedia[0]} className="h-full w-full object-cover" autoPlay loop controls playsInline preload="metadata" />
                   ) : (
                     <img src={previewMedia[0]} className="h-full w-full object-cover" />
                   )}
@@ -182,7 +182,7 @@ const CreatePostPage = () => {
                     {previewMedia.slice(1).map((url, i) => (
                       <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                         {selectedMedia[i + 1]?.type.startsWith('video/') ? (
-                          <video src={url} className="h-full w-full object-cover" muted />
+                          <video src={url} className="h-full w-full object-cover" muted preload="metadata" />
                         ) : (
                           <img src={url} className="h-full w-full object-cover" />
                         )}

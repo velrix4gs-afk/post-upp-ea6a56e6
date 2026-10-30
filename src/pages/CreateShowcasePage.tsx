@@ -497,7 +497,7 @@ const CreateShowcasePage = () => {
             <video
               src={mediaPreview!}
               className="absolute inset-0 w-full h-full object-contain"
-              autoPlay loop muted playsInline
+              autoPlay loop muted playsInline preload="metadata"
             />
           ) : (
             <img
@@ -639,7 +639,7 @@ const CreateShowcasePage = () => {
                   {mediaType === 'image' ? (
                     <img src={mediaPreview!} alt="" className="w-full h-full object-cover" style={{ filter: f.css }} draggable={false} />
                   ) : (
-                    <video src={mediaPreview!} className="w-full h-full object-cover" style={{ filter: f.css }} muted playsInline />
+                    <video src={mediaPreview!} className="w-full h-full object-cover" style={{ filter: f.css }} muted playsInline preload="metadata" />
                   )}
                 </div>
                 <span className={cn('text-[11px]', selectedFilter === f.id ? 'text-primary font-semibold' : 'text-white/70')}>
