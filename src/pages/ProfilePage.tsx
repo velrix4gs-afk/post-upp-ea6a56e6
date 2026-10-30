@@ -80,8 +80,10 @@ const ProfilePage = () => {
   const [showFollowingDialog, setShowFollowingDialog] = useState(false);
   const [showAvatarViewer, setShowAvatarViewer] = useState(false);
   const [showCoverViewer, setShowCoverViewer] = useState(false);
+
   const [followActionBusy, setFollowActionBusy] = useState(false);
   const [messageActionBusy, setMessageActionBusy] = useState(false);
+  const [optimisticFollow, setOptimisticFollow] = useState<boolean | null>(null);
 
   const handleProfileEditClose = () => {
     setShowProfileEdit(false);
@@ -91,17 +93,29 @@ const ProfilePage = () => {
   const userPosts = posts.filter(post => post.user_id === profileUserId);
   const pinnedPosts = userPosts.filter(post => pinnedPostIds.includes(post.id));
   const regularPosts = userPosts.filter(post => !pinnedPostIds.includes(post.id));
-  const allPosts = [...pinnedPosts, ...regularPosts]; // For the grid
+  const allPosts = [...pinnedPosts, ...regularPosts];
 
   const isFollowing = viewerFollowing.some(f => f.following_id === profileUserId);
   const hasFollowRequest = viewerPendingFollowing.some(f => f.following_id === profileUserId);
 
+  // Use optimistic state if it exists, otherwise fall back to DB state
+  const currentlyFollowing = optimisticFollow !== null ? optimisticFollow : isFollowing;
+
   const handleFollowToggle = async () => {
     if (!profileUserId || followActionBusy) return;
     setFollowActionBusy(true);
+
+    const nextState = !currentlyFollowing;
+    setOptimisticFollow(nextState); // Instantly update UI
+
     try {
-      if (isFollowing || hasFollowRequest) await unfollowViewer(profileUserId);
-      else await followViewer(profileUserId, profile?.is_private || false);
+      if (nextState) {
+        await followViewer(profileUserId, profile?.is_private || false);
+      } else {
+        await unfollowViewer(profileUserId);
+      }
+    } catch (error) {
+      setOptimisticFollow(null); // Revert on failure
     } finally {
       setFollowActionBusy(false);
     }
@@ -223,9 +237,9 @@ const ProfilePage = () => {
                 </Button>
               ) : (
                 <>
-                  <Button variant={isFollowing || hasFollowRequest ? "secondary" : "default"} size="sm" onClick={handleFollowToggle} disabled={followActionBusy} className="flex-1 sm:flex-none h-8 rounded-lg font-semibold text-xs">
+                  <Button variant={currentlyFollowing || hasFollowRequest ? "secondary" : "default"} size="sm" onClick={handleFollowToggle} disabled={followActionBusy} className="flex-1 sm:flex-none h-8 rounded-lg font-semibold text-xs">
                     {followActionBusy ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
-                    {isFollowing ? 'Following' : hasFollowRequest ? 'Requested' : 'Follow'}
+                    {currentlyFollowing ? 'Following' : hasFollowRequest ? 'Requested' : 'Follow'}
                   </Button>
                   <Button variant="secondary" size="sm" onClick={handleMessage} disabled={messageActionBusy} className="h-8 rounded-lg font-semibold text-xs">
                     Message

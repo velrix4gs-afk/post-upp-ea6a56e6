@@ -84,9 +84,7 @@ const extractLinkPreview = (content: string) => {
         domain: url.hostname.replace('www.', ''),
         title: url.hostname.replace('www.', '').split('.')[0].charAt(0).toUpperCase() + url.hostname.replace('www.', '').split('.')[0].slice(1)
       };
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   }
   return null;
 };
@@ -104,49 +102,40 @@ const formatRelativeTime = (dateString: string) => {
   return format(date, 'MMM d');
 };
 
-const PostCardModernComponent = ({
-  post
-}: PostCardModernProps) => {
-  const {
-    user
-  } = useAuth();
-  const {
-    updatePost,
-    deletePost
-  } = usePosts();
-  const {
-    toggleBookmark,
-    isBookmarked
-  } = useBookmarks();
-  const {
-    followUser,
-    unfollowUser,
-    following
-  } = useFollowers();
-  const {
-    blockUser
-  } = useBlockedUsers();
-  const {
-    toggleRepost,
-    isReposted
-  } = useReposts();
-  const {
-    pinPost,
-    unpinPost,
-    isPinned
-  } = usePinnedPosts();
-  const {
-    userReaction,
-    reactionCounts,
-    toggleReaction: handleReactionToggle,
-    getTotalReactions
-  } = useReactions(post.id);
+// Text-only post color themes
+const textPostThemes = [
+  { bg: 'bg-[#1877F2]', text: 'text-white' },       // POST-UPP Blue
+  { bg: 'bg-[#28443F]', text: 'text-[#F2FD7D]' },   // Deep Teal
+  { bg: 'bg-[#F2FD7D]', text: 'text-[#28443F]' },   // Lemon Yellow
+  { bg: 'bg-[#DFE8E6]', text: 'text-[#A0430A]' },   // Sea Mist
+  { bg: 'bg-[#614D70]', text: 'text-[#F4F5F3]' },   // Mulled Wine
+];
+
+const getThemeForPost = (id: string) => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return textPostThemes[Math.abs(hash) % textPostThemes.length];
+};
+
+const PostCardModernComponent = ({ post }: PostCardModernProps) => {
+  const { user } = useAuth();
+  const { updatePost, deletePost } = usePosts();
+  const { toggleBookmark, isBookmarked } = useBookmarks();
+  const { followUser, unfollowUser, following } = useFollowers();
+  const { blockUser } = useBlockedUsers();
+  const { toggleRepost, isReposted } = useReposts();
+  const { pinPost, unpinPost, isPinned } = usePinnedPosts();
+  const { userReaction, reactionCounts, toggleReaction: handleReactionToggle, getTotalReactions } = useReactions(post.id);
   const navigate = useNavigate();
   const topComment = useTopComment(post.id, post.comments_count);
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
+
   const mediaItems: string[] = (post.media_urls && post.media_urls.length > 0 ? post.media_urls : post.media_url ? [post.media_url] : []) as string[];
   const initialMedia = mediaItems;
   const [editMedia, setEditMedia] = useState<string[]>(initialMedia);
@@ -159,6 +148,7 @@ const PostCardModernComponent = ({
       return next;
     });
   });
+
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [localReactionCount, setLocalReactionCount] = useState(post.reactions_count);
   const [localRepostCount, setLocalRepostCount] = useState(post.shares_count || 0);
@@ -174,18 +164,22 @@ const PostCardModernComponent = ({
     const r = img.getBoundingClientRect();
     setGalleryOriginRect({ top: r.top, left: r.left, width: r.width, height: r.height });
   };
+
   const [showComments, setShowComments] = useState(false);
   const [isLikeAnimating, setIsLikeAnimating] = useState(false);
   const isOwner = user?.id === post.author_id;
   const isFollowingAuthor = following.some(f => f.following?.id === post.author_id);
   const isPagePost = !!post.page_id;
+
   const displayName = isPagePost ? (post.page_name || post.author_name) : post.author_name;
   const displayAvatar = isPagePost ? (post.page_avatar || post.author_avatar) : post.author_avatar;
   const displayUsername = isPagePost ? post.page_username : post.author_username;
   const displayVerified = isPagePost ? post.page_is_verified : post.is_verified;
   const linkPreview = extractLinkPreview(post.content || '');
 
-  // Silent interest tracking (docs/FEED_ALGORITHM.md v1) — no visible effect.
+  const isTextOnly = mediaItems.length === 0 && !!post.content;
+  const postTheme = getThemeForPost(post.id);
+
   const dwell = useDwellTracker({
     postId: post.id,
     authorId: post.author_id,
@@ -193,49 +187,12 @@ const PostCardModernComponent = ({
     format: detectPostFormat(post),
   });
 
-  const handleFollowToggle = async () => {
-    if (isFollowingAuthor) {
-      await unfollowUser(post.author_id);
-      toast({
-        title: 'Unfollowed'
-      });
-    } else {
-      dwell.reportFollow();
-      await followUser(post.author_id, false);
-      toast({
-        title: 'Following'
-      });
-    }
-  };
+  const handleMuteUser = () => { toast({ title: 'Mute feature coming soon' }); };
+  const handleReportPost = () => { setShowReportDialog(true); };
+  const handlePinToggle = async () => { if (isPinned(post.id)) await unpinPost(post.id); else await pinPost(post.id); };
+  const handleBlockUser = async () => { await blockUser(post.author_id, 'Blocked from post'); toast({ title: 'User Blocked' }); };
 
-  const handleMuteUser = () => {
-    toast({
-      title: 'Mute feature coming soon'
-    });
-  };
-
-  const handleReportPost = () => {
-    setShowReportDialog(true);
-  };
-
-  const handlePinToggle = async () => {
-    if (isPinned(post.id)) {
-      await unpinPost(post.id);
-    } else {
-      await pinPost(post.id);
-    }
-  };
-
-  const handleBlockUser = async () => {
-    await blockUser(post.author_id, 'Blocked from post');
-    toast({
-      title: 'User Blocked'
-    });
-  };
-
-  useEffect(() => {
-    setLocalReactionCount(getTotalReactions());
-  }, [reactionCounts]);
+  useEffect(() => { setLocalReactionCount(getTotalReactions()); }, [reactionCounts]);
 
   const handleEdit = async () => {
     if (!editContent.trim() && editMedia.length === 0) return;
@@ -246,9 +203,7 @@ const PostCardModernComponent = ({
       media_type: editMedia.length > 1 ? 'multiple' : editMedia.length === 1 ? 'image' : null
     } as any);
     setShowEditDialog(false);
-    toast({
-      title: "Post updated"
-    });
+    toast({ title: "Post updated" });
   };
 
   const handleEditMediaUpload = async (files: File[]) => {
@@ -259,39 +214,22 @@ const PostCardModernComponent = ({
       for (const file of files) {
         const ext = file.name.split('.').pop() || 'jpg';
         const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from('posts').upload(path, file, {
-          contentType: file.type,
-          upsert: false
-        });
+        const { error } = await supabase.storage.from('posts').upload(path, file, { contentType: file.type, upsert: false });
         if (error) throw error;
         const { data } = supabase.storage.from('posts').getPublicUrl(path);
         uploaded.push(data.publicUrl);
       }
       setEditMedia(prev => [...prev, ...uploaded]);
-    } catch (e) {
-      toast({ title: 'Upload failed', variant: 'destructive' });
-    } finally {
-      setUploadingMedia(false);
-    }
+    } catch (e) { toast({ title: 'Upload failed', variant: 'destructive' }); } finally { setUploadingMedia(false); }
   };
 
-  const handleDelete = async () => {
-    await deletePost(post.id);
-    setShowDeleteDialog(false);
-    toast({
-      title: "Post deleted"
-    });
-  };
+  const handleDelete = async () => { await deletePost(post.id); setShowDeleteDialog(false); toast({ title: "Post deleted" }); };
 
   const handleRepost = async () => {
     if (!user) return;
     const wasReposted = isReposted(post.id);
     setLocalRepostCount(prev => wasReposted ? Math.max(0, prev - 1) : prev + 1);
-    try {
-      await toggleRepost(post.id);
-    } catch (error) {
-      setLocalRepostCount(post.shares_count || 0);
-    }
+    try { await toggleRepost(post.id); } catch (error) { setLocalRepostCount(post.shares_count || 0); }
   };
 
   const handleLikeWithAnimation = async () => {
@@ -302,114 +240,54 @@ const PostCardModernComponent = ({
     setTimeout(() => setIsLikeAnimating(false), 300);
   };
 
-  const handleShare = () => {
-    dwell.reportShare();
-    setShowShareDialog(true);
-  };
-
-  const handleBookmarkToggle = () => {
-    dwell.reportBookmark();
-    toggleBookmark(post.id);
-  };
-
-  const handleCommentsToggle = () => {
-    if (!showComments) dwell.reportCommentExpand();
-    setShowComments(!showComments);
-  };
+  const handleShare = () => { dwell.reportShare(); setShowShareDialog(true); };
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (
-      target.closest('button') ||
-      target.closest('a') ||
-      target.closest('[role="button"]') ||
-      target.closest('[role="menu"]') ||
-      target.closest('[role="dialog"]') ||
-      target.closest('[data-radix-popper-content-wrapper]') ||
-      target.closest('video') ||
-      target.closest('audio') ||
-      target.closest('[data-media]')
-    ) {
-      return;
-    }
-    // Guard: if any Radix overlay (popover/dropdown/dialog) is currently open,
-    // this click is the outside-dismiss for that overlay — do NOT also navigate.
-    if (document.querySelector('[data-radix-popper-content-wrapper] [data-state="open"], [data-state="open"][role="dialog"]')) {
-      return;
-    }
+      target.closest('button') || target.closest('a') || target.closest('[role="button"]') ||
+      target.closest('[role="menu"]') || target.closest('[role="dialog"]') ||
+      target.closest('[data-radix-popper-content-wrapper]') || target.closest('video') ||
+      target.closest('audio') || target.closest('[data-media]')
+    ) return;
+    if (document.querySelector('[data-radix-popper-content-wrapper] [data-state="open"], [data-state="open"][role="dialog"]')) return;
     navigate(`/post/${post.id}`);
   };
 
-  // Parse content for @mentions and #hashtags
   const renderContent = (text: string) => {
     if (!text) return null;
-
-    // Remove URL if we're showing link preview
     let displayText = text;
-    if (linkPreview) {
-      displayText = text.replace(linkPreview.url, '').trim();
-    }
+    if (linkPreview) displayText = text.replace(linkPreview.url, '').trim();
     const parts = displayText.split(/(@\w+|#\w+)/g);
     return parts.map((part, index) => {
-      if (part.startsWith('@')) {
-        return <button key={index} onClick={e => {
-          e.stopPropagation();
-          // Navigate to user profile
-        }} className="text-primary hover:underline font-medium">
-          {part}
-        </button>;
-      }
+      if (part.startsWith('@')) return <button key={index} onClick={e => { e.stopPropagation(); }} className="text-primary hover:underline font-medium">{part}</button>;
       if (part.startsWith('#')) {
         const tag = part.slice(1);
-        return <button key={index} onClick={e => {
-          e.stopPropagation();
-          navigate(`/hashtag/${tag}`);
-        }} className="text-primary hover:underline font-medium">
-          {part}
-        </button>;
+        return <button key={index} onClick={e => { e.stopPropagation(); navigate(`/hashtag/${tag}`); }} className="text-primary hover:underline font-medium">{part}</button>;
       }
       return <span key={index}>{part}</span>;
     });
   };
 
-  // Get initials for avatar fallback with color
-  const getAvatarFallback = () => {
-    const name = displayName || 'U';
-    return name.charAt(0).toUpperCase();
-  };
-
+  const getAvatarFallback = () => { const name = displayName || 'U'; return name.charAt(0).toUpperCase(); };
   const handleAuthorClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isPagePost && post.page_username) {
-      navigate(`/page/${post.page_username}`);
-    } else {
-      // Prefer the username the post already carries; fall back to the id.
-      navigate(profilePathFor(post.author_id, post.author_username));
-    }
+    if (isPagePost && post.page_username) navigate(`/page/${post.page_username}`);
+    else navigate(profilePathFor(post.author_id, post.author_username));
   };
 
   return <TooltipProvider>
     <>
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Post</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this post? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction>
-          </AlertDialogFooter>
+          <AlertDialogHeader><AlertDialogTitle>Delete Post</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this post? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Post</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Edit Post</DialogTitle></DialogHeader>
           <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
           {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
             {editMedia.map((url, i) => {
@@ -417,63 +295,30 @@ const PostCardModernComponent = ({
               return <div key={url + i} {...dragProps} className={cn("relative rounded-lg overflow-hidden bg-muted aspect-square touch-none", dragClass)}>
                 <img src={url} alt="Post media" className="w-full h-full object-cover" />
                 <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 text-[10px] text-foreground">{i + 1}</span>
-                <button
-                  type="button"
-                  onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))}
-                  className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs"
-                  aria-label="Remove image"
-                >
-                  ✕
-                </button>
+                <button type="button" onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs">✕</button>
               </div>;
             })}
           </div>}
-          {editMedia.length > 1 && <p className="text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>}
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 text-sm text-primary"
-            onClick={() => setShowEditGallery(true)}
-          >
-            {uploadingMedia ? 'Uploading…' : 'Add / change photos'}
-          </button>
-          <GalleryPickerSheet
-            open={showEditGallery}
-            onOpenChange={setShowEditGallery}
-            multiple
-            title="Add to your post"
-            onSelect={(file) => handleEditMediaUpload([file])}
-            onSelectMany={(files) => handleEditMediaUpload(files)}
-          />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button>
-            <Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button>
-          </div>
+          <button type="button" className="inline-flex items-center gap-2 text-sm text-primary" onClick={() => setShowEditGallery(true)}>{uploadingMedia ? 'Uploading…' : 'Add / change photos'}</button>
+          <GalleryPickerSheet open={showEditGallery} onOpenChange={setShowEditGallery} multiple title="Add to your post" onSelect={(file) => handleEditMediaUpload([file])} onSelectMany={(files) => handleEditMediaUpload(files)} />
+          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button><Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button></div>
         </DialogContent>
       </Dialog>
 
       <Card ref={dwell.targetRef} data-feed-card data-dwell-seconds="0" className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
-        {/* Pinned indicator */}
-        {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs">
-          <Pin className="h-3 w-3" />
-          <span>Pinned post</span>
-        </div>}
+
+        {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs"><Pin className="h-3 w-3" /><span>Pinned post</span></div>}
 
         {/* Post Header */}
         <div className="flex items-start gap-3 px-4 py-2">
           {isPagePost ? (
             <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
-              <AvatarImage src={displayAvatar} />
-              <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                {getAvatarFallback()}
-              </AvatarFallback>
+              <AvatarImage src={displayAvatar} /><AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getAvatarFallback()}</AvatarFallback>
             </Avatar>
           ) : (
             <ProfileHoverCard userId={post.author_id}>
               <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
-                <AvatarImage src={displayAvatar} />
-                <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                  {getAvatarFallback()}
-                </AvatarFallback>
+                <AvatarImage src={displayAvatar} /><AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getAvatarFallback()}</AvatarFallback>
               </Avatar>
             </ProfileHoverCard>
           )}
@@ -481,14 +326,12 @@ const PostCardModernComponent = ({
           <div className="flex-1 min-w-0">
             {isPagePost ? (
               <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                {displayName}
-                {displayVerified && <VerificationBadge isVerified={true} />}
+                {displayName}{displayVerified && <VerificationBadge isVerified={true} />}
               </button>
             ) : (
               <ProfileHoverCard userId={post.author_id}>
                 <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                  {displayName}
-                  <VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
+                  {displayName}<VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
                 </button>
               </ProfileHoverCard>
             )}
@@ -498,90 +341,53 @@ const PostCardModernComponent = ({
 
             <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
               <Tooltip>
-                <TooltipTrigger asChild>
-                  <span className="hover:underline cursor-default">
-                    {formatRelativeTime(post.created_at)}
-                  </span>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p>
-                </TooltipContent>
+                <TooltipTrigger asChild><span className="hover:underline cursor-default">{formatRelativeTime(post.created_at)}</span></TooltipTrigger>
+                <TooltipContent><p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p></TooltipContent>
               </Tooltip>
             </div>
           </div>
 
-          {/* Follow button - only show if not following and not the owner */}
-          {!isOwner && user && !isFollowingAuthor && <Button variant="default" size="sm" className="h-7 px-3 rounded-full text-xs font-semibold bg-primary hover:bg-primary/90" onClick={e => {
-            e.stopPropagation();
-            handleFollowToggle();
-          }}>
-            Follow
-          </Button>}
-
           {/* More options menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}>
-                <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
-              </Button>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}><MoreHorizontal className="h-5 w-5 text-muted-foreground" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {isOwner ? <>
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  handlePinToggle();
-                }}>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); handlePinToggle(); }}>
                   {isPinned(post.id) ? <><PinOff className="h-4 w-4 mr-2" />Unpin from Profile</> : <><Pin className="h-4 w-4 mr-2" />Pin to Profile</>}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  setShowEditDialog(true);
-                }}>
-                  <Pencil className="h-4 w-4 mr-2" />Edit Post
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  setShowDeleteDialog(true);
-                }} className="text-destructive focus:text-destructive">
-                  <Trash2 className="h-4 w-4 mr-2" />Delete Post
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); setShowEditDialog(true); }}><Pencil className="h-4 w-4 mr-2" />Edit Post</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); setShowDeleteDialog(true); }} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete Post</DropdownMenuItem>
               </> : <>
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  navigate(profilePathFor(post.author_id, post.author_username));
-                }}>
-                  <UserCircle className="h-4 w-4 mr-2" />View Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  toggleBookmark(post.id);
-                }}>
-                  <Bookmark className="h-4 w-4 mr-2" />Save Post
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); navigate(profilePathFor(post.author_id, post.author_username)); }}><UserCircle className="h-4 w-4 mr-2" />View Profile</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); toggleBookmark(post.id); }}><Bookmark className="h-4 w-4 mr-2" />Save Post</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  handleMuteUser();
-                }}>
-                  <BellOff className="h-4 w-4 mr-2" />Mute User
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  handleReportPost();
-                }} className="text-destructive">
-                  <AlertCircle className="h-4 w-4 mr-2" />Report Post
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={e => {
-                  e.stopPropagation();
-                  handleBlockUser();
-                }} className="text-destructive">
-                  <Ban className="h-4 w-4 mr-2" />Block User
-                </DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleMuteUser(); }}><BellOff className="h-4 w-4 mr-2" />Mute User</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleReportPost(); }} className="text-destructive"><AlertCircle className="h-4 w-4 mr-2" />Report Post</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleBlockUser(); }} className="text-destructive"><Ban className="h-4 w-4 mr-2" />Block User</DropdownMenuItem>
               </>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* Caption FIRST (if text or has caption) */}
+        {post.content && (
+          <div className={cn("px-4 pb-3", isTextOnly && "mt-2")}>
+            {isTextOnly ? (
+              // Text-only background theme
+              <div className={cn("rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-[200px]", postTheme.bg, postTheme.text)}>
+                <p className="text-xl font-semibold leading-relaxed whitespace-pre-wrap">{post.content}</p>
+              </div>
+            ) : (
+              // Regular caption
+              <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
+                {renderContent(post.content)}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Media - Edge to Edge */}
         {mediaItems.length === 1 && (
@@ -590,18 +396,9 @@ const PostCardModernComponent = ({
               <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
             ) : (
               <div className="cursor-pointer hover:opacity-95 transition" onClick={e => {
-                e.stopPropagation();
-                captureOriginRect(e.currentTarget as HTMLElement);
-                setGalleryImages(mediaItems);
-                setGalleryStartIndex(0);
-                setShowImageGallery(true);
+                e.stopPropagation(); captureOriginRect(e.currentTarget as HTMLElement); setGalleryImages(mediaItems); setGalleryStartIndex(0); setShowImageGallery(true);
               }}>
-                <img
-                  src={mediaItems[0]}
-                  alt="Post media"
-                  className="w-full h-auto max-h-[500px] object-cover"
-                  loading="lazy"
-                />
+                <img src={mediaItems[0]} alt="Post media" className="w-full h-auto max-h-[500px] object-cover" loading="lazy" />
               </div>
             )}
           </div>
@@ -618,72 +415,35 @@ const PostCardModernComponent = ({
                         <VideoViewer videoUrl={url} playOnFocus objectFit="cover" />
                       </div>
                     ) : (
-                      <div
-                        className="relative w-full h-[300px] sm:h-[400px] flex items-center justify-center overflow-hidden bg-black cursor-pointer"
-                        onClick={e => {
-                          captureOriginRect(e.currentTarget as HTMLElement);
-                          setGalleryImages(mediaItems.filter(m => !isVideoUrl(m)));
-                          setGalleryStartIndex(i);
-                          setShowImageGallery(true);
-                        }}
-                      >
-                        {/* Ambient Blur */}
-                        <img
-                          src={url}
-                          alt=""
-                          aria-hidden="true"
-                          className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 select-none pointer-events-none"
-                        />
-                        {/* Sharp Image */}
-                        <img
-                          src={url}
-                          alt={`Post media ${i + 1}`}
-                          className="relative z-10 max-h-full max-w-full object-contain"
-                          loading="lazy"
-                        />
-                        {/* Sleek Pill Counter */}
-                        <div className="absolute top-2.5 right-2.5 z-20 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-wide pointer-events-none">
-                          {i + 1} / {mediaItems.length}
-                        </div>
+                      <div className="relative w-full h-[300px] sm:h-[400px] flex items-center justify-center overflow-hidden bg-black cursor-pointer" onClick={e => {
+                        captureOriginRect(e.currentTarget as HTMLElement); setGalleryImages(mediaItems.filter(m => !isVideoUrl(m))); setGalleryStartIndex(i); setShowImageGallery(true);
+                      }}>
+                        <img src={url} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 select-none pointer-events-none" />
+                        <img src={url} alt={`Post media ${i + 1}`} className="relative z-10 max-h-full max-w-full object-contain" loading="lazy" />
+                        <div className="absolute top-2.5 right-2.5 z-20 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-wide pointer-events-none">{i + 1} / {mediaItems.length}</div>
                       </div>
                     )}
                   </CarouselItem>
                 ))}
               </CarouselContent>
-              <CarouselPrevious className="left-2 z-30" />
-              <CarouselNext className="right-2 z-30" />
+              <CarouselPrevious className="left-2 z-30" /><CarouselNext className="right-2 z-30" />
             </Carousel>
           </div>
         )}
 
-        {/* Action Bar - Icons Only */}
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-4">
+        {/* Action Bar - BIGGER ICONS */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-5">
             <ClickSpark sparkColor="#ff4d6d" shape="dot" sparkCount={7} sparkSize={9} sparkRadius={22} duration={420}>
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-destructive/10 transition-all">
-                <PulseHeart
-                  liked={userReaction === 'like'}
-                  count={localReactionCount}
-                  showCount={false}
-                  icon="heart"
-                  size={24}
-                  corner={10}
-                  likedColor="hsl(var(--destructive))"
-                  idleColor="hsl(var(--muted-foreground))"
-                  pillColor="transparent"
-                  textColor="hsl(var(--muted-foreground))"
-                  onChange={() => handleLikeWithAnimation()}
-                />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-destructive/10 transition-all">
+                <PulseHeart liked={userReaction === 'like'} count={localReactionCount} showCount={false} icon="heart" size={28} corner={10} likedColor="hsl(var(--destructive))" idleColor="hsl(var(--muted-foreground))" pillColor="transparent" textColor="hsl(var(--muted-foreground))" onChange={() => handleLikeWithAnimation()} />
               </div>
             </ClickSpark>
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg hover:bg-primary/10" onClick={e => {
-                  e.stopPropagation();
-                  setShowComments(!showComments);
-                }}>
-                  <MessageCircle className="h-5 w-5 text-muted-foreground" />
+                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-lg hover:bg-primary/10" onClick={e => { e.stopPropagation(); setShowComments(!showComments); }}>
+                  <MessageCircle className="h-7 w-7 text-muted-foreground" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Comment on this post</TooltipContent>
@@ -691,11 +451,8 @@ const PostCardModernComponent = ({
 
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className={cn("h-9 w-9 p-0 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => {
-                  e.stopPropagation();
-                  handleRepost();
-                }}>
-                  <Repeat2 className={cn("h-5 w-5", isReposted(post.id) ? "text-success" : "text-muted-foreground")} />
+                <Button variant="ghost" size="sm" className={cn("h-10 w-10 p-0 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => { e.stopPropagation(); handleRepost(); }}>
+                  <Repeat2 className={cn("h-7 w-7", isReposted(post.id) ? "text-success" : "text-muted-foreground")} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Share this post</TooltipContent>
@@ -704,41 +461,21 @@ const PostCardModernComponent = ({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className={cn("h-9 w-9 p-0 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => {
-                e.stopPropagation();
-                toggleBookmark(post.id);
-              }}>
-                <Bookmark className={cn("h-5 w-5", isBookmarked(post.id) ? "fill-current text-warning" : "text-muted-foreground")} />
+              <Button variant="ghost" size="sm" className={cn("h-10 w-10 p-0 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => { e.stopPropagation(); toggleBookmark(post.id); }}>
+                <Bookmark className={cn("h-7 w-7", isBookmarked(post.id) ? "fill-current text-warning" : "text-muted-foreground")} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Save this post</TooltipContent>
           </Tooltip>
         </div>
 
-        {/* Caption */}
-        {post.content && (
-          <div className="px-4 py-1 pb-3">
-            <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
-              <span className="font-semibold cursor-pointer hover:underline mr-1" onClick={handleAuthorClick}>
-                {displayName}
-              </span>
-              {renderContent(post.content)}
-            </p>
-          </div>
-        )}
-
         {/* Link Preview */}
         {linkPreview && (
           <div className="px-4 pb-3" onClick={e => e.stopPropagation()}>
             <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" className="block border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">
               <div className="p-3 flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                  <ExternalLink className="h-5 w-5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p>
-                  <p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p>
-                </div>
+                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0"><ExternalLink className="h-5 w-5 text-muted-foreground" /></div>
+                <div className="flex-1 min-w-0"><p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p><p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p></div>
               </div>
             </a>
           </div>
@@ -746,34 +483,13 @@ const PostCardModernComponent = ({
 
         {/* Top Comment Preview */}
         {topComment && !showComments && (
-          <div
-            className="flex items-start gap-2 px-4 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowComments(true);
-            }}
-          >
-            <Avatar className="h-6 w-6 flex-shrink-0">
-              <AvatarImage src={topComment.user?.avatar_url} />
-              <AvatarFallback className="text-[10px]">
-                {topComment.user?.display_name?.[0] || 'U'}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-start gap-2 px-4 py-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
+            <Avatar className="h-6 w-6 flex-shrink-0"><AvatarImage src={topComment.user?.avatar_url} /><AvatarFallback className="text-[10px]">{topComment.user?.display_name?.[0] || 'U'}</AvatarFallback></Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1">
-                <span className="font-semibold text-xs text-foreground">
-                  {topComment.user?.display_name}
-                </span>
-                <TopCommentBadge
-                  isVerified={topComment.user?.is_verified}
-                  verificationType={topComment.user?.verification_type}
-                />
-                {topComment.likes_count > 0 && (
-                  <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5">
-                    <Heart className="h-2.5 w-2.5 fill-current text-destructive" />
-                    {topComment.likes_count}
-                  </span>
-                )}
+                <span className="font-semibold text-xs text-foreground">{topComment.user?.display_name}</span>
+                <TopCommentBadge isVerified={topComment.user?.is_verified} verificationType={topComment.user?.verification_type} />
+                {topComment.likes_count > 0 && <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5"><Heart className="h-2.5 w-2.5 fill-current text-destructive" />{topComment.likes_count}</span>}
               </div>
               <p className="text-xs text-foreground/80 line-clamp-2">{topComment.content}</p>
             </div>
@@ -781,37 +497,20 @@ const PostCardModernComponent = ({
         )}
 
         {post.comments_count > 1 && !showComments && (
-          <button
-            className="px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowComments(true);
-            }}
-          >
+          <button className="px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
             View all {post.comments_count} comments
           </button>
         )}
-
       </Card>
 
       <SharePostDialog postId={post.id} open={showShareDialog} onOpenChange={setShowShareDialog} />
-
       <ImageGalleryViewer images={galleryImages} initialIndex={galleryStartIndex} open={showImageGallery} onOpenChange={setShowImageGallery} originRect={galleryOriginRect} />
-
       <ReportDialog open={showReportDialog} onOpenChange={setShowReportDialog} contentId={post.id} contentType="post" />
 
       <Sheet open={showComments} onOpenChange={setShowComments}>
-        <SheetContent
-          side="bottom"
-          className="h-[85vh] max-h-[85vh] p-0 flex flex-col rounded-t-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <SheetHeader className="px-4 py-3 border-b border-border">
-            <SheetTitle className="text-base">Comments</SheetTitle>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]">
-            <ThreadedCommentsSection postId={post.id} />
-          </div>
+        <SheetContent side="bottom" className="h-[85vh] max-h-[85vh] p-0 flex flex-col rounded-t-2xl" onClick={(e) => e.stopPropagation()}>
+          <SheetHeader className="px-4 py-3 border-b border-border"><SheetTitle className="text-base">Comments</SheetTitle></SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]"><ThreadedCommentsSection postId={post.id} /></div>
         </SheetContent>
       </Sheet>
     </>

@@ -1,8 +1,8 @@
 import { useRef, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  X, Image as ImageIcon, MapPin, Clock, Save, Globe, Lock, UserCheck,
-  Scissors, Sparkles, Plus, Loader2,
+  X, Image as ImageIcon, MapPin, Clock, Globe, Lock, UserCheck,
+  Scissors, Sparkles, Plus, Loader2, ChevronRight, Users
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -108,7 +108,7 @@ const CreatePostPage = () => {
       if (normalized.size > limitMB * 1024 * 1024) {
         showCleanError({
           code: 'POST_003',
-          message: `${file.name} exceeds your ${formatMB(limitMB)} ${isVideo ? 'video' : 'photo'} limit${entitlements.plan === 'elite' ? '' : ' — upgrade in Premium for bigger uploads'}`,
+          message: `${file.name} exceeds your ${formatMB(limitMB)} ${isVideo ? 'video' : 'photo'} limit`,
         }, toast);
         return [];
       }
@@ -126,7 +126,7 @@ const CreatePostPage = () => {
 
     const availableSlots = Math.max(0, 10 - selectedMedia.length);
     if (uniqueFiles.length > availableSlots) {
-      showCleanError({ code: 'POST_001', message: 'Maximum 10 items per post; added the first remaining items' }, toast);
+      showCleanError({ code: 'POST_001', message: 'Maximum 10 items per post.' }, toast);
     }
     const accepted = uniqueFiles.slice(0, availableSlots);
     setSelectedMedia((prev) => [...prev, ...accepted]);
@@ -162,10 +162,7 @@ const CreatePostPage = () => {
       const { error: uploadError } = await supabase.storage.from('posts').upload(fileName, file, {
         contentType: file.type || undefined,
       });
-      if (uploadError) {
-        console.error('[POST_004] Upload error:', uploadError);
-        throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
-      }
+      if (uploadError) throw new Error(`Failed to upload ${file.name}: ${uploadError.message}`);
       const { data: { publicUrl } } = supabase.storage.from('posts').getPublicUrl(fileName);
       uploadedUrls.push(publicUrl);
       setUploadProgress(Math.round(((i + 1) / files.length) * 100));
@@ -202,10 +199,7 @@ const CreatePostPage = () => {
       let mediaUrls: string[] = [];
       if (selectedMedia.length > 0) {
         mediaUrls = await uploadPostMedia(selectedMedia);
-        if (mediaUrls.length === 0) {
-          setIsPosting(false);
-          return;
-        }
+        if (mediaUrls.length === 0) { setIsPosting(false); return; }
       }
 
       const postData: any = { privacy };
@@ -229,14 +223,7 @@ const CreatePostPage = () => {
         await processHashtags(createdPost.id, postContent.trim());
       }
 
-      toast({
-        title: 'queued' in createdPost ? 'Post queued' : 'Posted!',
-        description:
-          'queued' in createdPost
-            ? "Your post will be published when you're back online"
-            : scheduledDate ? 'Post scheduled successfully' : 'Your post is now live',
-      });
-
+      toast({ title: 'Posted!', description: 'Your post is now live' });
       resetForm();
       navigate(-1);
     } catch (error: any) {
@@ -269,7 +256,6 @@ const CreatePostPage = () => {
   };
 
   const canPost = (postContent.trim().length > 0 || selectedMedia.length > 0) && !isPosting;
-  const charCount = postContent.length;
 
   const getPrivacyIcon = () => {
     switch (privacy) {
@@ -280,173 +266,156 @@ const CreatePostPage = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-background" style={{ height: '100dvh' }}>
+    <div className="fixed inset-0 z-[90] flex flex-col bg-[#121212] text-white" style={{ height: '100dvh' }}>
       {/* Header */}
-      <div
-        className="flex shrink-0 items-center justify-between border-b border-border/60 px-3 pb-3"
-        style={{ paddingTop: 'max(env(safe-area-inset-top, 0px), 12px)' }}
-      >
-        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-full" onClick={() => navigate(-1)} aria-label="Close">
-          <X className="h-5 w-5" />
+      <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3" style={{ paddingTop: 'max(env(safe-area-inset-top), 12px)' }}>
+        <Button variant="ghost" size="icon" className="text-white hover:bg-white/10 rounded-full h-10 w-10" onClick={() => navigate(-1)}>
+          <X className="h-6 w-6" />
         </Button>
-        <span className="text-base font-semibold">New post</span>
-        <Button
-          size="sm"
-          className="h-9 rounded-full px-5 font-semibold"
-          disabled={!canPost}
-          onClick={handlePost}
-        >
-          {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : scheduledDate ? 'Schedule' : 'Post'}
+        <span className="font-semibold text-base">New post</span>
+        <Button size="sm" className="rounded-full bg-blue-500 hover:bg-blue-600 font-semibold px-5 h-9 text-white" disabled={!canPost} onClick={handlePost}>
+          {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Share'}
         </Button>
       </div>
 
       {uploadProgress > 0 && uploadProgress < 100 && (
-        <div className="h-1 shrink-0 bg-muted">
-          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-        </div>
+        <div className="h-1 shrink-0 bg-white/10"><div className="h-full bg-blue-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} /></div>
       )}
 
       {/* Body */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-2xl px-4 pb-32 pt-4">
-          {/* Composer row */}
-          <div className="flex items-start gap-3">
-            <Avatar className="h-11 w-11 shrink-0 ring-2 ring-primary/20">
-              <AvatarImage src={profile?.avatar_url} />
-              <AvatarFallback className="bg-gradient-primary text-sm text-white">
-                {profile?.display_name?.split(' ').map((n) => n[0]).join('') || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <MentionTextarea
-                placeholder={`What's on your mind, ${profile?.display_name?.split(' ')[0] || 'there'}?`}
-                value={postContent}
-                onValueChange={(v) => v.length <= MAX_CHARS && setPostContent(v)}
-                style={{ fontSize: '17px' }}
-                className="min-h-[90px] resize-none border-0 bg-transparent p-0 text-lg leading-snug focus-visible:ring-0"
-                autoFocus
-              />
-              {showRestoredNotice && (
-                <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-muted/60 px-3 py-1.5">
-                  <span className="text-xs text-muted-foreground">Picked up where you left off.</span>
-                  <button type="button" onClick={() => { setPostContent(''); clearGhostDraft(); }} className="text-xs font-medium text-primary hover:underline">
-                    Discard
-                  </button>
-                  <button type="button" onClick={dismissNotice} className="text-xs text-muted-foreground hover:underline">
-                    Dismiss
-                  </button>
-                </div>
-              )}
-              {charCount > 0 && (
-                <div className={cn('mt-1 text-right text-[11px]', charCount / MAX_CHARS > 0.9 ? 'text-destructive' : 'text-muted-foreground')}>
-                  {charCount}/{MAX_CHARS}
-                </div>
-              )}
-            </div>
-          </div>
+      <div className="min-h-0 flex-1 overflow-y-auto pb-24">
+        <div className="mx-auto w-full max-w-2xl px-4 pt-4">
 
-          {/* Media Preview */}
-          <div className="mt-4">
+          {/* Media Preview - Big and Centered */}
+          <div className="mb-6 flex flex-col items-center">
             {previewMedia.length === 0 ? (
               <button
                 type="button"
                 onClick={() => setShowGallerySheet(true)}
-                className="flex h-44 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border bg-muted/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+                className="flex aspect-square w-full max-w-sm flex-col items-center justify-center gap-3 rounded-2xl border border-white/20 bg-white/5 text-white/60 transition-colors hover:bg-white/10"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <ImageIcon className="h-6 w-6" />
-                </span>
-                <span className="text-sm font-medium">Add photos or videos</span>
+                <ImageIcon className="h-10 w-10" />
+                <span className="text-sm font-medium">Select Photos or Videos</span>
               </button>
             ) : (
-              <div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  <ReorderableThumbs items={previewMedia} onReorder={reorderMedia} onRemove={removeMedia} />
-                  {selectedMedia.length < 10 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowGallerySheet(true)}
-                      className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-border text-muted-foreground hover:border-primary/50 hover:text-primary"
-                      aria-label="Add more media"
-                    >
-                      <Plus className="h-6 w-6" />
-                    </button>
+              <div className="w-full max-w-sm">
+                {/* Show first media as big preview */}
+                <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-black">
+                  {selectedMedia[0]?.type.startsWith('video/') ? (
+                    <video src={previewMedia[0]} className="h-full w-full object-cover" autoPlay loop muted playsInline />
+                  ) : (
+                    <img src={previewMedia[0]} className="h-full w-full object-cover" />
                   )}
+                  <button onClick={() => removeMedia(0)} className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 text-white">
+                    <X className="h-5 w-5" />
+                  </button>
                 </div>
+
+                {/* Thumbnail strip for multi-select */}
                 {previewMedia.length > 1 && (
-                  <p className="mt-1 text-[11px] text-muted-foreground">Hold and drag a photo to change its order</p>
+                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                    {previewMedia.slice(1).map((url, i) => (
+                      <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
+                        <img src={url} className="h-full w-full object-cover" />
+                      </div>
+                    ))}
+                    {selectedMedia.length < 10 && (
+                      <button onClick={() => setShowGallerySheet(true)} className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-white/20 bg-white/5">
+                        <Plus className="h-6 w-6 text-white/60" />
+                      </button>
+                    )}
+                  </div>
                 )}
 
-                {selectedMedia.map((f, i) => f.type.startsWith('video/') && (
-                  <Button key={`edit-${i}`} type="button" variant="outline" size="sm" className="mr-2 mt-2 h-8 gap-1.5" onClick={() => setEditingVideoIndex(i)}>
-                    <Scissors className="h-4 w-4" />
-                    Edit video{selectedMedia.filter((x) => x.type.startsWith('video/')).length > 1 ? ` ${i + 1}` : ''} (trim / crop / blur)
+                {/* Video Edit Button */}
+                {selectedMedia.some(f => f.type.startsWith('video/')) && (
+                  <Button variant="outline" className="w-full mt-3 border-white/20 text-white hover:bg-white/10 rounded-xl" onClick={() => setEditingVideoIndex(selectedMedia.findIndex(f => f.type.startsWith('video/')))}>
+                    <Scissors className="h-4 w-4 mr-2" /> Edit video
                   </Button>
-                ))}
-                {selectedMedia.map((f, i) => f.type.startsWith('image/') && (
-                  <Button key={`photo-edit-${i}`} type="button" variant="outline" size="sm" className="mr-2 mt-2 h-8 gap-1.5" onClick={() => setEditingPhotoIndex(i)}>
-                    <Sparkles className="h-4 w-4" />
-                    Edit photo{selectedMedia.filter((x) => x.type.startsWith('image/')).length > 1 ? ` ${i + 1}` : ''}
-                  </Button>
-                ))}
+                )}
               </div>
             )}
           </div>
 
-          {/* Option chips */}
-          <div className="mt-5 flex flex-wrap items-center gap-2 border-y border-border/60 py-3">
+          {/* Caption Input */}
+          <div className="flex items-start gap-3 border-b border-white/10 pb-4">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarImage src={profile?.avatar_url} />
+              <AvatarFallback className="bg-white/10 text-xs">{profile?.display_name?.[0] || 'U'}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+              <MentionTextarea
+                placeholder="Write a caption..."
+                value={postContent}
+                onValueChange={(v) => v.length <= MAX_CHARS && setPostContent(v)}
+                className="min-h-[60px] w-full resize-none border-0 bg-transparent p-0 text-[15px] focus-visible:ring-0 text-white placeholder:text-white/40"
+              />
+            </div>
+          </div>
+
+          {/* Options List (Instagram Style) */}
+          <div className="mt-4 flex flex-col text-sm">
+            {/* Location */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-full bg-muted/50 px-3">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  <span className="text-xs">{location || 'Location'}</span>
-                </Button>
+                <button className="flex w-full items-center justify-between py-3.5 border-b border-white/10 hover:bg-white/5 px-1 transition-colors">
+                  <div className="flex items-center gap-3 text-white/90">
+                    <MapPin className="h-5 w-5" />
+                    <span>{location || 'Add location'}</span>
+                  </div>
+                  {location ? <span className="text-xs text-blue-400">Change</span> : <ChevronRight className="h-5 w-5 text-white/40" />}
+                </button>
               </PopoverTrigger>
-              <PopoverContent className="w-80">
-                <Input placeholder="Add location..." value={location} onChange={(e) => setLocation(e.target.value)} />
+              <PopoverContent className="w-80 bg-[#1e1e1e] border-white/10">
+                <Input placeholder="Search location..." value={location} onChange={(e) => setLocation(e.target.value)} className="bg-white/5 border-white/10 text-white" />
               </PopoverContent>
             </Popover>
 
+            {/* Schedule */}
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-full bg-muted/50 px-3">
-                  <Clock className="h-4 w-4 text-primary" />
-                  <span className="text-xs">{scheduledDate ? 'Scheduled' : 'Schedule'}</span>
-                </Button>
+                <button className="flex w-full items-center justify-between py-3.5 border-b border-white/10 hover:bg-white/5 px-1 transition-colors">
+                  <div className="flex items-center gap-3 text-white/90">
+                    <Clock className="h-5 w-5" />
+                    <span>{scheduledDate ? 'Scheduled' : 'Schedule post'}</span>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-white/40" />
+                </button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0">
-                <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} disabled={(date) => date < new Date()} />
+              <PopoverContent className="w-auto p-0 bg-[#1e1e1e] border-white/10" align="start">
+                <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} disabled={(date) => date < new Date()} className="text-white" />
               </PopoverContent>
             </Popover>
 
+            {/* Audience */}
             <Select value={privacy} onValueChange={(v: any) => setPrivacy(v)}>
-              <SelectTrigger className="h-9 w-auto gap-2 rounded-full border-0 bg-muted/50 px-3">
-                {getPrivacyIcon()}
-                <SelectValue />
+              <SelectTrigger className="w-full flex items-center justify-between py-3.5 border-b border-white/10 hover:bg-white/5 px-1 bg-transparent border-0 rounded-none h-auto text-[15px] focus:ring-0">
+                <div className="flex items-center gap-3 text-white/90">
+                  {getPrivacyIcon()}
+                  <span>Audience</span>
+                </div>
+                <div className="flex items-center gap-2 text-white/60">
+                  <span className="capitalize">{privacy}</span>
+                  <ChevronRight className="h-5 w-5" />
+                </div>
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="public"><div className="flex items-center gap-2"><span>Public</span></div></SelectItem>
-                <SelectItem value="friends"><div className="flex items-center gap-2"><UserCheck className="h-4 w-4" /><span>Friends</span></div></SelectItem>
-                <SelectItem value="private"><div className="flex items-center gap-2"><Lock className="h-4 w-4" /><span>Only Me</span></div></SelectItem>
+              <SelectContent className="bg-[#1e1e1e] border-white/10 text-white">
+                <SelectItem value="public">Public (Everyone)</SelectItem>
+                <SelectItem value="friends">Friends only</SelectItem>
+                <SelectItem value="private">Only me</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Drafts */}
-          <div className="mt-4 flex items-center gap-2">
-            <DraftsDialog onSelectDraft={handleLoadDraft} />
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-full"
-              onClick={handleSaveDraft}
-              disabled={!postContent.trim() && selectedMedia.length === 0}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save draft
-            </Button>
-          </div>
         </div>
+      </div>
+
+      {/* Bottom Bar */}
+      <div className="absolute bottom-0 inset-x-0 border-t border-white/10 bg-[#121212] p-4 flex items-center gap-3" style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}>
+        <DraftsDialog onSelectDraft={handleLoadDraft} />
+        <Button variant="outline" className="flex-1 h-11 rounded-xl bg-white/5 border-white/10 text-white hover:bg-white/10" onClick={handleSaveDraft} disabled={!postContent.trim() && selectedMedia.length === 0}>
+          Save draft
+        </Button>
       </div>
 
       <GalleryPickerSheet
