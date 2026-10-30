@@ -3,7 +3,7 @@ import { profilePathFor } from '@/lib/profilePath';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { MoreHorizontal, Pencil, Trash2, UserPlus, UserMinus, BellOff, AlertCircle, Ban, UserCircle, Pin, PinOff, MessageCircle, Repeat2, Share2, Bookmark, Heart, ExternalLink } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, UserCircle, BellOff, AlertCircle, Ban, Pin, PinOff, MessageCircle, Repeat2, Bookmark, Heart, ExternalLink, Play } from "lucide-react";
 import { useState, useEffect, memo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { usePosts } from "@/hooks/usePosts";
@@ -15,13 +15,11 @@ import { usePinnedPosts } from "@/hooks/usePinnedPosts";
 import { formatDistanceToNow, format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { CommentsSection } from "../CommentsSection";
 import { SharePostDialog } from "../SharePostDialog";
 import { ImageGalleryViewer } from "../ImageGalleryViewer";
 import { VideoViewer } from "../VideoViewer";
 import { ReportDialog } from "../ReportDialog";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
-import { PostReactionPicker } from "../PostReactionPicker";
 import { useReactions } from "@/hooks/useReactions";
 import { ThreadedCommentsSection } from "../ThreadedCommentsSection";
 import { useTopComment } from "@/hooks/useTopComment";
@@ -30,7 +28,6 @@ import { cn } from "@/lib/utils";
 import { VerificationBadge } from "../premium/VerificationBadge";
 import { ProfileHoverCard } from "../ProfileHoverCard";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useThumbReorder } from '@/components/composer/ReorderableThumbs';
@@ -72,24 +69,18 @@ export interface PostCardModernProps {
 
 const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes('/video/');
 
-// Utility to extract link preview from content
 const extractLinkPreview = (content: string) => {
   const urlRegex = /(https?:\/\/[^\s]+)/g;
   const match = content.match(urlRegex);
   if (match && match[0]) {
     try {
       const url = new URL(match[0]);
-      return {
-        url: match[0],
-        domain: url.hostname.replace('www.', ''),
-        title: url.hostname.replace('www.', '').split('.')[0].charAt(0).toUpperCase() + url.hostname.replace('www.', '').split('.')[0].slice(1)
-      };
+      return { url: match[0], domain: url.hostname.replace('www.', ''), title: url.hostname.replace('www.', '').split('.')[0] };
     } catch { return null; }
   }
   return null;
 };
 
-// Format relative time
 const formatRelativeTime = (dateString: string) => {
   const date = new Date(dateString);
   const now = new Date();
@@ -98,11 +89,9 @@ const formatRelativeTime = (dateString: string) => {
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h`;
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d`;
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 604800)}w`;
   return format(date, 'MMM d');
 };
 
-// Text-only post color themes
 const textPostThemes = [
   { bg: 'bg-[#1877F2]', text: 'text-white' },       // POST-UPP Blue
   { bg: 'bg-[#28443F]', text: 'text-[#F2FD7D]' },   // Deep Teal
@@ -113,9 +102,7 @@ const textPostThemes = [
 
 const getThemeForPost = (id: string) => {
   let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = id.charCodeAt(i) + ((hash << 5) - hash);
-  }
+  for (let i = 0; i < id.length; i++) hash = id.charCodeAt(i) + ((hash << 5) - hash);
   return textPostThemes[Math.abs(hash) % textPostThemes.length];
 };
 
@@ -123,7 +110,7 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
   const { user } = useAuth();
   const { updatePost, deletePost } = usePosts();
   const { toggleBookmark, isBookmarked } = useBookmarks();
-  const { followUser, unfollowUser, following } = useFollowers();
+  const { following } = useFollowers();
   const { blockUser } = useBlockedUsers();
   const { toggleRepost, isReposted } = useReposts();
   const { pinPost, unpinPost, isPinned } = usePinnedPosts();
@@ -135,18 +122,14 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [editContent, setEditContent] = useState(post.content || "");
+  const [expanded, setExpanded] = useState(false);
 
   const mediaItems: string[] = (post.media_urls && post.media_urls.length > 0 ? post.media_urls : post.media_url ? [post.media_url] : []) as string[];
   const initialMedia = mediaItems;
   const [editMedia, setEditMedia] = useState<string[]>(initialMedia);
   const [showEditGallery, setShowEditGallery] = useState(false);
   const { getItemProps: getEditThumbProps } = useThumbReorder((from, to) => {
-    setEditMedia(prev => {
-      const next = [...prev];
-      const [moved] = next.splice(from, 1);
-      next.splice(to, 0, moved);
-      return next;
-    });
+    setEditMedia(prev => { const next = [...prev]; const [moved] = next.splice(from, 1); next.splice(to, 0, moved); return next; });
   });
 
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -166,9 +149,7 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
   };
 
   const [showComments, setShowComments] = useState(false);
-  const [isLikeAnimating, setIsLikeAnimating] = useState(false);
   const isOwner = user?.id === post.author_id;
-  const isFollowingAuthor = following.some(f => f.following?.id === post.author_id);
   const isPagePost = !!post.page_id;
 
   const displayName = isPagePost ? (post.page_name || post.author_name) : post.author_name;
@@ -180,76 +161,22 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
   const isTextOnly = mediaItems.length === 0 && !!post.content;
   const postTheme = getThemeForPost(post.id);
 
-  const dwell = useDwellTracker({
-    postId: post.id,
-    authorId: post.author_id,
-    hashtags: extractHashtags(post.content || ''),
-    format: detectPostFormat(post),
-  });
-
-  const handleMuteUser = () => { toast({ title: 'Mute feature coming soon' }); };
-  const handleReportPost = () => { setShowReportDialog(true); };
-  const handlePinToggle = async () => { if (isPinned(post.id)) await unpinPost(post.id); else await pinPost(post.id); };
-  const handleBlockUser = async () => { await blockUser(post.author_id, 'Blocked from post'); toast({ title: 'User Blocked' }); };
+  const dwell = useDwellTracker({ postId: post.id, authorId: post.author_id, hashtags: extractHashtags(post.content || ''), format: detectPostFormat(post) });
 
   useEffect(() => { setLocalReactionCount(getTotalReactions()); }, [reactionCounts]);
 
-  const handleEdit = async () => {
-    if (!editContent.trim() && editMedia.length === 0) return;
-    await updatePost(post.id, {
-      content: editContent,
-      media_url: editMedia[0] || null,
-      media_urls: editMedia.length > 0 ? editMedia : null,
-      media_type: editMedia.length > 1 ? 'multiple' : editMedia.length === 1 ? 'image' : null
-    } as any);
-    setShowEditDialog(false);
-    toast({ title: "Post updated" });
-  };
-
-  const handleEditMediaUpload = async (files: File[]) => {
-    if (!files.length || !user) return;
-    setUploadingMedia(true);
-    try {
-      const uploaded: string[] = [];
-      for (const file of files) {
-        const ext = file.name.split('.').pop() || 'jpg';
-        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from('posts').upload(path, file, { contentType: file.type, upsert: false });
-        if (error) throw error;
-        const { data } = supabase.storage.from('posts').getPublicUrl(path);
-        uploaded.push(data.publicUrl);
-      }
-      setEditMedia(prev => [...prev, ...uploaded]);
-    } catch (e) { toast({ title: 'Upload failed', variant: 'destructive' }); } finally { setUploadingMedia(false); }
-  };
-
   const handleDelete = async () => { await deletePost(post.id); setShowDeleteDialog(false); toast({ title: "Post deleted" }); };
-
   const handleRepost = async () => {
     if (!user) return;
     const wasReposted = isReposted(post.id);
     setLocalRepostCount(prev => wasReposted ? Math.max(0, prev - 1) : prev + 1);
     try { await toggleRepost(post.id); } catch (error) { setLocalRepostCount(post.shares_count || 0); }
   };
-
-  const handleLikeWithAnimation = async () => {
-    haptic('light');
-    setIsLikeAnimating(true);
-    dwell.reportReaction('like');
-    await handleReactionToggle('like');
-    setTimeout(() => setIsLikeAnimating(false), 300);
-  };
-
-  const handleShare = () => { dwell.reportShare(); setShowShareDialog(true); };
+  const handleLikeWithAnimation = async () => { haptic('light'); dwell.reportReaction('like'); await handleReactionToggle('like'); };
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (
-      target.closest('button') || target.closest('a') || target.closest('[role="button"]') ||
-      target.closest('[role="menu"]') || target.closest('[role="dialog"]') ||
-      target.closest('[data-radix-popper-content-wrapper]') || target.closest('video') ||
-      target.closest('audio') || target.closest('[data-media]')
-    ) return;
+    if (target.closest('button') || target.closest('a') || target.closest('[role="button"]') || target.closest('[role="menu"]') || target.closest('video')) return;
     if (document.querySelector('[data-radix-popper-content-wrapper] [data-state="open"], [data-state="open"][role="dialog"]')) return;
     navigate(`/post/${post.id}`);
   };
@@ -260,144 +187,87 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
     if (linkPreview) displayText = text.replace(linkPreview.url, '').trim();
     const parts = displayText.split(/(@\w+|#\w+)/g);
     return parts.map((part, index) => {
-      if (part.startsWith('@')) return <button key={index} onClick={e => { e.stopPropagation(); }} className="text-primary hover:underline font-medium">{part}</button>;
-      if (part.startsWith('#')) {
-        const tag = part.slice(1);
-        return <button key={index} onClick={e => { e.stopPropagation(); navigate(`/hashtag/${tag}`); }} className="text-primary hover:underline font-medium">{part}</button>;
-      }
+      if (part.startsWith('@')) return <button key={index} onClick={e => e.stopPropagation()} className="text-primary hover:underline font-medium">{part}</button>;
+      if (part.startsWith('#')) return <button key={index} onClick={e => { e.stopPropagation(); navigate(`/hashtag/${part.slice(1)}`); }} className="text-primary hover:underline font-medium">{part}</button>;
       return <span key={index}>{part}</span>;
     });
   };
 
-  const getAvatarFallback = () => { const name = displayName || 'U'; return name.charAt(0).toUpperCase(); };
-  const handleAuthorClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isPagePost && post.page_username) navigate(`/page/${post.page_username}`);
-    else navigate(profilePathFor(post.author_id, post.author_username));
-  };
+  const getAvatarFallback = () => displayName?.charAt(0).toUpperCase() || 'U';
+  const handleAuthorClick = (e: React.MouseEvent) => { e.stopPropagation(); if (isPagePost && post.page_username) navigate(`/page/${post.page_username}`); else navigate(profilePathFor(post.author_id, post.author_username)); };
 
   return <TooltipProvider>
     <>
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete Post</AlertDialogTitle><AlertDialogDescription>Are you sure you want to delete this post? This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
-          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDelete} className="bg-destructive">Delete</AlertDialogAction></AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Edit Post</DialogTitle></DialogHeader>
-          <Textarea value={editContent} onChange={e => setEditContent(e.target.value)} className="min-h-[100px]" />
-          {editMedia.length > 0 && <div className="grid grid-cols-3 gap-2">
-            {editMedia.map((url, i) => {
-              const { className: dragClass, ...dragProps } = getEditThumbProps(i);
-              return <div key={url + i} {...dragProps} className={cn("relative rounded-lg overflow-hidden bg-muted aspect-square touch-none", dragClass)}>
-                <img src={url} alt="Post media" className="w-full h-full object-cover" />
-                <span className="absolute bottom-1 left-1 rounded bg-background/80 px-1.5 text-[10px] text-foreground">{i + 1}</span>
-                <button type="button" onClick={() => setEditMedia(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/80 text-foreground flex items-center justify-center text-xs">✕</button>
-              </div>;
-            })}
-          </div>}
-          <button type="button" className="inline-flex items-center gap-2 text-sm text-primary" onClick={() => setShowEditGallery(true)}>{uploadingMedia ? 'Uploading…' : 'Add / change photos'}</button>
-          <GalleryPickerSheet open={showEditGallery} onOpenChange={setShowEditGallery} multiple title="Add to your post" onSelect={(file) => handleEditMediaUpload([file])} onSelectMany={(files) => handleEditMediaUpload(files)} />
-          <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setShowEditDialog(false)}>Cancel</Button><Button onClick={handleEdit} className="bg-primary" disabled={uploadingMedia}>Save</Button></div>
-        </DialogContent>
-      </Dialog>
-
-      <Card ref={dwell.targetRef} data-feed-card data-dwell-seconds="0" className={cn("post-card fb-feed-card post-card-float press-elastic surface-rim settle-in bg-card rounded-xl border-0 cursor-pointer overflow-hidden", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
+      <Card ref={dwell.targetRef} className={cn("post-card bg-card rounded-xl border border-border/50 cursor-pointer overflow-hidden shadow-sm", post.is_pinned && "ring-2 ring-primary/20")} onClick={handleCardClick}>
 
         {post.is_pinned && <div className="px-4 pt-2 flex items-center gap-2 text-muted-foreground text-xs"><Pin className="h-3 w-3" /><span>Pinned post</span></div>}
 
         {/* Post Header */}
-        <div className="flex items-start gap-3 px-4 py-2">
-          {isPagePost ? (
-            <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
-              <AvatarImage src={displayAvatar} /><AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getAvatarFallback()}</AvatarFallback>
-            </Avatar>
-          ) : (
-            <ProfileHoverCard userId={post.author_id}>
-              <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
-                <AvatarImage src={displayAvatar} /><AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getAvatarFallback()}</AvatarFallback>
-              </Avatar>
-            </ProfileHoverCard>
-          )}
+        <div className="flex items-start gap-3 px-4 py-3">
+          <Avatar className="h-10 w-10 cursor-pointer hover:opacity-80 transition-opacity ring-2 ring-border flex-shrink-0" onClick={handleAuthorClick}>
+            <AvatarImage src={displayAvatar} /><AvatarFallback className="bg-primary text-primary-foreground font-semibold">{getAvatarFallback()}</AvatarFallback>
+          </Avatar>
 
           <div className="flex-1 min-w-0">
-            {isPagePost ? (
-              <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                {displayName}{displayVerified && <VerificationBadge isVerified={true} />}
-              </button>
-            ) : (
-              <ProfileHoverCard userId={post.author_id}>
-                <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
-                  {displayName}<VerificationBadge isVerified={post.is_verified} verificationType={post.verification_type} />
-                </button>
-              </ProfileHoverCard>
-            )}
-
-            {displayUsername && <div className="text-muted-foreground text-sm">@{displayUsername}</div>}
-            {isPagePost && <div className="text-muted-foreground text-xs">Published by {post.author_name}</div>}
-
+            <button onClick={handleAuthorClick} className="font-semibold text-foreground hover:underline text-[15px] flex items-center gap-1">
+              {displayName}{displayVerified && <VerificationBadge isVerified={true} />}
+            </button>
+            {displayUsername && <div className="text-muted-foreground text-xs">@{displayUsername}</div>}
             <div className="flex items-center gap-1.5 text-muted-foreground text-xs mt-0.5">
-              <Tooltip>
-                <TooltipTrigger asChild><span className="hover:underline cursor-default">{formatRelativeTime(post.created_at)}</span></TooltipTrigger>
-                <TooltipContent><p>{format(new Date(post.created_at), 'MMMM d, yyyy \'at\' h:mm a')}</p></TooltipContent>
-              </Tooltip>
+              <span className="hover:underline cursor-default">{formatRelativeTime(post.created_at)}</span>
             </div>
           </div>
 
-          {/* More options menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-muted" onClick={e => e.stopPropagation()}><MoreHorizontal className="h-5 w-5 text-muted-foreground" /></Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {isOwner ? <>
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); handlePinToggle(); }}>
-                  {isPinned(post.id) ? <><PinOff className="h-4 w-4 mr-2" />Unpin from Profile</> : <><Pin className="h-4 w-4 mr-2" />Pin to Profile</>}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={e => { e.stopPropagation(); setShowEditDialog(true); }}><Pencil className="h-4 w-4 mr-2" />Edit Post</DropdownMenuItem>
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); setShowDeleteDialog(true); }} className="text-destructive focus:text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete Post</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); setShowDeleteDialog(true); }} className="text-destructive"><Trash2 className="h-4 w-4 mr-2" />Delete Post</DropdownMenuItem>
               </> : <>
                 <DropdownMenuItem onClick={e => { e.stopPropagation(); navigate(profilePathFor(post.author_id, post.author_username)); }}><UserCircle className="h-4 w-4 mr-2" />View Profile</DropdownMenuItem>
                 <DropdownMenuItem onClick={e => { e.stopPropagation(); toggleBookmark(post.id); }}><Bookmark className="h-4 w-4 mr-2" />Save Post</DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleMuteUser(); }}><BellOff className="h-4 w-4 mr-2" />Mute User</DropdownMenuItem>
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleReportPost(); }} className="text-destructive"><AlertCircle className="h-4 w-4 mr-2" />Report Post</DropdownMenuItem>
-                <DropdownMenuItem onClick={e => { e.stopPropagation(); handleBlockUser(); }} className="text-destructive"><Ban className="h-4 w-4 mr-2" />Block User</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => e.stopPropagation()}><BellOff className="h-4 w-4 mr-2" />Mute User</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => { e.stopPropagation(); setShowReportDialog(true); }} className="text-destructive"><AlertCircle className="h-4 w-4 mr-2" />Report Post</DropdownMenuItem>
+                <DropdownMenuItem onClick={e => e.stopPropagation()} className="text-destructive"><Ban className="h-4 w-4 mr-2" />Block User</DropdownMenuItem>
               </>}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
-        {/* Caption FIRST (if text or has caption) */}
+        {/* Caption FIRST */}
         {post.content && (
-          <div className={cn("px-4 pb-3", isTextOnly && "mt-2")}>
+          <div className="px-4 pb-2">
             {isTextOnly ? (
-              // Text-only background theme
-              <div className={cn("rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-[200px]", postTheme.bg, postTheme.text)}>
-                <p className="text-xl font-semibold leading-relaxed whitespace-pre-wrap">{post.content}</p>
+              <div className={cn("rounded-2xl p-6 flex flex-col items-center justify-center text-center min-h-[160px]", postTheme.bg, postTheme.text)}>
+                <p className="text-lg font-semibold leading-relaxed whitespace-pre-wrap">{post.content}</p>
               </div>
             ) : (
-              // Regular caption
-              <p className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
-                {renderContent(post.content)}
-              </p>
+              <div className="text-[15px] text-foreground leading-relaxed whitespace-pre-wrap">
+                <p className={cn(!expanded && "line-clamp-3")}>{renderContent(post.content)}</p>
+                {post.content.length > 100 && (
+                  <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="text-muted-foreground text-sm font-semibold mt-1">
+                    {expanded ? 'See less' : 'See more'}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
 
+        <div className="mx-4 border-b border-border/50" />
+
         {/* Media - Edge to Edge */}
         {mediaItems.length === 1 && (
-          <div className="w-full">
+          <div className="w-full mt-2">
             {isVideoUrl(mediaItems[0]) ? (
               <VideoViewer videoUrl={mediaItems[0]} playOnFocus objectFit="cover" />
             ) : (
-              <div className="cursor-pointer hover:opacity-95 transition" onClick={e => {
-                e.stopPropagation(); captureOriginRect(e.currentTarget as HTMLElement); setGalleryImages(mediaItems); setGalleryStartIndex(0); setShowImageGallery(true);
-              }}>
+              <div className="cursor-pointer" onClick={e => { e.stopPropagation(); captureOriginRect(e.currentTarget as HTMLElement); setGalleryImages(mediaItems); setGalleryStartIndex(0); setShowImageGallery(true); }}>
                 <img src={mediaItems[0]} alt="Post media" className="w-full h-auto max-h-[500px] object-cover" loading="lazy" />
               </div>
             )}
@@ -405,22 +275,17 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
         )}
 
         {mediaItems.length > 1 && (
-          <div data-no-app-swipe className="w-full" onClick={e => e.stopPropagation()}>
+          <div data-no-app-swipe className="w-full mt-2" onClick={e => e.stopPropagation()}>
             <Carousel className="w-full">
               <CarouselContent>
                 {mediaItems.map((url, i) => (
                   <CarouselItem key={url + i} className="p-0">
                     {isVideoUrl(url) ? (
-                      <div className="relative w-full h-[300px] sm:h-[400px] flex items-center justify-center overflow-hidden bg-black">
-                        <VideoViewer videoUrl={url} playOnFocus objectFit="cover" />
-                      </div>
+                      <div className="relative w-full h-[300px] sm:h-[400px] bg-black flex items-center justify-center"><VideoViewer videoUrl={url} playOnFocus objectFit="cover" /></div>
                     ) : (
-                      <div className="relative w-full h-[300px] sm:h-[400px] flex items-center justify-center overflow-hidden bg-black cursor-pointer" onClick={e => {
-                        captureOriginRect(e.currentTarget as HTMLElement); setGalleryImages(mediaItems.filter(m => !isVideoUrl(m))); setGalleryStartIndex(i); setShowImageGallery(true);
-                      }}>
-                        <img src={url} alt="" aria-hidden="true" className="absolute inset-0 w-full h-full object-cover scale-125 blur-xl opacity-35 select-none pointer-events-none" />
-                        <img src={url} alt={`Post media ${i + 1}`} className="relative z-10 max-h-full max-w-full object-contain" loading="lazy" />
-                        <div className="absolute top-2.5 right-2.5 z-20 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-medium tracking-wide pointer-events-none">{i + 1} / {mediaItems.length}</div>
+                      <div className="relative w-full h-[300px] sm:h-[400px] bg-black flex items-center justify-center cursor-pointer" onClick={e => { captureOriginRect(e.currentTarget as HTMLElement); setGalleryImages(mediaItems.filter(m => !isVideoUrl(m))); setGalleryStartIndex(i); setShowImageGallery(true); }}>
+                        <img src={url} alt={`Media ${i + 1}`} className="relative z-10 max-h-full max-w-full object-contain" loading="lazy" />
+                        <div className="absolute top-2.5 right-2.5 z-20 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md text-white text-[11px] font-medium pointer-events-none">{i + 1} / {mediaItems.length}</div>
                       </div>
                     )}
                   </CarouselItem>
@@ -431,75 +296,55 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
           </div>
         )}
 
-        {/* Action Bar - BIGGER ICONS */}
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-5">
+        <div className="mx-4 border-b border-border/50 mt-2" />
+
+        {/* Action Bar with Counters */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-4">
             <ClickSpark sparkColor="#ff4d6d" shape="dot" sparkCount={7} sparkSize={9} sparkRadius={22} duration={420}>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg hover:bg-destructive/10 transition-all">
-                <PulseHeart liked={userReaction === 'like'} count={localReactionCount} showCount={false} icon="heart" size={28} corner={10} likedColor="hsl(var(--destructive))" idleColor="hsl(var(--muted-foreground))" pillColor="transparent" textColor="hsl(var(--muted-foreground))" onChange={() => handleLikeWithAnimation()} />
+              <div className="flex h-9 items-center gap-1.5 rounded-lg hover:bg-destructive/10 px-2 transition-all">
+                <PulseHeart liked={userReaction === 'like'} count={localReactionCount} showCount={false} icon="heart" size={24} corner={10} likedColor="hsl(var(--destructive))" idleColor="hsl(var(--foreground))" pillColor="transparent" textColor="hsl(var(--foreground))" onChange={handleLikeWithAnimation} />
+                <span className="text-sm font-medium">{localReactionCount > 0 ? localReactionCount : ''}</span>
               </div>
             </ClickSpark>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 rounded-lg hover:bg-primary/10" onClick={e => { e.stopPropagation(); setShowComments(!showComments); }}>
-                  <MessageCircle className="h-7 w-7 text-muted-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Comment on this post</TooltipContent>
-            </Tooltip>
+            <button className="flex h-9 items-center gap-1.5 rounded-lg hover:bg-muted px-2 transition-all" onClick={e => { e.stopPropagation(); setShowComments(true); }}>
+              <MessageCircle className="h-6 w-6 text-foreground" />
+              <span className="text-sm font-medium">{post.comments_count > 0 ? post.comments_count : ''}</span>
+            </button>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className={cn("h-10 w-10 p-0 rounded-lg hover:bg-success/10", isReposted(post.id) && "text-success")} onClick={e => { e.stopPropagation(); handleRepost(); }}>
-                  <Repeat2 className={cn("h-7 w-7", isReposted(post.id) ? "text-success" : "text-muted-foreground")} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Share this post</TooltipContent>
-            </Tooltip>
+            <button className={cn("flex h-9 items-center gap-1.5 rounded-lg hover:bg-muted px-2 transition-all", isReposted(post.id) && "text-success")} onClick={e => { e.stopPropagation(); handleRepost(); }}>
+              <Repeat2 className={cn("h-6 w-6", isReposted(post.id) ? "text-success" : "text-foreground")} />
+              <span className="text-sm font-medium">{localRepostCount > 0 ? localRepostCount : ''}</span>
+            </button>
           </div>
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="sm" className={cn("h-10 w-10 p-0 rounded-lg hover:bg-warning/10", isBookmarked(post.id) && "text-warning")} onClick={e => { e.stopPropagation(); toggleBookmark(post.id); }}>
-                <Bookmark className={cn("h-7 w-7", isBookmarked(post.id) ? "fill-current text-warning" : "text-muted-foreground")} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Save this post</TooltipContent>
-          </Tooltip>
+          <button className={cn("h-9 px-2 rounded-lg hover:bg-muted transition-all", isBookmarked(post.id) && "text-warning")} onClick={e => { e.stopPropagation(); toggleBookmark(post.id); }}>
+            <Bookmark className={cn("h-6 w-6", isBookmarked(post.id) ? "fill-current text-warning" : "text-foreground")} />
+          </button>
         </div>
 
-        {/* Link Preview */}
+        {/* Hashtags & Tags footer */}
         {linkPreview && (
           <div className="px-4 pb-3" onClick={e => e.stopPropagation()}>
             <a href={linkPreview.url} target="_blank" rel="noopener noreferrer" className="block border border-border rounded-xl overflow-hidden hover:bg-muted/50 transition-colors">
               <div className="p-3 flex items-center gap-3">
-                <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center flex-shrink-0"><ExternalLink className="h-5 w-5 text-muted-foreground" /></div>
-                <div className="flex-1 min-w-0"><p className="font-medium text-sm text-foreground truncate">{linkPreview.title}</p><p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p></div>
+                <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center"><ExternalLink className="h-5 w-5 text-muted-foreground" /></div>
+                <div className="min-w-0"><p className="font-medium text-sm truncate">{linkPreview.title}</p><p className="text-xs text-muted-foreground truncate">{linkPreview.domain}</p></div>
               </div>
             </a>
           </div>
         )}
 
-        {/* Top Comment Preview */}
+        {/* Top Comment */}
         {topComment && !showComments && (
-          <div className="flex items-start gap-2 px-4 py-2 cursor-pointer hover:bg-muted/50 transition-colors" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
+          <div className="flex items-start gap-2 px-4 pb-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
             <Avatar className="h-6 w-6 flex-shrink-0"><AvatarImage src={topComment.user?.avatar_url} /><AvatarFallback className="text-[10px]">{topComment.user?.display_name?.[0] || 'U'}</AvatarFallback></Avatar>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="font-semibold text-xs text-foreground">{topComment.user?.display_name}</span>
-                <TopCommentBadge isVerified={topComment.user?.is_verified} verificationType={topComment.user?.verification_type} />
-                {topComment.likes_count > 0 && <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-0.5"><Heart className="h-2.5 w-2.5 fill-current text-destructive" />{topComment.likes_count}</span>}
-              </div>
-              <p className="text-xs text-foreground/80 line-clamp-2">{topComment.content}</p>
+              <div className="flex items-center gap-1"><span className="font-semibold text-xs">{topComment.user?.display_name}</span><TopCommentBadge isVerified={topComment.user?.is_verified} verificationType={topComment.user?.verification_type} /></div>
+              <p className="text-xs text-foreground/80 line-clamp-1">{topComment.content}</p>
             </div>
           </div>
-        )}
-
-        {post.comments_count > 1 && !showComments && (
-          <button className="px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={(e) => { e.stopPropagation(); setShowComments(true); }}>
-            View all {post.comments_count} comments
-          </button>
         )}
       </Card>
 
@@ -508,9 +353,9 @@ const PostCardModernComponent = ({ post }: PostCardModernProps) => {
       <ReportDialog open={showReportDialog} onOpenChange={setShowReportDialog} contentId={post.id} contentType="post" />
 
       <Sheet open={showComments} onOpenChange={setShowComments}>
-        <SheetContent side="bottom" className="h-[85vh] max-h-[85vh] p-0 flex flex-col rounded-t-2xl" onClick={(e) => e.stopPropagation()}>
-          <SheetHeader className="px-4 py-3 border-b border-border"><SheetTitle className="text-base">Comments</SheetTitle></SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 pb-[env(safe-area-inset-bottom)]"><ThreadedCommentsSection postId={post.id} /></div>
+        <SheetContent side="bottom" className="h-[85vh] p-0 flex flex-col rounded-t-2xl" onClick={e => e.stopPropagation()}>
+          <SheetHeader className="px-4 py-3 border-b"><SheetTitle>Comments</SheetTitle></SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-4"><ThreadedCommentsSection postId={post.id} /></div>
         </SheetContent>
       </Sheet>
     </>

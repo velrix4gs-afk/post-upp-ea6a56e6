@@ -129,8 +129,6 @@ function resolveMediaMime(type: string, name: string, kind: 'image' | 'video', f
 function fileKind(file: File): DeviceMediaKind | null {
   if (file.type.startsWith('image/') || IMAGE_EXT.test(file.name)) return 'image';
   if (file.type.startsWith('video/') || VIDEO_EXT.test(file.name)) return 'video';
-  // Anything else (PDF, doc, zip, etc.) is no longer silently dropped —
-  // it's kept as a generic 'file' item instead of returning null.
   return 'file';
 }
 

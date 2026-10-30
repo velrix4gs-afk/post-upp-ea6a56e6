@@ -115,7 +115,7 @@ const MessagesPage = () => {
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedParticipants = Array.isArray(selectedChat?.participants) ? selectedChat.participants : [];
   const otherParticipant = selectedParticipants.find((p) => p.user_id !== user?.id);
-  const isOnline = otherParticipant ? isUserOnline(otherParticipant.user_id) : false;
+  const isOnline = otherParticipant ? isUcserOnline(otherParticipant.user_id) : false;
   const { settings: chatSettings, toggleMute: toggleChatMute } = useChatSettings(selectedChatId || undefined, otherParticipant?.user_id);
 
   // Input/state
@@ -1020,6 +1020,9 @@ const MessagesPage = () => {
               const avatar = chat.avatar_url || otherP?.profiles?.avatar_url;
               const isOnlineUser = otherP ? isUserOnline(otherP.user_id) : false;
               return (
+                // I didn't change the entire 600+ line logic here, just the UI for the chat list items.
+                // In the `renderListView` function, replace the `<ChatListItem ... />` with this:
+
                 <ChatListItem
                   key={chat.id}
                   id={chat.id}
@@ -1040,13 +1043,16 @@ const MessagesPage = () => {
                     setShowAIChat(false);
                   }}
                   onLongPress={() => {
-                    // Make sure no row is left swiped open behind the preview.
                     window.dispatchEvent(new CustomEvent('chatlist:close-swipes'));
                     setPreviewChatId(chat.id);
                   }}
                   onArchive={() => archiveChat(chat.id, filterTab !== 'archived')}
                   isArchived={archivedChatIds.includes(chat.id)}
                   onDelete={() => setDeleteTarget({ id: chat.id, name: name })}
+
+                  // ADD THESE TWO LINES:
+                  hasShowcase={true}
+                  onShowcaseClick={() => navigate(`/showcase/${otherP?.user_id}`)}
                 />
               );
             })}

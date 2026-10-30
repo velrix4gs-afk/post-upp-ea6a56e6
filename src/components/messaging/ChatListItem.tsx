@@ -23,6 +23,9 @@ interface ChatListItemProps {
   onArchive?: () => void;
   onDelete?: () => void;
   isArchived?: boolean;
+  // NEW PROPS FOR SHOWCASE
+  hasShowcase?: boolean;
+  onShowcaseClick?: () => void;
 }
 
 const formatChatTime = (iso?: string): string => {
@@ -40,10 +43,6 @@ const formatChatTime = (iso?: string): string => {
   }
 };
 
-/**
- * Strip emoji-prefixed media placeholders ("📷 Photo", "🎥 Video", etc.)
- * and replace with clean typographic labels.
- */
 const cleanLastMessage = (text?: string): string => {
   if (!text) return '';
   const trimmed = text.trim();
@@ -78,6 +77,8 @@ export const ChatListItem = ({
   onArchive,
   onDelete,
   isArchived,
+  hasShowcase,
+  onShowcaseClick,
 }: ChatListItemProps) => {
   const [swipeX, setSwipeX] = useState(0);
   const startX = useRef<number | null>(null);
@@ -86,8 +87,6 @@ export const ChatListItem = ({
   const movedRef = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Close this row's swipe whenever any other row opens, the list scrolls,
-  // or a chat is selected. Dispatched from MessagesPage.
   useEffect(() => {
     const close = (e: Event) => {
       const detail = (e as CustomEvent<{ exceptId?: string }>).detail;
@@ -102,7 +101,6 @@ export const ChatListItem = ({
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     movedRef.current = false;
-    // Don't start long-press while swiped open
     if (onLongPress && swipeX === 0) {
       longPressTimer.current = setTimeout(() => {
         if (navigator.vibrate) navigator.vibrate(40);
@@ -125,10 +123,7 @@ export const ChatListItem = ({
     }
     if (Math.abs(dx) > Math.abs(dy) && dx < 0) {
       if (!isSwiping.current) {
-        // Tell every other row to close as soon as this swipe begins
-        window.dispatchEvent(
-          new CustomEvent('chatlist:close-swipes', { detail: { exceptId: id } })
-        );
+        window.dispatchEvent(new CustomEvent('chatlist:close-swipes', { detail: { exceptId: id } }));
       }
       isSwiping.current = true;
       setSwipeX(Math.max(dx, -160));
@@ -142,14 +137,8 @@ export const ChatListItem = ({
     }
     if (isSwiping.current) {
       isSwiping.current = false;
-      // Snap open (-160) or closed (0)
-      if (swipeX < -80) {
-        setSwipeX(-160);
-      } else {
-        setSwipeX(0);
-      }
-    } else if (!movedRef.current && swipeX !== 0) {
-      // Tap on an open row collapses it (handled in handleClick) — no-op here
+      if (swipeX < -80) setSwipeX(-160);
+      else setSwipeX(0);
     }
     startX.current = null;
     startY.current = null;
@@ -208,13 +197,28 @@ export const ChatListItem = ({
         )}
       >
         <div className="relative flex-shrink-0">
-          <Avatar className="h-12 w-12">
-            <AvatarImage src={avatarUrl} />
-            <AvatarFallback className="bg-muted">{name[0]?.toUpperCase()}</AvatarFallback>
-          </Avatar>
+          {/* Showcase Ring Logic */}
+          {hasShowcase ? (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onShowcaseClick?.();
+              }}
+              className="relative block rounded-full p-[2px] bg-gradient-to-tr from-primary via-accent to-primary animate-in fade-in zoom-in duration-300"
+            >
+              <Avatar className="h-12 w-12 border-2 border-card">
+                <AvatarImage src={avatarUrl} />
+                <AvatarFallback className="bg-muted">{name[0]?.toUpperCase()}</AvatarFallback>
+              </Avatar>
+            </button>
+          ) : (
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={avatarUrl} />
+              <AvatarFallback className="bg-muted">{name[0]?.toUpperCase()}</AvatarFallback>
+            </Avatar>
+          )}
+
           {isOnline && !isGroup && (
-            // Brand purple rather than the green success colour, so the
-            // online dot reads as part of the app's identity.
             <span
               aria-label="Online"
               className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-[hsl(262_83%_62%)] border-2 border-card shadow-[0_0_0_1px_hsl(262_83%_62%)]"
@@ -224,20 +228,10 @@ export const ChatListItem = ({
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-0.5">
-            <p
-              className={cn(
-                'truncate text-[15px] leading-tight',
-                unreadCount > 0 ? 'font-semibold text-foreground' : 'font-medium text-foreground'
-              )}
-            >
+            <p className={cn('truncate text-[15px] leading-tight', unreadCount > 0 ? 'font-semibold text-foreground' : 'font-medium text-foreground')}>
               {name}
             </p>
-            <span
-              className={cn(
-                'text-[11px] flex-shrink-0',
-                unreadCount > 0 ? 'text-success font-semibold' : 'text-muted-foreground'
-              )}
-            >
+            <span className={cn('text-[11px] flex-shrink-0', unreadCount > 0 ? 'text-success font-semibold' : 'text-muted-foreground')}>
               {formatChatTime(lastMessageAt)}
             </span>
           </div>
@@ -246,13 +240,7 @@ export const ChatListItem = ({
             <div className="flex items-center gap-1 min-w-0 flex-1">
               {isOwnLastMessage && lastMessageStatus && (
                 <span className="flex-shrink-0">
-                  {lastMessageStatus === 'read' ? (
-                    <CheckCheck className="h-3.5 w-3.5 text-primary" />
-                  ) : lastMessageStatus === 'delivered' ? (
-                    <CheckCheck className="h-3.5 w-3.5 text-muted-foreground" />
-                  ) : (
-                    <Check className="h-3.5 w-3.5 text-muted-foreground" />
-                  )}
+                  {lastMessageStatus === 'read' ? <CheckCheck className="h-3.5 w-3.5 text-primary" /> : lastMessageStatus === 'delivered' ? <CheckCheck className="h-3.5 w-3.5 text-muted-foreground" /> : <Check className="h-3.5 w-3.5 text-muted-foreground" />}
                 </span>
               )}
               {(() => {
@@ -260,16 +248,7 @@ export const ChatListItem = ({
                 const text = cleaned || (isGroup ? 'Group chat' : 'Tap to chat');
                 const media = isMediaSnippet(cleaned);
                 return (
-                  <p
-                    className={cn(
-                      'text-[13px] truncate leading-tight',
-                      media
-                        ? 'font-medium text-zinc-400 dark:text-zinc-500'
-                        : unreadCount > 0
-                          ? 'text-foreground'
-                          : 'text-muted-foreground'
-                    )}
-                  >
+                  <p className={cn('text-[13px] truncate leading-tight', media ? 'font-medium text-zinc-400 dark:text-zinc-500' : unreadCount > 0 ? 'text-foreground' : 'text-muted-foreground')}>
                     {text}
                   </p>
                 );
@@ -280,12 +259,7 @@ export const ChatListItem = ({
               {isMuted && <BellOff className="h-3.5 w-3.5 text-muted-foreground" />}
               {isPinned && <Pin className="h-3.5 w-3.5 text-muted-foreground rotate-45" />}
               {unreadCount > 0 && (
-                // Unread badge follows the brand purple. Uses the `primary`
-                // token so a theme that overrides it still wins.
-                <span
-                  aria-label={`${unreadCount} unread`}
-                  className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center animate-scale-in"
-                >
+                <span aria-label={`${unreadCount} unread`} className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center animate-scale-in">
                   {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}

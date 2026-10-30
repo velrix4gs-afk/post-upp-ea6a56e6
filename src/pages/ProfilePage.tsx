@@ -11,8 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProfileTabs } from '@/components/ProfileTabs';
 import { ProfileImageViewer } from '@/components/ProfileImageViewer';
-import { VerificationBanner } from '@/components/VerificationBanner';
-import { MutualFollowers } from '@/components/MutualFollowers';
 import { FollowersDialog } from '@/components/FollowersDialog';
 import { VerificationBadge } from '@/components/premium/VerificationBadge';
 import { StoryHighlights } from '@/components/ShowcaseHighlights';
@@ -47,9 +45,7 @@ const getSocialHref = (value: string, domain: string): string | null => {
   try {
     const url = new URL(candidate);
     return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : null;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 };
 
 const isVideoUrl = (url: string) => /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || url.includes('/video/');
@@ -98,27 +94,17 @@ const ProfilePage = () => {
   const isFollowing = viewerFollowing.some(f => f.following_id === profileUserId);
   const hasFollowRequest = viewerPendingFollowing.some(f => f.following_id === profileUserId);
 
-  // Use optimistic state if it exists, otherwise fall back to DB state
   const currentlyFollowing = optimisticFollow !== null ? optimisticFollow : isFollowing;
 
   const handleFollowToggle = async () => {
     if (!profileUserId || followActionBusy) return;
     setFollowActionBusy(true);
-
     const nextState = !currentlyFollowing;
-    setOptimisticFollow(nextState); // Instantly update UI
-
+    setOptimisticFollow(nextState);
     try {
-      if (nextState) {
-        await followViewer(profileUserId, profile?.is_private || false);
-      } else {
-        await unfollowViewer(profileUserId);
-      }
-    } catch (error) {
-      setOptimisticFollow(null); // Revert on failure
-    } finally {
-      setFollowActionBusy(false);
-    }
+      if (nextState) await followViewer(profileUserId, profile?.is_private || false);
+      else await unfollowViewer(profileUserId);
+    } catch (error) { setOptimisticFollow(null); } finally { setFollowActionBusy(false); }
   };
 
   const handleMessage = async () => {
@@ -129,9 +115,7 @@ const ProfilePage = () => {
       navigate(`/messages?chat=${chatId}`);
     } catch (error: unknown) {
       toast({ title: 'Error', description: error instanceof Error ? error.message : 'Failed to start conversation', variant: 'destructive' });
-    } finally {
-      setMessageActionBusy(false);
-    }
+    } finally { setMessageActionBusy(false); }
   };
 
   const handleShare = async () => {
@@ -142,9 +126,7 @@ const ProfilePage = () => {
       try {
         await navigator.share({ title: `${name}'s Profile`, text: shareText, url: profileUrl });
         return;
-      } catch (error) {
-        if ((error as DOMException)?.name === 'AbortError') return;
-      }
+      } catch (error) { if ((error as DOMException)?.name === 'AbortError') return; }
     }
     const copied = await copyToClipboard(profileUrl);
     toast(copied ? { title: 'Link copied!', description: profileUrl } : { title: 'Could not copy the link', description: profileUrl, variant: 'destructive' });
@@ -157,11 +139,11 @@ const ProfilePage = () => {
   ];
 
   if (profileLoading) {
-    return <div className="min-h-screen bg-background"><div className="container mx-auto px-4 py-6 max-w-4xl"><Skeleton className="h-48 w-full rounded-lg mb-6" /><div className="flex items-center gap-4 mb-6"><Skeleton className="h-32 w-32 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-64" /></div></div></div></div>;
+    return <div className="min-h-screen bg-background"><div className="container mx-auto px-4 py-6 max-w-3xl"><Skeleton className="h-48 w-full rounded-lg mb-6" /><div className="flex items-center gap-4 mb-6"><Skeleton className="h-24 w-24 rounded-full" /><div className="flex-1 space-y-2"><Skeleton className="h-8 w-48" /><Skeleton className="h-4 w-32" /><Skeleton className="h-4 w-64" /></div></div></div></div>;
   }
 
   if (!profile) {
-    return <div className="min-h-screen bg-background"><div className="container mx-auto px-4 py-6 max-w-4xl"><Card className="p-12 text-center"><h2 className="text-2xl font-bold mb-2">Profile not found</h2><p className="text-muted-foreground">This user doesn't exist or has been removed.</p></Card></div></div>;
+    return <div className="min-h-screen bg-background"><div className="container mx-auto px-4 py-6 max-w-3xl"><Card className="p-12 text-center"><h2 className="text-2xl font-bold mb-2">Profile not found</h2><p className="text-muted-foreground">This user doesn't exist or has been removed.</p></Card></div></div>;
   }
 
   const formatJoinDate = (dateString?: string | null) => {
@@ -199,8 +181,8 @@ const ProfilePage = () => {
 
     <main className="container mx-auto max-w-3xl px-4 py-5">
 
-      {/* Header Info (Avatar, Stats, Bio) - Instagram Style */}
-      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 md:gap-10 mb-8 mt-2">
+      {/* Header Info - Left Aligned like Instagram Mobile */}
+      <div className="flex flex-row items-start gap-4 sm:gap-8 mb-6 mt-2">
 
         {/* Avatar */}
         <div className="relative shrink-0">
@@ -208,11 +190,11 @@ const ProfilePage = () => {
             className="relative inline-block cursor-pointer group"
             onClick={() => profile?.avatar_url ? setShowAvatarViewer(true) : isOwnProfile && setShowProfileEdit(true)}
           >
-            <Avatar className="h-24 w-24 md:h-36 md:w-36 ring-2 ring-border shadow-sm group-hover:ring-primary/40 transition-all">
+            <Avatar className="h-20 w-20 sm:h-28 sm:w-28 md:h-36 md:w-36 ring-2 ring-border shadow-sm group-hover:ring-primary/40 transition-all">
               {profile?.avatar_url ? (
                 <AvatarImage src={profile.avatar_url} alt={profile.display_name} className="object-cover" />
               ) : (
-                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-4xl font-bold">
+                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-2xl sm:text-4xl font-bold">
                   {profile?.display_name?.split(' ').map(n => n[0]).join('') || 'U'}
                 </AvatarFallback>
               )}
@@ -226,22 +208,30 @@ const ProfilePage = () => {
         </div>
 
         {/* Info Area */}
-        <div className="flex-1 flex flex-col items-center sm:items-start w-full">
-          {/* Username & Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 mb-4 w-full sm:w-auto">
-            <h1 className="text-xl font-semibold">{profile?.username}</h1>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex-1 flex flex-col items-start w-full text-left min-w-0">
+
+          {/* Row 1: Display Name, Username & Action Buttons */}
+          <div className="flex flex-row items-start justify-between w-full mb-3 gap-2">
+            <div className="min-w-0">
+              <h1 className="text-lg sm:text-xl font-bold leading-tight truncate flex items-center gap-1">
+                {profile?.display_name}
+                {profile?.is_verified && <VerificationBadge isVerified={profile.is_verified} verificationType={profile.verification_type} />}
+              </h1>
+              <p className="text-sm text-muted-foreground truncate">@{profile?.username}</p>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
               {isOwnProfile ? (
-                <Button variant="secondary" size="sm" onClick={() => setShowProfileEdit(true)} className="flex-1 sm:flex-none h-8 rounded-lg font-semibold text-xs">
+                <Button variant="secondary" size="sm" onClick={() => setShowProfileEdit(true)} className="h-8 rounded-lg font-semibold text-xs px-3">
                   Edit profile
                 </Button>
               ) : (
                 <>
-                  <Button variant={currentlyFollowing || hasFollowRequest ? "secondary" : "default"} size="sm" onClick={handleFollowToggle} disabled={followActionBusy} className="flex-1 sm:flex-none h-8 rounded-lg font-semibold text-xs">
+                  <Button variant={currentlyFollowing || hasFollowRequest ? "secondary" : "default"} size="sm" onClick={handleFollowToggle} disabled={followActionBusy} className="h-8 rounded-lg font-semibold text-xs px-4">
                     {followActionBusy ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
                     {currentlyFollowing ? 'Following' : hasFollowRequest ? 'Requested' : 'Follow'}
                   </Button>
-                  <Button variant="secondary" size="sm" onClick={handleMessage} disabled={messageActionBusy} className="h-8 rounded-lg font-semibold text-xs">
+                  <Button variant="secondary" size="sm" onClick={handleMessage} disabled={messageActionBusy} className="h-8 rounded-lg font-semibold text-xs px-3 hidden sm:flex">
                     Message
                   </Button>
                 </>
@@ -249,21 +239,20 @@ const ProfilePage = () => {
             </div>
           </div>
 
-          {/* Stats (Inline) */}
-          <div className="flex items-center gap-6 mb-4 text-sm md:text-base">
-            <div><span className="font-semibold">{userPosts.length}</span> posts</div>
-            <button onClick={() => setShowFollowersDialog(true)} className="hover:text-muted-foreground transition-colors"><span className="font-semibold">{followers.length}</span> followers</button>
-            <button onClick={() => setShowFollowingDialog(true)} className="hover:text-muted-foreground transition-colors"><span className="font-semibold">{following.length}</span> following</button>
+          {/* Row 2: Stats (Inline) */}
+          <div className="flex items-center gap-4 sm:gap-6 mb-3 text-sm">
+            <div><span className="font-bold">{userPosts.length}</span> <span className="text-muted-foreground">posts</span></div>
+            <button onClick={() => setShowFollowersDialog(true)} className="hover:opacity-70 transition-opacity"><span className="font-bold">{followers.length}</span> <span className="text-muted-foreground">followers</span></button>
+            <button onClick={() => setShowFollowingDialog(true)} className="hover:opacity-70 transition-opacity"><span className="font-bold">{following.length}</span> <span className="text-muted-foreground">following</span></button>
           </div>
 
-          {/* Name & Bio */}
-          <div className="text-center sm:text-left">
-            <p className="font-semibold text-sm">{profile?.display_name}</p>
-            {canViewFull && profile?.bio && <p className="text-sm whitespace-pre-wrap mt-0.5">{profile.bio}</p>}
-            {isOwnProfile && !profile?.bio && <button onClick={() => setShowProfileEdit(true)} className="text-sm text-muted-foreground hover:text-primary mt-1">+ Add a bio</button>}
+          {/* Row 3: Bio & Metadata */}
+          <div className="w-full">
+            {canViewFull && profile?.bio && <p className="text-sm whitespace-pre-wrap font-medium">{profile.bio}</p>}
+            {isOwnProfile && !profile?.bio && <button onClick={() => setShowProfileEdit(true)} className="text-sm text-muted-foreground hover:text-primary">+ Add a bio</button>}
 
             {/* Metadata */}
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2 text-xs text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
               {canViewFull && profile?.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {profile.location}</span>}
               {canViewFull && profile?.website && <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline"><LinkIcon className="h-3 w-3" /> {profile.website.replace(/^https?:\/\//, '')}</a>}
               {canViewFull && <span className="flex items-center gap-1"><Calendar className="h-3 w-3" /> Joined {formatJoinDate(profile?.created_at || '')}</span>}
@@ -271,7 +260,7 @@ const ProfilePage = () => {
 
             {/* Social Links */}
             {canViewFull && (
-              <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
+              <div className="flex flex-wrap items-center gap-3 mt-2">
                 {[
                   { key: 'instagram', label: 'Instagram', domain: 'instagram.com', Icon: Instagram },
                   { key: 'twitter', label: 'X', domain: 'x.com', Icon: Twitter },
@@ -290,16 +279,16 @@ const ProfilePage = () => {
       </div>
 
       {/* Highlights */}
-      {canViewFull && <div className="mb-6 border-t border-border/50 pt-4"><StoryHighlights userId={profileUserId!} isOwnProfile={isOwnProfile} /></div>}
+      {canViewFull && <div className="mb-4"><StoryHighlights userId={profileUserId!} isOwnProfile={isOwnProfile} /></div>}
 
       {canViewFull ? (
         <>
           <ProfileTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} sticky={true} />
 
-          <div className="py-2">
+          <div className="py-1">
             {/* Posts Tab - 3x3 GRID */}
             {activeTab === 'posts' && (
-              <div className="grid grid-cols-3 gap-1 md:gap-2">
+              <div className="grid grid-cols-3 gap-[1px] sm:gap-1 md:gap-2">
                 {allPosts.length === 0 ? (
                   <div className="col-span-3 py-16 text-center text-muted-foreground flex flex-col items-center">
                     <Camera className="h-10 w-10 mb-3 opacity-20" />
@@ -331,18 +320,11 @@ const ProfilePage = () => {
                           </div>
                         )}
 
-                        {/* Pinned Indicator Overlay */}
                         {pinnedPostIds.includes(post.id) && (
                           <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm p-1.5 rounded-full">
                             <Pin className="h-3 w-3 text-white fill-white" />
                           </div>
                         )}
-
-                        {/* Hover Stats Overlay */}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white font-semibold text-sm">
-                          <span className="flex items-center gap-1"><Heart className="h-4 w-4 fill-white" /> {post.reactions_count}</span>
-                          <span className="flex items-center gap-1"><MessageSquare className="h-4 w-4 fill-white" /> {post.comments_count}</span>
-                        </div>
                       </div>
                     );
                   })
@@ -352,7 +334,7 @@ const ProfilePage = () => {
 
             {/* Replies Tab */}
             {activeTab === 'replies' && (
-              <div className="space-y-4">
+              <div className="space-y-4 pt-2">
                 {repliesLoading ? (
                   <div className="space-y-4">{[1, 2, 3].map(i => <Card key={i} className="p-4"><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-4 w-1/2" /></Card>)}</div>
                 ) : userReplies.length === 0 ? (
@@ -371,7 +353,7 @@ const ProfilePage = () => {
 
             {/* Likes Tab */}
             {activeTab === 'likes' && (
-              <div className="grid grid-cols-3 gap-1 md:gap-2">
+              <div className="grid grid-cols-3 gap-[1px] sm:gap-1 md:gap-2 pt-2">
                 {likesLoading ? (
                   <div className="col-span-3 space-y-4">{[1, 2, 3].map(i => <Skeleton key={i} className="aspect-square w-full" />)}</div>
                 ) : likedPosts.length === 0 ? (
