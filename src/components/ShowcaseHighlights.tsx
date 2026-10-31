@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,10 +14,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle as AlertTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Trash2, Loader2, Image as ImageIcon } from 'lucide-react';
+import { Plus, Trash2, Loader2, Image as/ImageIcon } from 'lucide-react';
 import { useStoryHighlights, type StoryHighlight } from '@/hooks/useShowcaseHighlights';
 import { useStories, type Story } from '@/hooks/useShowcases';
 import { useAuth } from '@/hooks/useAuth';
+import { usePosts } from '@/hooks/usePosts';
 import { ensurePrivateChat } from '@/lib/chatCreation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
@@ -32,6 +34,7 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
   const { user } = useAuth();
   const navigate = useNavigate();
   const { stories, viewStory } = useStories();
+  const { posts } = usePosts(userId, Boolean(userId));
   const {
     highlights,
     loading,
@@ -87,11 +90,15 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
     setSaving(true);
     try {
       const selectedStories = activeOwnStories.filter((story) => selectedStoryIds.has(story.id));
-      const firstImage = selectedStories.find((story) => story.media_type === 'image')?.media_url;
-      const highlightId = await createHighlight(cleanTitle, firstImage);
+      const selectedPosts = posts.filter((post) => selectedStoryIds.has(post.id));
+      const coverImage = selectedStories.find((story) => story.media_url && story.media_type === 'image')?.media_url
+        || selectedPosts.find((post) => post.media_url)?.media_url;
+      const highlightId = await createHighlight(cleanTitle, coverImage);
       if (!highlightId) return;
-      const added = await addStoriesToHighlight(highlightId, selectedStories.map((story) => story.id));
-      if (!added) return;
+      if (selectedStories.length > 0) {
+        const added = await addStoriesToHighlight(highlightId, selectedStories.map((story) => story.id));
+        if (!added) return;
+      }
       setCreateOpen(false);
       setTitle('');
       setSelectedStoryIds(new Set());
@@ -170,10 +177,10 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="flex flex-col items-center gap-2 min-w-[80px] group"
+            className="flex flex-col items-center gap-2 min-w-[72px] group"
             aria-label="Create Showcase collection"
           >
-            <div className="flex h-24 w-16 items-center justify-center rounded-xl border border-dashed border-muted-foreground/50 bg-muted/30 transition-all duration-200 group-hover:scale-105 group-hover:border-primary">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/50 bg-muted/30 transition-all duration-200 group-hover:scale-105 group-hover:border-primary">
               <Plus className="h-6 w-6 text-muted-foreground group-hover:text-primary" />
             </div>
             <span className="text-xs text-muted-foreground">New set</span>
@@ -181,20 +188,20 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
         )}
 
         {highlights.map((highlight) => (
-          <div key={highlight.id} className="relative flex flex-col items-center gap-2 min-w-[80px] group">
+          <div key={highlight.id} className="relative flex flex-col items-center gap-2 min-w-[72px] group">
             <button
               type="button"
               onClick={() => void openHighlight(highlight)}
               disabled={openingId === highlight.id}
-              className="flex flex-col items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl"
+              className="flex flex-col items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
               aria-label={`Open ${highlight.title} Showcase collection`}
             >
               {openingId === highlight.id ? (
-                <div className="h-24 w-16 rounded-xl ring-2 ring-primary flex items-center justify-center bg-muted">
+                <div className="h-16 w-16 rounded-full ring-2 ring-primary flex items-center justify-center bg-muted">
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
               ) : (
-                <div className="h-24 w-16 overflow-hidden rounded-xl ring-2 ring-primary transition-transform duration-200 group-hover:scale-105">
+                <div className="h-16 w-16 overflow-hidden rounded-full ring-2 ring-primary transition-transform duration-200 group-hover:scale-105">
                   {highlight.cover_image ? (
                     <img src={highlight.cover_image} alt="" className="h-full w-full object-cover" />
                   ) : (
@@ -227,43 +234,73 @@ export const StoryHighlights = ({ userId, isOwnProfile }: StoryHighlightsProps) 
           <DialogHeader>
             <DialogTitle>Create Showcase collection</DialogTitle>
             <DialogDescription>
-              Group active Showcase items under a title. Items saved here stay available on your profile after their 24-hour window.
+              Group active Showcase items or existing posts under a title. Items saved here stay available on your profile after their 24-hour window.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Collection title"
-            maxLength={40}
-            autoFocus
-          />
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-            {activeOwnStories.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                You need an active Showcase item before creating a collection.
-              </p>
-            ) : activeOwnStories.map((story) => (
-              <label
-                key={story.id}
-                className="flex items-center gap-3 rounded-xl p-2 hover:bg-muted/60 transition-colors cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedStoryIds.has(story.id)}
-                  onChange={() => toggleStory(story.id)}
-                  className="h-4 w-4 accent-primary"
-                />
-                {story.media_url ? (
-                  <img src={story.media_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                ) : (
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <ImageIcon className="h-5 w-5 text-primary" />
-                  </div>
-                )}
-                <span className="text-sm line-clamp-2">{story.content || 'Showcase item'}</span>
-              </label>
-            ))}
-          </div>
+          <Tabs defaultValue="showcases" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="showcases">Showcase Items</TabsTrigger>
+              <TabsTrigger value="posts">Posts</TabsTrigger>
+            </TabsList>
+            <TabsContent value="showcases" className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-2 max-h-[50vh]">
+                {activeOwnStories.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    You need an active Showcase item before creating a collection.
+                  </p>
+                ) : activeOwnStories.map((story) => (
+                  <label
+                    key={story.id}
+                    className="flex items-center gap-3 rounded-xl p-2 hover:bg-muted/60 transition-colors cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStoryIds.has(story.id)}
+                      onChange={() => toggleStory(story.id)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    {story.media_url ? (
+                      <img src={story.media_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <ImageIcon className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                    <span className="text-sm line-clamp-2">{story.content || 'Showcase item'}</span>
+                  </label>
+                ))}
+              </div>
+            </TabsContent>
+            <TabsContent value="posts" className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-y-auto space-y-2 max-h-[50vh]">
+                {posts.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-6 text-center">
+                    You haven't posted anything yet.
+                  </p>
+                ) : posts.map((post) => (
+                  <label
+                    key={post.id}
+                    className="flex items-center gap-3 rounded-xl p-2 hover:bg-muted/60 transition-colors cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStoryIds.has(post.id)}
+                      onChange={() => toggleStory(post.id)}
+                      className="h-4 w-4 accent-primary"
+                    />
+                    {post.media_url ? (
+                      <img src={post.media_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                    ) : (
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <ImageIcon className="h-5 w-5 text-primary" />
+                      </div>
+                    )}
+                    <span className="text-sm line-clamp-2">{post.content || 'Post'}</span>
+                  </label>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
           <Button
             onClick={() => void handleCreate()}
             disabled={saving || !title.trim() || selectedStoryIds.size === 0}

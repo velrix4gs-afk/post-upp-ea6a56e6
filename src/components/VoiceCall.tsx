@@ -7,13 +7,14 @@ import { CallShell } from '@/components/calls/CallShell';
 import { haptic } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { usePresence } from '@/hooks/usePresence';
 
 export interface CallOutcome { status: 'completed' | 'declined' | 'unanswered'; durationSec: number; }
-interface VoiceCallProps { chatId: string; isInitiator: boolean; onEndCall: (outcome: CallOutcome) => void; participantName?: string; participantAvatar?: string; }
+interface VoiceCallProps { chatId: string; isInitiator: boolean; onEndCall: (outcome: CallOutcome) => void; participantName?: string; participantAvatar?: string; participantUserId?: string; }
 const RING_TIMEOUT_MS = 45_000;
 interface CallSignalRow { id: string; call_id: string; sender_id: string; signal_type: string; }
 
-export const VoiceCall = ({ chatId, isInitiator, onEndCall, participantName = 'User', participantAvatar }: VoiceCallProps) => {
+export const VoiceCall = ({ chatId, isInitiator, onEndCall, participantName = 'User', participantAvatar, participantUserId }: VoiceCallProps) => {
   const { user } = useAuth();
   const { client, error: clientError, retry: retryStreamClient } = useStreamVideoClient();
   const [call, setCall] = useState<Call | null>(null);
@@ -123,21 +124,23 @@ export const VoiceCall = ({ chatId, isInitiator, onEndCall, participantName = 'U
   return (
     <StreamVideo client={client}>
       <StreamCall call={call}>
-        <VoiceCallInner onEnd={end} minimized={minimized} setMinimized={setMinimized} participantName={participantName} participantAvatar={participantAvatar} isInitiator={isInitiator} hasConnectedRef={hasConnectedRef} durationRef={durationRef} setupError={signalError || undefined} onRetry={retry} />
+        <VoiceCallInner onEnd={end} minimized={minimized} setMinimized={setMinimized} participantName={participantName} participantAvatar={participantAvatar} isInitiator={isInitiator} hasConnectedRef={hasConnectedRef} durationRef={durationRef} setupError={signalError || undefined} onRetry={retry} participantUserId={participantUserId} />
       </StreamCall>
     </StreamVideo>
   );
 };
 
-interface InnerProps { onEnd: () => void; minimized: boolean; setMinimized: (v: boolean) => void; participantName: string; participantAvatar?: string; isInitiator: boolean; hasConnectedRef: React.MutableRefObject<boolean>; durationRef: React.MutableRefObject<number>; setupError?: string; onRetry: () => void; }
+interface InnerProps { onEnd: () => void; minimized: boolean; setMinimized: (v: boolean) => void; participantName: string; participantAvatar?: string; isInitiator: boolean; hasConnectedRef: React.MutableRefObject<boolean>; durationRef: React.MutableRefObject<number>; setupError?: string; onRetry: () => void; participantUserId?: string; }
 
-const VoiceCallInner = ({ onEnd, minimized, setMinimized, participantName, participantAvatar, isInitiator, hasConnectedRef, durationRef, setupError, onRetry }: InnerProps) => {
+const VoiceCallInner = ({ onEnd, minimized, setMinimized, participantName, participantAvatar, isInitiator, hasConnectedRef, durationRef, setupError, onRetry, participantUserId }: InnerProps) => {
   const { useCallCallingState, useMicrophoneState, useParticipants } = useCallStateHooks();
   const callingState = useCallCallingState();
   const { microphone, isMute } = useMicrophoneState();
   const participants = useParticipants();
   const remoteParticipants = participants.filter(p => !p.isLocalParticipant);
-  const voiceLevel = Math.max(0, ...participants.map(p => p.audioLevel ?? 0));
+  const remoteVoiceLevel = Math.max(0, ...remoteParticipants.map(p => p.audioLevel ?? 0));
+  const { isUserOnline } = usePresence();
+  const remoteOnline = participantUserId ? isUserOnline(participantUserId) : true;
 
   const [callDuration, setCallDuration] = useState(0);
   const [speakerOn, setSpeakerOn] = useState(true);
@@ -166,7 +169,11 @@ const VoiceCallInner = ({ onEnd, minimized, setMinimized, participantName, parti
     }
   };
 
-  const statusText = isConnected ? formatDuration(callDuration) : isInitiator && callingState === CallingState.JOINED ? 'Ringing…' : 'Connecting…';
+  const hasRemoteJoined = remoteParticipants.length > 0;
+  const statusText = isConnected ? formatDuration(callDuration)
+    : isInitiator && callingState === CallingState.JOINED && remoteOnline && hasRemoteJoined ? 'Ringing…'
+    : isInitiator && callingState === CallingState.JOINED && !remoteOnline ? 'User is offline'
+    : 'Connecting…';
 
   const controls = (
     <div className="flex items-center justify-center gap-4 sm:gap-6">
@@ -181,7 +188,7 @@ const VoiceCallInner = ({ onEnd, minimized, setMinimized, participantName, parti
   );
 
   return (
-    <CallShell kind="voice" participantName={participantName} participantAvatar={participantAvatar} statusText={statusText} minimized={minimized} onMinimize={() => setMinimized(true)} onRestore={() => setMinimized(false)} onEnd={onEnd} hiddenStreamMount={<ParticipantsAudio participants={remoteParticipants} />} controls={controls} setupError={setupError} onRetry={onRetry} voiceLevel={isConnected ? voiceLevel : 0} />
+    <CallShell kind="voice" participantName={participantName} participantAvatar={participantAvatar} statusText={statusText} minimized={minimized} onMinimize={() => setMinimized(true)} onRestore={() => setMinimized(false)} onEnd={onEnd} hiddenStreamMount={<ParticipantsAudio participants={remoteParticipants} />} controls={controls} setupError={setupError} onRetry={onRetry} voiceLevel={isConnected ? remoteVoiceLevel : 0} />
   );
 };
 

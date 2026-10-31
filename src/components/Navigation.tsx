@@ -64,11 +64,12 @@ const Navigation = () => {
     lastProfileTapRef.current = now;
   };
 
-  // Hide navigation on auth pages and messages page
+  // Hide navigation on auth pages, messages page, settings, and creator pages
   const authPages = ['/auth', '/signin', '/signup', '/forgot-password'];
   const isAuthPage = authPages.some(page => location.pathname.startsWith(page));
   const isMessagesPage = location.pathname === '/messages';
   const isCreatorPage = location.pathname.startsWith('/create');
+  const isSettingsPage = location.pathname === '/settings' || location.pathname.startsWith('/settings/');
 
   // Pages where auto-hide should be enabled
   const isFeedPage = location.pathname === '/feed' || location.pathname === '/';
@@ -107,7 +108,7 @@ const Navigation = () => {
 
   const isProfilePage = location.pathname.startsWith("/profile");
 
-  if (isAuthPage || isMessagesPage || isCreatorPage || isProfilePage) {
+  if (isAuthPage || isMessagesPage || isCreatorPage || isProfilePage || isSettingsPage) {
     return null;
   }
 

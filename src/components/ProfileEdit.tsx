@@ -387,22 +387,6 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
             onChange={handleCoverInputChange}
             disabled={isUploadingCover}
           />
-          
-          {/* Close button */}
-          <button 
-            onClick={() => {
-              if (hasChanges) {
-                if (window.confirm('You have unsaved changes. Are you sure you want to leave?')) {
-                  onClose();
-                }
-              } else {
-                onClose();
-              }
-            }}
-            className="absolute top-3 right-3 p-2 rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         {/* Avatar Section with Drag & Drop */}
@@ -514,7 +498,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                     onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                     placeholder="Your name"
                     className={cn(
-                      "h-11 border-0 border-b-2 rounded-none bg-transparent focus-visible:ring-0 focus-visible:border-primary px-0",
+                      "h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40",
                       errors.display_name && 'border-destructive'
                     )}
                   />
@@ -534,13 +518,13 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                     <Input
                       id="username"
                       value={formData.username}
-                      onChange={(e) => setFormData({ 
-                        ...formData, 
+                      onChange={(e) => setFormData({
+                        ...formData,
                         username: e.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, '')
                       })}
                       placeholder="username"
                       className={cn(
-                        "h-11 pl-5 pr-8 border-0 border-b-2 rounded-none bg-transparent focus-visible:ring-0 focus-visible:border-primary",
+                        "h-11 pl-5 pr-8 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40",
                         errors.username ? 'border-destructive' : usernameAvailable === true && 'border-green-500'
                       )}
                       maxLength={20}
@@ -588,7 +572,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                   placeholder="Tell us about yourself... Use line breaks to format your bio ✨"
                   rows={4}
                   className={cn(
-                    "resize-none max-h-[40vh] overflow-y-auto border-2 focus-visible:ring-0 focus-visible:border-primary",
+                    "resize-none max-h-[40vh] overflow-y-auto rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40",
                     errors.bio && 'border-destructive',
                     bioLength >= BIO_MAX_LENGTH - 10 && !errors.bio && 'border-destructive/60',
                     bioWarning && bioLength < BIO_MAX_LENGTH - 10 && !errors.bio && 'border-amber-500/50'
@@ -606,17 +590,17 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="birth_date" className="text-sm font-medium">Birth Date (Private)</Label>
-                  <Input
-                    id="birth_date"
-                    type="date"
-                    value={formData.birth_date}
-                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
-                    max={new Date().toISOString().split('T')[0]}
-                    className={cn(
-                      "h-11",
-                      errors.birth_date && 'border-destructive'
-                    )}
-                  />
+<Input
+                     id="birth_date"
+                     type="date"
+                     value={formData.birth_date}
+                     onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                     max={new Date().toISOString().split('T')[0]}
+                     className={cn(
+                       "h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40",
+                       errors.birth_date && 'border-destructive'
+                     )}
+                   />
                   {errors.birth_date && (
                     <p className="text-xs text-destructive flex items-center gap-1">
                       <AlertCircle className="h-3 w-3" />
@@ -652,13 +636,13 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                     <MapPin className="h-3.5 w-3.5 inline mr-1" />
                     Location
                   </Label>
-                  <Input
-                    id="location"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="City, Country"
-                    className="h-11"
-                  />
+<Input
+                     id="location"
+                     value={formData.location}
+                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                     placeholder="City, Country"
+                     className="h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
+                   />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Relationship Status</Label>
@@ -694,7 +678,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                   value={formData.website}
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   placeholder="https://yourwebsite.com"
-                  className={cn("h-11", errors.website && 'border-destructive')}
+                  className={cn("h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40", errors.website && 'border-destructive')}
                 />
                 {errors.website && (
                   <p className="text-xs text-destructive flex items-center gap-1">
@@ -717,10 +701,10 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                       value={formData.instagram_url}
                       onChange={(e) => setFormData({ ...formData, instagram_url: e.target.value })}
                       placeholder="instagram.com/username"
-                      className="h-10 flex-1"
+                      className="h-10 flex-1 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
                     />
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-black">
                       <Twitter className="h-4 w-4 text-white" />
@@ -729,10 +713,10 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                       value={formData.twitter_url}
                       onChange={(e) => setFormData({ ...formData, twitter_url: e.target.value })}
                       placeholder="x.com/username"
-                      className="h-10 flex-1"
+                      className="h-10 flex-1 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
                     />
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-400 via-pink-500 to-red-500">
                       <span className="text-white font-bold text-xs">TT</span>
@@ -741,7 +725,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                       value={formData.tiktok_url}
                       onChange={(e) => setFormData({ ...formData, tiktok_url: e.target.value })}
                       placeholder="tiktok.com/@username"
-                      className="h-10 flex-1"
+                      className="h-10 flex-1 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
                     />
                   </div>
 
@@ -755,7 +739,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                         onChange={(e) => setExtraSocialLinks((prev) => ({ ...prev, [key]: e.target.value }))}
                         placeholder={placeholder}
                         aria-label={`${label} link`}
-                        className="h-10 flex-1"
+                        className="h-10 flex-1 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
                       />
                     </div>
                   ))}
@@ -771,7 +755,7 @@ const ProfileEdit = ({ onClose }: ProfileEditProps) => {
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   placeholder="+1 234 567 890"
-                  className="h-11"
+                  className="h-11 rounded-xl bg-muted/40 border-0 focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
                 <p className="text-xs text-muted-foreground">Your phone number is only visible to you</p>
               </div>

@@ -8,7 +8,6 @@ interface UploadOptions {
   file: Blob;
   contentType?: string;
   upsert?: boolean;
-  onProgress?: (percent: number) => void;
 }
 
 /**
@@ -16,6 +15,7 @@ interface UploadOptions {
  * events (supabase-js uses fetch, which exposes none). Falls back to the
  * SDK when XHR is unavailable so behaviour never regresses.
  *
+ * Media now sends cleanly in the background without a progress overlay.
  * Resolves with the public URL of the uploaded object.
  */
 export const uploadWithProgress = async ({
@@ -24,7 +24,6 @@ export const uploadWithProgress = async ({
   file,
   contentType,
   upsert = false,
-  onProgress,
 }: UploadOptions): Promise<string> => {
   const publicUrlOf = () => supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 
@@ -36,7 +35,6 @@ export const uploadWithProgress = async ({
       .from(bucket)
       .upload(path, file, { contentType, upsert });
     if (error) throw error;
-    onProgress?.(100);
     return publicUrlOf();
   }
 
@@ -47,15 +45,8 @@ export const uploadWithProgress = async ({
     xhr.setRequestHeader('x-upsert', String(upsert));
     if (contentType) xhr.setRequestHeader('Content-Type', contentType);
 
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        onProgress?.(Math.min(99, Math.round((event.loaded / event.total) * 100)));
-      }
-    };
-
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
-        onProgress?.(100);
         resolve();
       } else {
         let message = `Upload failed (${xhr.status})`;

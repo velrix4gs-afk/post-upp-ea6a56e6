@@ -65,6 +65,8 @@ const SettingsPage = () => {
     who_can_message: 'everyone',
     who_can_tag: 'everyone',
     location_sharing: false,
+    show_replies: true,
+    show_likes: true,
   });
 
   // Notification Settings
@@ -122,7 +124,9 @@ const SettingsPage = () => {
         profile_visibility: data.privacy_who_can_view_profile || 'public',
         who_can_message: data.privacy_who_can_message || 'everyone',
         who_can_tag: data.privacy_who_can_tag || 'everyone',
-        location_sharing: data.location_sharing || false
+        location_sharing: data.location_sharing || false,
+        show_replies: data.show_replies ?? true,
+        show_likes: data.show_likes ?? true,
       }));
       setNotificationSettings(prev => ({
         ...prev,
@@ -558,19 +562,19 @@ const SettingsPage = () => {
           <p className="text-muted-foreground mt-2">Manage your account and preferences</p>
         </div>
 
-        <Tabs defaultValue="general" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-10 mb-6 overflow-x-auto">
-            <TabsTrigger value="general"><User className="h-4 w-4 mr-2" /><span className="hidden sm:inline">General</span></TabsTrigger>
-            <TabsTrigger value="appearance"><Palette className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Appearance</span></TabsTrigger>
-            <TabsTrigger value="privacy"><Shield className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Privacy</span></TabsTrigger>
-            <TabsTrigger value="notifications"><Bell className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Notifications</span></TabsTrigger>
-            <TabsTrigger value="messaging"><MessageCircle className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Messages</span></TabsTrigger>
-            <TabsTrigger value="content"><FileText className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Content</span></TabsTrigger>
-            <TabsTrigger value="verification"><ShieldCheck className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Verification</span></TabsTrigger>
-            <TabsTrigger value="creator"><Sparkles className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Creator</span></TabsTrigger>
-            <TabsTrigger value="chat-settings"><MessageCircle className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Chat</span></TabsTrigger>
-            {isAdmin && <TabsTrigger value="ai-settings"><Bot className="h-4 w-4 mr-2" /><span className="hidden sm:inline">AI</span></TabsTrigger>}
-          </TabsList>
+<Tabs defaultValue="general" className="w-full">
+           <TabsList className="flex w-full md:grid md:grid-cols-10 mb-6 overflow-x-auto md:overflow-x-visible gap-1 md:gap-0 p-1 touch-pan-x" style={{overflowX: 'auto', WebkitOverflowScrolling: 'touch'}}>
+             <TabsTrigger value="general" className="flex-shrink-0"><User className="h-4 w-4 mr-2" /><span className="hidden sm:inline">General</span></TabsTrigger>
+             <TabsTrigger value="appearance" className="flex-shrink-0"><Palette className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Appearance</span></TabsTrigger>
+             <TabsTrigger value="privacy" className="flex-shrink-0"><Shield className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Privacy</span></TabsTrigger>
+             <TabsTrigger value="notifications" className="flex-shrink-0"><Bell className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Notifications</span></TabsTrigger>
+             <TabsTrigger value="messaging" className="flex-shrink-0"><MessageCircle className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Messages</span></TabsTrigger>
+             <TabsTrigger value="content" className="flex-shrink-0"><FileText className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Content</span></TabsTrigger>
+             <TabsTrigger value="verification" className="flex-shrink-0"><ShieldCheck className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Verification</span></TabsTrigger>
+             <TabsTrigger value="creator" className="flex-shrink-0"><Sparkles className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Creator</span></TabsTrigger>
+             <TabsTrigger value="chat-settings" className="flex-shrink-0"><MessageCircle className="h-4 w-4 mr-2" /><span className="hidden sm:inline">Chat</span></TabsTrigger>
+             {isAdmin && <TabsTrigger value="ai-settings" className="flex-shrink-0"><Bot className="h-4 w-4 mr-2" /><span className="hidden sm:inline">AI</span></TabsTrigger>}
+           </TabsList>
 
           {/* General Settings */}
           <TabsContent value="general" className="space-y-4">
@@ -1069,6 +1073,36 @@ const SettingsPage = () => {
                         setPrivacySettings({ ...privacySettings, location_sharing: checked });
                         handleSettingUpdate({ location_sharing: checked });
                         toast({ description: checked ? 'Location sharing enabled' : 'Location sharing disabled' });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label className="text-base">Show Replies Tab</Label>
+                      <p className="text-sm text-muted-foreground">Allow others to see your Replies tab on your profile</p>
+                    </div>
+                    <Switch
+                      checked={privacySettings.show_replies}
+                      onCheckedChange={(checked) => {
+                        setPrivacySettings({ ...privacySettings, show_replies: checked });
+                        handleSettingUpdate({ show_replies: checked });
+                        toast({ description: checked ? 'Replies tab visible' : 'Replies tab hidden' });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                      <Label className="text-base">Show Likes Tab</Label>
+                      <p className="text-sm text-muted-foreground">Allow others to see your Likes tab on your profile</p>
+                    </div>
+                    <Switch
+                      checked={privacySettings.show_likes}
+                      onCheckedChange={(checked) => {
+                        setPrivacySettings({ ...privacySettings, show_likes: checked });
+                        handleSettingUpdate({ show_likes: checked });
+                        toast({ description: checked ? 'Likes tab visible' : 'Likes tab hidden' });
                       }}
                     />
                   </div>

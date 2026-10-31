@@ -6,6 +6,7 @@ export interface CallSession {
   isInitiator: boolean;
   participantName: string;
   participantAvatar?: string;
+  participantUserId?: string;
 }
 
 export interface CallSessionContextValue {

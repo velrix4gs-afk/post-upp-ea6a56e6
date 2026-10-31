@@ -132,10 +132,13 @@ const ProfilePage = () => {
     toast(copied ? { title: 'Link copied!', description: profileUrl } : { title: 'Could not copy the link', description: profileUrl, variant: 'destructive' });
   };
 
+  const showRepliesTab = isOwnProfile || (profile?.show_replies ?? true);
+  const showLikesTab = isOwnProfile || (profile?.show_likes ?? true);
+
   const tabs = [
     { id: 'posts', label: 'Posts', count: userPosts.length },
-    { id: 'replies', label: 'Replies', count: userReplies.length },
-    { id: 'likes', label: 'Likes', count: likedPosts.length }
+    ...(showRepliesTab ? [{ id: 'replies', label: 'Replies', count: userReplies.length }] : []),
+    ...(showLikesTab ? [{ id: 'likes', label: 'Likes', count: likedPosts.length }] : [])
   ];
 
   if (profileLoading) {

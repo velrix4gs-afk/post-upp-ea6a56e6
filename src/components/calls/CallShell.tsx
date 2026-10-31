@@ -101,7 +101,7 @@ export const CallShell = ({ kind, participantName, participantAvatar, statusText
 
           {kind === 'voice' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-8 text-center">
-              {voiceLevel === undefined ? <div className="pointer-events-none absolute h-[24rem] w-[24rem] rounded-full bg-primary/20 blur-[100px]" /> : <div className="pointer-events-none absolute h-[26rem] w-[26rem]"><CallAudioOrb level={voiceLevel} color="#c13aed" preset="abyss" /></div>}
+              {voiceLevel === undefined ? <div className="pointer-events-none absolute h-32 w-32 rounded-full bg-primary/20 blur-[100px]" /> : <div className="pointer-events-none absolute h-32 w-32"><CallAudioOrb level={voiceLevel} color="#c13aed" preset="abyss" /></div>}
               <Avatar className="relative h-32 w-32 ring-4 ring-white/10 shadow-2xl"><AvatarImage src={participantAvatar} className="object-cover" /><AvatarFallback className="bg-white/10 text-4xl text-white backdrop-blur-md">{participantName[0]?.toUpperCase() || 'U'}</AvatarFallback></Avatar>
               <h2 className="relative mt-8 text-3xl font-bold tracking-tight text-white">{participantName}</h2>
               <p className="relative mt-2 text-sm font-medium text-white/60">{statusText}</p>

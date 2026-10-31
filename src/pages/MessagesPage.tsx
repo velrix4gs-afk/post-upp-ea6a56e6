@@ -128,8 +128,7 @@ const MessagesPage = () => {
   const [filterTab, setFilterTab] = useState<FilterTab>('all');
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [isSendingVoice, setIsSendingVoice] = useState(false);
-  // Shows a delivery-progress bubble while large media / voice / video uploads.
-  const [pendingUpload, setPendingUpload] = useState<{ mediaType: string; progress: number } | null>(null);
+  // Media uploads now send cleanly in the background without a progress overlay.
   const [replyingTo, setReplyingTo] = useState<any>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [queuedMedia, setQueuedMedia] = useState<File[]>([]);
@@ -175,6 +174,7 @@ const MessagesPage = () => {
       isInitiator: false,
       participantName: participant?.profiles?.display_name || incomingChat?.name || 'User',
       participantAvatar: participant?.profiles?.avatar_url,
+      participantUserId: participant?.user_id,
     });
     navigate(location.pathname, { replace: true, state: {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -610,20 +610,14 @@ const MessagesPage = () => {
           const file = filesToUpload[i];
           const ext = file.name.split('.').pop();
           const path = `${user?.id}/${Date.now()}-${i}-${Math.random().toString(36).slice(2)}.${ext}`;
-          setPendingUpload({ mediaType: file.type, progress: Math.round((i / filesToUpload.length) * 100) });
           const url = await uploadWithProgress({
             bucket: 'messages',
             path,
             file,
             contentType: file.type || undefined,
-            onProgress: (progress) => setPendingUpload({
-              mediaType: file.type,
-              progress: Math.round(((i + progress / 100) / filesToUpload.length) * 100),
-            }),
           });
           uploadedUrls.push(url);
         }
-        setPendingUpload(null);
         await sendMessage(
           currentText.trim(),
           currentReplyingTo?.id,
@@ -636,15 +630,12 @@ const MessagesPage = () => {
           const fileExt = currentImage.name.split('.').pop();
           const fileName = `${user?.id}/${Date.now()}.${fileExt}`;
           mediaType = currentIsVideo ? `video/${fileExt}` : `image/${fileExt}`;
-          setPendingUpload({ mediaType, progress: 0 });
           mediaUrl = await uploadWithProgress({
             bucket: 'messages',
             path: fileName,
             file: currentImage,
             contentType: currentImage.type || undefined,
-            onProgress: (progress) => setPendingUpload({ mediaType: mediaType!, progress }),
           });
-          setPendingUpload(null);
         }
         await sendMessage(
           currentText.trim(),
@@ -659,19 +650,15 @@ const MessagesPage = () => {
           const extraExt = extra.name.split('.').pop();
           const extraName = `${user?.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${extraExt}`;
           try {
-            setPendingUpload({ mediaType: extra.type, progress: 0 });
             const extraUrl = await uploadWithProgress({
               bucket: 'messages',
               path: extraName,
               file: extra,
               contentType: extra.type,
-              onProgress: (progress) => setPendingUpload({ mediaType: extra.type, progress }),
             });
             await sendMessage('', undefined, extraUrl, extra.type);
           } catch {
             continue;
-          } finally {
-            setPendingUpload(null);
           }
         }
       }
@@ -684,7 +671,6 @@ const MessagesPage = () => {
         setQueuedMedia(currentQueued);
       }
       if (currentReplyingTo) setReplyingTo(currentReplyingTo);
-      setPendingUpload(null);
       toast({ title: 'Error', description: 'Failed to send message', variant: 'destructive' });
     } finally {
       messageSendInFlightRef.current = false;
@@ -715,13 +701,11 @@ const MessagesPage = () => {
       const fileName = `${user.id}/${selectedChatId}/${crypto.randomUUID()}.${extension}`;
       // The `messages` bucket rejects audio mime types, so voice notes live in the
       // dedicated `voice-notes` bucket which accepts the real audio mime.
-      setPendingUpload({ mediaType: audioMime, progress: 0 });
       const publicUrl = await uploadWithProgress({
         bucket: 'voice-notes',
         path: fileName,
         file: audioBlob,
         contentType: audioMime,
-        onProgress: (progress) => setPendingUpload({ mediaType: audioMime, progress }),
       });
       const sent = await sendMessage('', undefined, publicUrl, audioMime);
       if (!sent) throw new Error('Voice message insert failed');
@@ -733,7 +717,6 @@ const MessagesPage = () => {
     } finally {
       voiceSendInFlightRef.current = false;
       setIsSendingVoice(false);
-      setPendingUpload(null);
     }
   };
 
@@ -1099,6 +1082,7 @@ const MessagesPage = () => {
               isInitiator: true,
               participantName: otherP?.profiles?.display_name || 'User',
               participantAvatar: otherP?.profiles?.avatar_url,
+              participantUserId: otherP?.user_id,
             });
             toast({ title: 'Starting voice chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
           }}
@@ -1109,6 +1093,7 @@ const MessagesPage = () => {
               isInitiator: true,
               participantName: otherP?.profiles?.display_name || 'User',
               participantAvatar: otherP?.profiles?.avatar_url,
+              participantUserId: otherP?.user_id,
             });
             toast({ title: 'Starting video chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
           }}
@@ -1130,6 +1115,7 @@ const MessagesPage = () => {
                   isInitiator: true,
                   participantName: otherP?.profiles?.display_name || 'User',
                   participantAvatar: otherP?.profiles?.avatar_url,
+                  participantUserId: otherP?.user_id,
                 });
                 toast({ title: 'Starting video chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
               }}
@@ -1140,6 +1126,7 @@ const MessagesPage = () => {
                   isInitiator: true,
                   participantName: otherP?.profiles?.display_name || 'User',
                   participantAvatar: otherP?.profiles?.avatar_url,
+                  participantUserId: otherP?.user_id,
                 });
                 toast({ title: 'Starting voice chat…', description: `Connecting with ${otherP?.profiles?.display_name || 'participant'}` });
               }}
@@ -1260,26 +1247,6 @@ const MessagesPage = () => {
                   </div>
                 );
               })
-            )}
-            {pendingUpload && (
-              <div className="mb-2 flex justify-end px-2">
-                <div className="relative overflow-hidden rounded-[18px] rounded-br-[8px] bg-[#d9fdd3] dark:bg-[#005c4b] text-black dark:text-white px-3.5 py-2 shadow-sm min-w-[160px]">
-                  <p className="text-[13px] opacity-90">
-                    {pendingUpload.mediaType.startsWith('audio')
-                      ? 'Sending voice note…'
-                      : pendingUpload.mediaType.startsWith('video')
-                        ? 'Sending video…'
-                        : 'Sending photo…'}
-                  </p>
-                  <span className="text-[11px] opacity-80">{Math.round(pendingUpload.progress)}%</span>
-                  <div className="absolute inset-x-0 bottom-0 h-[3px] bg-white/20">
-                    <div
-                      className="h-full bg-white/90 transition-[width] duration-200 ease-out"
-                      style={{ width: `${Math.max(4, pendingUpload.progress)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
             )}
             <div ref={messagesEndRef} />
           </div>

@@ -333,7 +333,7 @@ export const EnhancedMessageBubble = ({
       </AlertDialog>
 
       {showImageViewer && <ImageViewer open={showImageViewer} onOpenChange={setShowImageViewer} imageUrls={mediaUrls || (mediaUrl ? [mediaUrl] : [])} initialIndex={galleryIndex} sender={sender} timestamp={timestamp} onReply={onReply} />}
-      <MediaGalleryModal open={showGallery} onOpenChange={setShowGallery} mediaUrls={mediaUrls || []} initialIndex={galleryIndex} onSelect={(url) => { const idx = (mediaUrls || []).indexOf(url); setGalleryIndex(idx >= 0 ? idx : 0); setSelectedImageUrl(url); setShowImageViewer(true); }} />
+      <MediaGalleryModal open={showGallery} onOpenChange={setShowGallery} mediaUrls={mediaUrls || []} initialIndex={galleryIndex} onSelect={() => { /* viewer is now handled internally by MediaGalleryModal */ }} />
     </>
   );
 };

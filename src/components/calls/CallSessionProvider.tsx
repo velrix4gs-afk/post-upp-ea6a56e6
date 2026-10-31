@@ -55,6 +55,7 @@ export const CallSessionProvider = ({ children }: { children: ReactNode }) => {
           isInitiator={activeCall.isInitiator}
           participantName={activeCall.participantName}
           participantAvatar={activeCall.participantAvatar}
+          participantUserId={activeCall.participantUserId}
           onEndCall={handleEndCall}
         />
       )}
