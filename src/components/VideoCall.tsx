@@ -103,14 +103,14 @@ export const VideoCall = ({ chatId, isInitiator, onEndCall, participantName = 'U
 
   if (!client || !call) {
     return (
-      <CallShell kind="video" participantName={participantName} participantAvatar={participantAvatar} statusText={callError || signalError || clientError ? 'Chat could not start' : isInitiator ? 'Starting video…' : 'Joining video…'} minimized={minimized} onMinimize={() => setMinimized(true)} onRestore={() => setMinimized(false)} onEnd={end} setupError={clientError?.message || callError || signalError || undefined} onRetry={retry} remoteVideo={<div className="absolute inset-0 flex items-center justify-center text-white/80"><Loader2 className="h-6 w-6 animate-spin" /></div>} controls={
-        <div className="flex items-center justify-center gap-4 sm:gap-6">
-          <Button size="icon" variant="secondary" onClick={() => { haptic('light'); setSpeakerOn(on => { const next = !on; document.querySelectorAll('audio').forEach(el => { (el as HTMLAudioElement).muted = !next; }); return next; }); }} className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation" aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}>
-            {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
-          </Button>
-          <Button size="icon" variant="destructive" onClick={end} className="h-16 w-16 rounded-full shadow-lg touch-manipulation" aria-label="Cancel chat"><PhoneOff className="h-6 w-6" /></Button>
-        </div>
-      } />
+       <CallShell kind="video" participantName={participantName} participantAvatar={participantAvatar} statusText={callError || signalError || clientError ? 'Chat could not start' : isInitiator ? 'Starting video…' : 'Joining video…'} minimized={minimized} onMinimize={() => setMinimized(true)} onRestore={() => setMinimized(false)} onEnd={end} setupError={clientError?.message || callError || signalError || undefined} onRetry={retry} remoteVideo={<div className="absolute inset-0 flex items-center justify-center text-white/80"><Loader2 className="h-6 w-6 animate-spin" /></div>} controls={
+         <div className="flex items-center justify-center gap-3 sm:gap-4">
+           <Button size="icon" variant="secondary" onClick={() => { haptic('light'); setSpeakerOn(on => !on); }} className="h-12 w-12 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 touch-manipulation" aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}>
+             {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+           </Button>
+           <Button size="icon" variant="destructive" onClick={end} className="h-14 w-14 rounded-full shadow-lg touch-manipulation" aria-label="Cancel chat"><PhoneOff className="h-6 w-6" /></Button>
+         </div>
+       } />
     );
   }
 
@@ -161,18 +161,18 @@ const VideoCallInner = ({ onEnd, minimized, setMinimized, participantName, parti
   const statusText = connected ? formatDuration(duration) : 'Connecting…';
 
   const controls = (
-    <div className="flex items-center justify-center gap-4 sm:gap-6">
-      <Button size="icon" variant="secondary" onClick={flipCam} className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation"><RefreshCw className="h-5 w-5" /></Button>
-      <Button size="icon" variant="secondary" onClick={toggleSpeaker} className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation" aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}>
-        {speakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
+    <div className="flex items-center justify-center gap-2 sm:gap-3">
+      <Button size="icon" variant="secondary" onClick={flipCam} className="h-11 w-11 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 touch-manipulation"><RefreshCw className="h-4 w-4" /></Button>
+      <Button size="icon" variant="secondary" onClick={toggleSpeaker} className="h-11 w-11 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 touch-manipulation" aria-label={speakerOn ? 'Speaker on' : 'Speaker off'}>
+        {speakerOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
       </Button>
-      <Button size="icon" variant="secondary" onClick={toggleCam} className="h-14 w-14 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 hover:text-white touch-manipulation">
-        {!camMute ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+      <Button size="icon" variant="secondary" onClick={toggleCam} className="h-11 w-11 rounded-full border border-white/10 bg-white/10 text-white hover:bg-white/20 touch-manipulation">
+        {!camMute ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
       </Button>
-      <Button size="icon" variant="secondary" onClick={toggleMic} className={`h-14 w-14 rounded-full touch-manipulation ${micMute ? 'bg-red-600 text-white hover:bg-red-700' : 'border border-white/10 bg-white/10 text-white hover:bg-white/20'}`}>
-        {!micMute ? <Mic className="h-5 w-5" /> : <MicOff className="h-5 w-5" />}
+      <Button size="icon" variant="secondary" onClick={toggleMic} className={`h-11 w-11 rounded-full touch-manipulation ${micMute ? 'bg-red-600 text-white hover:bg-red-700' : 'border border-white/10 bg-white/10 text-white hover:bg-white/20'}`}>
+        {!micMute ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
       </Button>
-      <Button size="icon" variant="destructive" onClick={onEnd} className="h-16 w-16 rounded-full shadow-lg touch-manipulation"><PhoneOff className="h-6 w-6" /></Button>
+      <Button size="icon" variant="destructive" onClick={onEnd} className="h-13 w-13 rounded-full shadow-lg touch-manipulation"><PhoneOff className="h-5 w-5" /></Button>
     </div>
   );
 

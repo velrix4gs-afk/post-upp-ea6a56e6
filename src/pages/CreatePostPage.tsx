@@ -177,22 +177,28 @@ const CreatePostPage = () => {
                   <button onClick={() => removeMedia(0)} className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5 text-white"><X className="h-5 w-5" /></button>
                 </div>
 
-                {previewMedia.length > 1 && (
-                  <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                    {previewMedia.slice(1).map((url, i) => (
-                      <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
-                        {selectedMedia[i + 1]?.type.startsWith('video/') ? (
-                          <video src={url} className="h-full w-full object-cover" muted preload="metadata" />
-                        ) : (
-                          <img src={url} className="h-full w-full object-cover" />
-                        )}
-                      </div>
-                    ))}
-                    {selectedMedia.length < 10 && (
-                      <button onClick={() => setShowGallerySheet(true)} className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50"><Plus className="h-6 w-6 text-muted-foreground" /></button>
-                    )}
-                  </div>
-                )}
+                 {previewMedia.length > 1 && (
+                   <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                     {previewMedia.slice(1).map((url, i) => (
+                       <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
+                         {selectedMedia[i + 1]?.type.startsWith('video/') ? (
+                           <video src={url} className="h-full w-full object-cover" muted preload="metadata" autoPlay loop playsInline />
+                         ) : (
+                           <img src={url} className="h-full w-full object-cover" />
+                         )}
+                         {selectedMedia[i + 1]?.type.startsWith('video/') && (
+                           <span className="absolute left-1 bottom-1 flex items-center gap-0.5 rounded-md bg-black/65 px-1 py-0.5 text-[10px] text-white">
+                             <Play className="h-2.5 w-2.5 fill-white" />
+                             {formatDuration(selectedMedia[i + 1]?.durationMs) || 'Video'}
+                           </span>
+                         )}
+                       </div>
+                     ))}
+                     {selectedMedia.length < 10 && (
+                       <button onClick={() => setShowGallerySheet(true)} className="flex h-20 w-20 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50"><Plus className="h-6 w-6 text-muted-foreground" /></button>
+                     )}
+                   </div>
+                 )}
 
                 {selectedMedia.some(f => f.type.startsWith('video/')) && (
                   <Button variant="outline" className="w-full mt-3 rounded-xl" onClick={() => setEditingVideoIndex(selectedMedia.findIndex(f => f.type.startsWith('video/')))}>

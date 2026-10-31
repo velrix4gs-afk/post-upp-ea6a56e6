@@ -110,8 +110,8 @@ export const CallShell = ({ kind, participantName, participantAvatar, statusText
 
           {kind === 'video' && localPip && <div className={cn('absolute top-20 right-4 z-10 transition-opacity duration-300', chromeVisible ? 'opacity-100' : 'opacity-70')} onClick={e => e.stopPropagation()} data-call-gesture-ignore>{localPip}</div>}
 
-          <div className={cn('absolute bottom-0 left-0 right-0 z-10 px-6 pb-[max(env(safe-area-inset-bottom),2rem)] pt-6 transition-all duration-300', 'bg-gradient-to-t from-black/80 via-black/40 to-transparent', chromeVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none')} onClick={e => e.stopPropagation()} data-call-gesture-ignore>
-            <div className="mx-auto w-fit max-w-full rounded-full border border-white/10 bg-black/40 backdrop-blur-xl p-2.5 shadow-2xl">{controls}</div>
+          <div className={cn('absolute bottom-0 left-0 right-0 z-10 px-4 pb-[max(env(safe-area-inset-bottom),1.5rem)] pt-4 transition-all duration-300', 'bg-gradient-to-t from-black/80 via-black/40 to-transparent', chromeVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4')} onClick={e => e.stopPropagation()} data-call-gesture-ignore>
+            <div className="flex items-center justify-center gap-3 sm:gap-4 overflow-x-auto px-2">{controls}</div>
           </div>
         </div>
       )}

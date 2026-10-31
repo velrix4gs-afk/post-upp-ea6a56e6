@@ -466,18 +466,22 @@ export const GalleryPickerSheet = ({
                       onClick={() => pickExisting(item)}
                       className="relative aspect-square overflow-hidden bg-muted touch-manipulation active:scale-[0.98] transition-transform"
                     >
-                      {item.kind === 'file' ? (
-                        <div className="h-full w-full bg-muted flex flex-col items-center justify-center gap-1 px-2">
-                          <FileIcon className="h-6 w-6 text-muted-foreground" />
-                          <span className="text-[9px] text-muted-foreground truncate w-full text-center">{item.name}</span>
-                        </div>
-                      ) : item.kind === 'video' && item.thumbUrl && !item.thumbUrl.startsWith('data:') ? (
-                        <video src={item.thumbUrl} className="h-full w-full object-cover" muted playsInline preload="metadata" />
-                      ) : item.thumbUrl ? (
-                        <img src={item.thumbUrl} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-muted" />
-                      )}
+                       {item.kind === 'file' ? (
+                         <div className="h-full w-full bg-muted flex flex-col items-center justify-center gap-1 px-2">
+                           <FileIcon className="h-6 w-6 text-muted-foreground" />
+                           <span className="text-[9px] text-muted-foreground truncate w-full text-center">{item.name}</span>
+                         </div>
+                       ) : item.kind === 'video' ? (
+                         item.thumbUrl ? (
+                           <img src={item.thumbUrl} alt="" className="h-full w-full object-cover" />
+                         ) : (
+                           <div className="h-full w-full bg-muted" />
+                         )
+                       ) : item.thumbUrl ? (
+                         <img src={item.thumbUrl} alt="" className="h-full w-full object-cover" />
+                       ) : (
+                         <div className="h-full w-full bg-muted" />
+                       )}
                       {item.kind === 'video' && (
                         <span className="absolute left-1 bottom-1 flex items-center gap-0.5 rounded-md bg-black/65 px-1 py-0.5 text-[10px] text-white">
                           <Play className="h-2.5 w-2.5 fill-white" />
