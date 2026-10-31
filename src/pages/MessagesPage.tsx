@@ -119,7 +119,7 @@ const MessagesPage = () => {
   const selectedChat = chats.find((c) => c.id === selectedChatId);
   const selectedParticipants = Array.isArray(selectedChat?.participants) ? selectedChat.participants : [];
   const otherParticipant = selectedParticipants.find((p) => p.user_id !== user?.id);
-  const isOnline = otherParticipant ? isUcserOnline(otherParticipant.user_id) : false;
+  const isOnline = otherParticipant ? isUserOnline(otherParticipant.user_id) : false;
   const { settings: chatSettings, toggleMute: toggleChatMute } = useChatSettings(selectedChatId || undefined, otherParticipant?.user_id);
 
   // Input/state
